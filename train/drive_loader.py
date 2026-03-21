@@ -41,15 +41,24 @@ def load_image(d):
     image = Image.open(d)
     image = ToTensor()(image)
     # Get center 512 by 512 pixels.
-    image = image[:, 0:512, 0:512]  # Crop to center.
+    x = 40
+    y = 10
+    image = image[:, 0 + x : 512 + x, 0 + y : 512 + y]  # Crop to center.
     return image
 
 
 # Assuming mask is a tensor of shape (H, W)
 def target_preprocess(mask):
-    return mask
-    one_hot_mask = mask.to(torch.int64)
-    return one_hot_mask
+    # return mask
+    one_hot_mask = F.one_hot(mask.to(torch.int64), num_classes=2)
+    # one_hot_reshaped = one_hot_mask.reshape([2, 512, 512]).to(torch.float)
+    # print(one_hot_reshaped)
+    reshaped = (
+        one_hot_mask.permute(*torch.arange(one_hot_mask.ndim - 1, -1, -1))
+        .squeeze()
+        .to(torch.float)
+    )
+    return reshaped
 
 
 def load_drive_dataset(device="cpu"):
