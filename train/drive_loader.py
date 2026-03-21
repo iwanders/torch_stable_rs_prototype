@@ -63,12 +63,16 @@ def target_preprocess(mask):
 
     if ONE_HOT:
         one_hot_mask = F.one_hot(mask.to(torch.int64), num_classes=2)
-        reshaped = (
-            one_hot_mask.permute(*torch.arange(one_hot_mask.ndim - 1, -1, -1))
-            .squeeze()
-            .to(torch.float)
-        )
-        print(reshaped.shape)
+        # print(one_hot_mask.shape)
+        reshaped = one_hot_mask.permute(0, 3, 1, 2).float().squeeze()
+        # reshaped = (
+        #    one_hot_mask.permute(*torch.arange(one_hot_mask.ndim - 1, -1, -1))
+        #    .squeeze()
+        #    .to(torch.float)
+        # )
+        # print(reshaped.shape)
+        # print(reshaped[0, :, :].max())
+        # print(reshaped[1, :, :].max())
         return reshaped
 
 
@@ -83,6 +87,7 @@ def load_drive_dataset(device="cpu"):
             mask = load_image(mask_path).to(device)
             manual1_path = DRIVE_DIR / d / "1st_manual" / f"{basename[0:2]}_manual1.gif"
             # manual1 = torch.round(load_image(manual1_path).to(device)).int()
+            print(manual1_path)
             manual1 = target_preprocess(load_image(manual1_path).to(device))
             manual2_path = DRIVE_DIR / d / "2nd_manual" / f"{basename[0:2]}_manual2.gif"
             manual2 = None

@@ -22,8 +22,17 @@ print(f"Using device: {device}")
 
 train, test = load_drive_dataset(device=device)
 
-training_set = [(a.image, a.manual1) for a in train][0:3]
-validation_set = [(a.image, a.manual1) for a in train + test][0:3]
+if False:
+    for i, v in enumerate(train):
+        epoch_dir = Path("/tmp/train/")
+        out_path = epoch_dir / f"{i:0>3}_train.png"
+        torchvision.utils.save_image(
+            [v.image, torch.stack([v.manual1, v.manual1, v.manual1])], out_path
+        )
+
+
+training_set = [(a.image, a.manual1) for a in train][0:1]
+validation_set = [(a.image, a.manual1) for a in train + test][0:1]
 
 
 # Create data loaders for our datasets; shuffle for training, not for validation
@@ -38,7 +47,7 @@ timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 # writer = SummaryWriter("runs/fashion_trainer_{}".format(timestamp))
 epoch_number = 0
 
-EPOCHS = 100
+EPOCHS = 1000
 
 best_vloss = 1_000_000.0
 
@@ -51,8 +60,8 @@ loss_fn = torch.nn.CrossEntropyLoss()
 
 
 def train_one_epoch(epoch_index):
-    running_loss = 0.0
-    last_loss = 0.0
+    epoch_loss = 0.0
+    count = 0
 
     # Here, we use enumerate(training_loader) instead of
     # iter(training_loader) so that we can track the batch
@@ -60,6 +69,8 @@ def train_one_epoch(epoch_index):
     for i, data in enumerate(training_loader):
         # Every data instance is an input + label pair
         inputs, labels = data
+
+        count += 1
 
         # Zero your gradients for every batch!
         optimizer.zero_grad()
@@ -72,8 +83,9 @@ def train_one_epoch(epoch_index):
         # labels = labels.softmax(dim=1)
         # Compute the loss and its gradients
         loss = loss_fn(outputs, labels)
-        print(loss)
+        print("batch loss", loss)
         loss.backward()
+        epoch_loss += float(loss)
 
         # Adjust learning weights
         optimizer.step()
@@ -89,9 +101,10 @@ def train_one_epoch(epoch_index):
             running_loss = 0.0
         """
 
-    return last_loss
+    return epoch_loss / count
 
 
+save_model = False
 for epoch in range(EPOCHS):
     print("EPOCH {}:".format(epoch_number + 1))
 
@@ -119,20 +132,33 @@ for epoch in range(EPOCHS):
 
             # And lets write that to disk shall we.
             batch_size = vinputs.shape[0]
-            for frame_i in range(batch_size):
-                real_i = i * batch_size + frame_i
-                mask_img = epoch_dir / f"eval_{real_i:0>5}_mask.png"
-                torchvision.utils.save_image(
-                    voutputs[frame_i, :, :][0, :, :].softmax(0), mask_img
-                )
-                image_img = epoch_dir / f"eval_{real_i:0>5}_image.png"
-                torchvision.utils.save_image(vinputs[frame_i, :, :], image_img)
+            if True:
+                for frame_i in range(batch_size):
+                    real_i = i * batch_size + frame_i
+                    mask_img = epoch_dir / f"eval_{real_i:0>5}_mask.png"
+                    this_slice = voutputs[frame_i, :, :]
+                    print(f"outputs: {voutputs.shape}")
+                    print(
+                        f"this_slice: {this_slice.shape}, this_slice[0,:,:].min() and max",
+                        this_slice[0, :, :].min(),
+                        this_slice[0, :, :].max(),
+                    )
+                    print(
+                        "                                       this_slice[1,:,:].min() and max",
+                        this_slice[1, :, :].min(),
+                        this_slice[1, :, :].max(),
+                    )
+                    index_mask = this_slice.argmax(0)
+                    # print(f"index_mask: {index_mask.shape}", index_mask)
+                    torchvision.utils.save_image(index_mask.to(torch.float), mask_img)
+                    image_img = epoch_dir / f"eval_{real_i:0>5}_image.png"
+                    torchvision.utils.save_image(vinputs[frame_i, :, :], image_img)
 
     avg_vloss = running_vloss / (i + 1)
     print("LOSS train {} valid {}".format(avg_loss, avg_vloss))
 
     # Track best performance, and save the model's state
-    if avg_vloss < best_vloss:
+    if avg_vloss < best_vloss and save_model:
         best_vloss = avg_vloss
         # model_path = "/tmp/model_{}_{}".format(timestamp, epoch_number)
         model_path = epoch_dir / "model.pth"
