@@ -22,14 +22,13 @@ print(f"Using device: {device}")
 
 train, test = load_drive_dataset(device=device)
 
-if False:
+if True:
     for i, v in enumerate(train):
         epoch_dir = Path("/tmp/train/")
         out_path = epoch_dir / f"{i:0>3}_train.png"
         torchvision.utils.save_image(
             [v.image, torch.stack([v.manual1, v.manual1, v.manual1])], out_path
         )
-
 
 training_set = [(a.image, a.manual1) for a in train][0:1]
 validation_set = [(a.image, a.manual1) for a in train + test][0:1]
@@ -47,13 +46,14 @@ timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 # writer = SummaryWriter("runs/fashion_trainer_{}".format(timestamp))
 epoch_number = 0
 
-EPOCHS = 1000
+EPOCHS = 10000
 
 best_vloss = 1_000_000.0
 
 model = Unet(channels_in=3, channels_out=2)
 model.to(device)
 
+# optimizer = torch.optim.SGD(model.parameters(), lr=0.0001, momentum=0.9)
 optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
 
 loss_fn = torch.nn.CrossEntropyLoss()
@@ -135,7 +135,6 @@ for epoch in range(EPOCHS):
             if True:
                 for frame_i in range(batch_size):
                     real_i = i * batch_size + frame_i
-                    mask_img = epoch_dir / f"eval_{real_i:0>5}_mask.png"
                     this_slice = voutputs[frame_i, :, :]
                     print(f"outputs: {voutputs.shape}")
                     print(
@@ -148,11 +147,19 @@ for epoch in range(EPOCHS):
                         this_slice[1, :, :].min(),
                         this_slice[1, :, :].max(),
                     )
+                    mask_img = epoch_dir / f"eval_{real_i:0>5}_mask.png"
                     index_mask = this_slice.argmax(0)
-                    # print(f"index_mask: {index_mask.shape}", index_mask)
                     torchvision.utils.save_image(index_mask.to(torch.float), mask_img)
-                    image_img = epoch_dir / f"eval_{real_i:0>5}_image.png"
-                    torchvision.utils.save_image(vinputs[frame_i, :, :], image_img)
+                    # print(f"index_mask: {index_mask.shape}", index_mask)
+                    values_img = epoch_dir / f"eval_{real_i:0>5}_values.png"
+                    t = this_slice[0, :, :]
+                    span = t.max() - t.min()
+                    t = (t - t.min()) / span
+                    print(t)
+                    torchvision.utils.save_image(t.to(torch.float), values_img)
+                    if epoch < 1000:
+                        image_img = epoch_dir / f"eval_{real_i:0>5}_image.png"
+                        torchvision.utils.save_image(vinputs[frame_i, :, :], image_img)
 
     avg_vloss = running_vloss / (i + 1)
     print("LOSS train {} valid {}".format(avg_loss, avg_vloss))
