@@ -30,8 +30,8 @@ if True:
             [v.image, torch.stack([v.manual1, v.manual1, v.manual1])], out_path
         )
 
-training_set = [(a.image, a.manual1) for a in train][0:1]
-validation_set = [(a.image, a.manual1) for a in train + test][0:1]
+training_set = [(a.image, a.manual1) for a in train]
+validation_set = [(a.image, a.manual1) for a in train + test]
 
 
 # Create data loaders for our datasets; shuffle for training, not for validation
@@ -78,13 +78,13 @@ def train_one_epoch(epoch_index):
 
         # Make predictions for this batch
         outputs = model(inputs)
-        print("outputs", outputs.shape, outputs.dtype)
-        print("labels", labels.shape, labels.dtype)
+        # print("outputs", outputs.shape, outputs.dtype)
+        # print("labels", labels.shape, labels.dtype)
 
         # labels = labels.softmax(dim=1)
         # Compute the loss and its gradients
         loss = loss_fn(outputs, labels)
-        print("batch loss", loss)
+        print("batch loss", float(loss))
         loss.backward()
         epoch_loss += float(loss)
 
@@ -109,9 +109,6 @@ save_model = False
 for epoch in range(EPOCHS):
     print("EPOCH {}:".format(epoch_number + 1))
 
-    epoch_dir = Path(f"/tmp/train/{epoch:0>3}/")
-    epoch_dir.mkdir(parents=True, exist_ok=True)
-
     # Make sure gradient tracking is on, and do a pass over the data
     model.train(True)
     avg_loss = train_one_epoch(
@@ -133,10 +130,14 @@ for epoch in range(EPOCHS):
 
             # And lets write that to disk shall we.
             batch_size = vinputs.shape[0]
-            if True:
+            if True and epoch % 10 == 0:
+                epoch_dir = Path(f"/tmp/train/{epoch:0>3}/")
+                epoch_dir.mkdir(parents=True, exist_ok=True)
                 for frame_i in range(batch_size):
                     real_i = i * batch_size + frame_i
                     this_slice = voutputs[frame_i, :, :]
+                    this_target = vlabels[frame_i, :, :]
+                    """
                     print(f"outputs: {voutputs.shape}")
                     print(
                         f"this_slice: {this_slice.shape}, this_slice[0,:,:].min() and max",
@@ -148,6 +149,7 @@ for epoch in range(EPOCHS):
                         this_slice[1, :, :].min(),
                         this_slice[1, :, :].max(),
                     )
+                    """
                     mask_img = epoch_dir / f"eval_{real_i:0>5}_mask.png"
                     index_mask = this_slice.argmax(0)
                     torchvision.utils.save_image(index_mask.to(torch.float), mask_img)
@@ -156,8 +158,11 @@ for epoch in range(EPOCHS):
                     t = this_slice[0, :, :]
                     span = t.max() - t.min()
                     t = (t - t.min()) / span
-                    print(t)
                     torchvision.utils.save_image(t.to(torch.float), values_img)
+                    target_img = epoch_dir / f"eval_{real_i:0>5}_target.png"
+                    torchvision.utils.save_image(
+                        this_target.to(torch.float), target_img
+                    )
                     if epoch < 1000:
                         image_img = epoch_dir / f"eval_{real_i:0>5}_image.png"
                         torchvision.utils.save_image(vinputs[frame_i, :, :], image_img)
