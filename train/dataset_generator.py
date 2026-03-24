@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 #
 
+import concurrent.futures
 from pathlib import Path
 
 import numpy as np
@@ -82,7 +83,7 @@ class DatasetGenerator:
         for i, img in enumerate(self._foreground_images):
             torchvision.utils.save_image(img, output / f"foreground_{i}.png")
 
-        for i, (sample_img, sample_mask) in enumerate(self.generate(count=10)):
+        for i, (sample_img, sample_mask) in enumerate(self.generate(count=1000)):
             torchvision.utils.save_image(sample_img, output / f"sample_{i}_img.png")
             torchvision.utils.save_image(
                 sample_mask.to(torch.float), output / f"sample_{i}_mask.png"
@@ -108,7 +109,8 @@ class DatasetGenerator:
     def generate(self, count=1, tile_size=(256, 256), seed=1, alpha_factor=1.0):
         results = []
         rng = np.random.default_rng(seed=seed)
-        for i in range(count):
+
+        def create_tile(rng):
             bg = rng.choice(self._background_images)
             fg = rng.choice(self._foreground_images)
             # Next, sample a tile from this.
@@ -123,8 +125,15 @@ class DatasetGenerator:
             mask = fg_alpha >= 0.5
             combined = torch.from_numpy(combined)
             mask = torch.from_numpy(mask).to(torch.int64).squeeze()
-            results.append((combined, mask))
+            return (combined, mask)
 
+        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+            rngs = [np.random.default_rng(seed=seed + t) for t in range(count)]
+            results = list(executor.map(create_tile, rngs))
+        # results = [
+        #    create_tile(z)
+        #    for z in list(np.random.default_rng(seed=seed + t) for t in range(count))
+        # ]
         return results
 
 

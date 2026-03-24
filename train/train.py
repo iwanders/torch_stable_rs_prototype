@@ -7,7 +7,6 @@ from pathlib import Path
 
 import torch
 import torchvision
-
 from dataset_generator import DatasetGenerator
 from drive_loader import load_drive_dataset
 from model import Unet
@@ -32,10 +31,10 @@ if True:
     foreground_dir = "../../datasets/foreground/cave/"
     d = DatasetGenerator(background_dir, foreground_dir=foreground_dir)
     training_set = d.generate(
-        count=30, tile_size=(256, 256), seed=3423423, alpha_factor=0.5
+        count=100, tile_size=(256, 256), seed=34234233, alpha_factor=0.5
     )
     validation_set = d.generate(
-        count=30, tile_size=(256, 256), seed=1, alpha_factor=0.5
+        count=30, tile_size=(256, 256), seed=2, alpha_factor=0.5
     )
     validation_set = validation_set
 
@@ -88,7 +87,9 @@ model.to(device)
 
 # optimizer = torch.optim.SGD(model.parameters(), lr=0.0001, momentum=0.9)
 # optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
-optimizer = torch.optim.AdamW(model.parameters(), lr=0.001)
+learning_rate = 0.001  # for batch size of 4.
+# learning_rate = 0.005
+optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
 
 
 loss_fn = torch.nn.CrossEntropyLoss()
@@ -154,6 +155,8 @@ for epoch in range(EPOCHS):
     # statistics for batch normalization.
     model.eval()
 
+    epoch_dir = Path(f"/tmp/train/{epoch:0>3}/")
+    epoch_dir = Path(f"/tmp/train/{epoch:0>3}/")
     # Disable gradient computation and reduce memory consumption.
     with torch.no_grad():
         for i, vdata in enumerate(validation_loader):
@@ -165,7 +168,6 @@ for epoch in range(EPOCHS):
             # And lets write that to disk shall we.
             batch_size = vinputs.shape[0]
             if True and (epoch < 10 or epoch % 10 == 0):
-                epoch_dir = Path(f"/tmp/train/{epoch:0>3}/")
                 epoch_dir.mkdir(parents=True, exist_ok=True)
                 for frame_i in range(batch_size):
                     real_i = i * batch_size + frame_i
@@ -189,7 +191,7 @@ for epoch in range(EPOCHS):
                     torchvision.utils.save_image(index_mask.to(torch.float), mask_img)
                     # print(f"index_mask: {index_mask.shape}", index_mask)
                     values_img = epoch_dir / f"eval_{real_i:0>5}_values.png"
-                    t = this_slice[0, :, :]
+                    t = this_slice[1, :, :]
                     span = t.max() - t.min()
                     t = (t - t.min()) / span
                     torchvision.utils.save_image(t.to(torch.float), values_img)
@@ -206,6 +208,7 @@ for epoch in range(EPOCHS):
 
     # Track best performance, and save the model's state
     if avg_vloss < best_vloss and save_model:
+        epoch_dir.mkdir(parents=True, exist_ok=True)
         best_vloss = avg_vloss
         # model_path = "/tmp/model_{}_{}".format(timestamp, epoch_number)
         model_path = epoch_dir / "model.pth"
