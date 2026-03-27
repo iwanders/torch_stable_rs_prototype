@@ -20,10 +20,14 @@
 
 pub mod aoti_torch;
 pub mod stable;
+mod util;
 
 use aoti_torch::*;
 // Input param: AtenTensorHandle
 // Output param: &mut AtenTensorHandle
+
+pub use util::StableTorchResult;
+pub(crate) use util::unsafe_call_bail;
 
 #[derive(Copy, Clone, Debug)]
 pub struct Device(i32);

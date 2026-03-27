@@ -3,6 +3,8 @@
 use super::super::AOTI_TORCH_SUCCESS;
 use super::accelerator::DeviceIndex;
 use super::c::torch_parse_device_string;
+use crate::{StableTorchResult, unsafe_call_bail};
+use anyhow::{anyhow, bail};
 
 use std::ffi::CString;
 // https://github.com/pytorch/pytorch/tree/fbdef9635b009f670321b1263bec7b48e2d7379f/torch/headeronly/core
@@ -36,43 +38,42 @@ pub enum DeviceType {
 }
 
 impl TryFrom<u32> for DeviceType {
-    type Error = ();
+    type Error = anyhow::Error;
 
     fn try_from(value: u32) -> Result<Self, Self::Error> {
         match value {
             v if v == (DeviceType::CPU as u32) => Ok(DeviceType::CPU),
             v if v == (DeviceType::CUDA as u32) => Ok(DeviceType::CUDA),
-            _ => Err(()),
+            _ => Err(anyhow!("could not convert {} into DeviceType", value)),
         }
     }
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct Device {
     device_type: DeviceType,
     device_index: DeviceIndex,
 }
 
 impl Device {
-    pub fn from_str(device_string: &str) -> Result<Self, ()> {
+    pub fn from_str(device_string: &str) -> StableTorchResult<Self> {
         if device_string.is_empty() {
             // This causes an assert under the hood.
-            return Err(());
+            bail!("device string may not be empty");
         }
         let as_cstr = CString::new(device_string).expect("CString::new failed");
         let device_string = as_cstr.as_ptr();
         let mut device_type = 0u32;
         let mut device_index = 0i32;
-        let res = unsafe {
-            torch_parse_device_string(device_string, &mut device_type, &mut device_index)
-        };
-        if res == AOTI_TORCH_SUCCESS {
-            Ok(Self {
-                device_type: device_type.try_into()?,
-                device_index: DeviceIndex(device_index),
-            })
-        } else {
-            Err(())
-        }
+        unsafe_call_bail!(torch_parse_device_string(
+            device_string,
+            &mut device_type,
+            &mut device_index,
+        ));
+        Ok(Self {
+            device_type: device_type.try_into()?,
+            device_index: DeviceIndex(device_index),
+        })
     }
 
     // Called 'type' on cpp.
@@ -105,5 +106,9 @@ mod test {
         let cuda_dev = Device::from_str("cuda:1").unwrap();
         assert_eq!(cuda_dev.device_type(), DeviceType::CUDA);
         assert_eq!(cuda_dev.device_index().0, 1);
+
+        let res = Device::from_str("definitely_not_a_valid_type:1");
+        assert!(res.is_err());
+        println!("res: {res:?}");
     }
 }
