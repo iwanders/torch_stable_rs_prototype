@@ -71,9 +71,26 @@ pub enum Layout {
     SparseBsr,
     SparseBsc,
     Jagged,
-    NumOptions,
+    // NumOptions,
 }
 
+impl TryFrom<i32> for Layout {
+    type Error = anyhow::Error;
+
+    fn try_from(value: i32) -> Result<Self, Self::Error> {
+        match value {
+            v if v == (Layout::Strided as i32) => Ok(Layout::Strided),
+            v if v == (Layout::Sparse as i32) => Ok(Layout::Sparse),
+            v if v == (Layout::SparseCsr as i32) => Ok(Layout::SparseCsr),
+            v if v == (Layout::Mkldnn as i32) => Ok(Layout::Mkldnn),
+            v if v == (Layout::SparseCsc as i32) => Ok(Layout::SparseCsc),
+            v if v == (Layout::SparseBsr as i32) => Ok(Layout::SparseBsr),
+            v if v == (Layout::SparseBsc as i32) => Ok(Layout::SparseBsc),
+            v if v == (Layout::Jagged as i32) => Ok(Layout::Jagged),
+            _ => Err(anyhow!("could not convert {} into Layout", value)),
+        }
+    }
+}
 // ScalarType
 // Tostring; https://github.com/pytorch/pytorch/blob/f2b47323ac2c438722c2db58aa31d9222676509d/torch/headeronly/core/ScalarType.h#L320
 // https://github.com/pytorch/pytorch/blob/f2b47323ac2c438722c2db58aa31d9222676509d/torch/headeronly/core/ScalarType.h#L258-L264
@@ -140,4 +157,64 @@ pub enum ScalarType {
     Float4_e2m1fn_x2,
     Undefined,
     // NumOptions,
+}
+
+impl TryFrom<i32> for ScalarType {
+    type Error = anyhow::Error;
+
+    fn try_from(value: i32) -> Result<Self, Self::Error> {
+        match value {
+            v if v == (ScalarType::Byte as i32) => Ok(ScalarType::Byte),
+            v if v == (ScalarType::Char as i32) => Ok(ScalarType::Char),
+            v if v == (ScalarType::Short as i32) => Ok(ScalarType::Short),
+            v if v == (ScalarType::Byte as i32) => Ok(ScalarType::Byte),
+            v if v == (ScalarType::Char as i32) => Ok(ScalarType::Char),
+            v if v == (ScalarType::Short as i32) => Ok(ScalarType::Short),
+            v if v == (ScalarType::Int as i32) => Ok(ScalarType::Int),
+            v if v == (ScalarType::Long as i32) => Ok(ScalarType::Long),
+            v if v == (ScalarType::Half as i32) => Ok(ScalarType::Half),
+            v if v == (ScalarType::Float as i32) => Ok(ScalarType::Float),
+            v if v == (ScalarType::Double as i32) => Ok(ScalarType::Double),
+            v if v == (ScalarType::ComplexHalf as i32) => Ok(ScalarType::ComplexHalf),
+            v if v == (ScalarType::ComplexFloat as i32) => Ok(ScalarType::ComplexFloat),
+            v if v == (ScalarType::ComplexDouble as i32) => Ok(ScalarType::ComplexDouble),
+            v if v == (ScalarType::Bool as i32) => Ok(ScalarType::Bool),
+            v if v == (ScalarType::QInt8 as i32) => Ok(ScalarType::QInt8),
+            v if v == (ScalarType::QUInt8 as i32) => Ok(ScalarType::QUInt8),
+            v if v == (ScalarType::QInt32 as i32) => Ok(ScalarType::QInt32),
+            v if v == (ScalarType::BFloat16 as i32) => Ok(ScalarType::BFloat16),
+            v if v == (ScalarType::QUInt4x2 as i32) => Ok(ScalarType::QUInt4x2),
+            v if v == (ScalarType::QUInt2x4 as i32) => Ok(ScalarType::QUInt2x4),
+            v if v == (ScalarType::Bits1x8 as i32) => Ok(ScalarType::Bits1x8),
+            v if v == (ScalarType::Bits2x4 as i32) => Ok(ScalarType::Bits2x4),
+            v if v == (ScalarType::Bits4x2 as i32) => Ok(ScalarType::Bits4x2),
+            v if v == (ScalarType::Bits8 as i32) => Ok(ScalarType::Bits8),
+            v if v == (ScalarType::Bits16 as i32) => Ok(ScalarType::Bits16),
+            v if v == (ScalarType::Float8_e5m2 as i32) => Ok(ScalarType::Float8_e5m2),
+            v if v == (ScalarType::Float8_e4m3fn as i32) => Ok(ScalarType::Float8_e4m3fn),
+            v if v == (ScalarType::Float8_e5m2fnuz as i32) => Ok(ScalarType::Float8_e5m2fnuz),
+            v if v == (ScalarType::Float8_e4m3fnuz as i32) => Ok(ScalarType::Float8_e4m3fnuz),
+            v if v == (ScalarType::UInt16 as i32) => Ok(ScalarType::UInt16),
+            v if v == (ScalarType::UInt32 as i32) => Ok(ScalarType::UInt32),
+            v if v == (ScalarType::UInt64 as i32) => Ok(ScalarType::UInt64),
+            v if v == (ScalarType::UInt1 as i32) => Ok(ScalarType::UInt1),
+            v if v == (ScalarType::UInt2 as i32) => Ok(ScalarType::UInt2),
+            v if v == (ScalarType::UInt3 as i32) => Ok(ScalarType::UInt3),
+            v if v == (ScalarType::UInt4 as i32) => Ok(ScalarType::UInt4),
+            v if v == (ScalarType::UInt5 as i32) => Ok(ScalarType::UInt5),
+            v if v == (ScalarType::UInt6 as i32) => Ok(ScalarType::UInt6),
+            v if v == (ScalarType::UInt7 as i32) => Ok(ScalarType::UInt7),
+            v if v == (ScalarType::Int1 as i32) => Ok(ScalarType::Int1),
+            v if v == (ScalarType::Int2 as i32) => Ok(ScalarType::Int2),
+            v if v == (ScalarType::Int3 as i32) => Ok(ScalarType::Int3),
+            v if v == (ScalarType::Int4 as i32) => Ok(ScalarType::Int4),
+            v if v == (ScalarType::Int5 as i32) => Ok(ScalarType::Int5),
+            v if v == (ScalarType::Int6 as i32) => Ok(ScalarType::Int6),
+            v if v == (ScalarType::Int7 as i32) => Ok(ScalarType::Int7),
+            v if v == (ScalarType::Float8_e8m0fnu as i32) => Ok(ScalarType::Float8_e8m0fnu),
+            v if v == (ScalarType::Float4_e2m1fn_x2 as i32) => Ok(ScalarType::Float4_e2m1fn_x2),
+            v if v == (ScalarType::Undefined as i32) => Ok(ScalarType::Undefined),
+            _ => Err(anyhow!("could not convert {} into ScalarType", value)),
+        }
+    }
 }

@@ -5,6 +5,7 @@
 
 pub type StableTorchResult<T> = anyhow::Result<T>;
 
+/// For functions that can fail somewhat gracefully.
 macro_rules! unsafe_call_bail {
     ($($tokens:tt)*) => {{
         let api_call_result = unsafe {$($tokens)*};
@@ -15,4 +16,17 @@ macro_rules! unsafe_call_bail {
     }};
 }
 
+/// For functions that cannot return a failure like Drop, or functions where it would lead to questionmark soup
+/// like getting the dim() on a guaranteed existing tensor pointer.
+macro_rules! unsafe_call_panic {
+    ($($tokens:tt)*) => {{
+        let api_call_result = unsafe {$($tokens)*};
+        let code_text = stringify!($($tokens)*);
+        if api_call_result == crate::AOTI_TORCH_FAILURE {
+            panic!("call failed ({}) at {}:{}", code_text, file!(), line!());
+        }
+    }};
+}
+
 pub(crate) use unsafe_call_bail;
+pub(crate) use unsafe_call_panic;

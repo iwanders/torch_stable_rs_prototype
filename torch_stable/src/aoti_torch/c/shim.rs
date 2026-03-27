@@ -81,6 +81,55 @@ unsafe extern "C" {
     //
     pub unsafe fn aoti_torch_delete_tensor_object(tensor: AtenTensorHandle) -> AOTITorchError;
 
+    // https://github.com/pytorch/pytorch/blob/e0347a69ec5546b16b89f3665be60a0932905f19/torch/csrc/inductor/aoti_torch/c/shim.h#L212
+
+    // Get the nbytes of the underlying storage
+    pub unsafe fn aoti_torch_get_storage_size(
+        tensor: AtenTensorHandle,
+        ret_size: *mut i64,
+    ) -> AOTITorchError;
+
+    pub unsafe fn aoti_torch_get_dim(tensor: AtenTensorHandle, ret_dim: *mut i64)
+    -> AOTITorchError;
+
+    pub unsafe fn aoti_torch_get_numel(
+        tensor: AtenTensorHandle,
+        ret_numel: *mut i64,
+    ) -> AOTITorchError;
+
+    pub unsafe fn aoti_torch_get_storage_numel(
+        tensor: AtenTensorHandle,
+        ret_numel: *mut i64,
+    ) -> AOTITorchError;
+
+    /// Returns a borrowed reference
+    pub unsafe fn aoti_torch_get_sizes(
+        tensor: AtenTensorHandle,
+        ret_sizes: &mut *const i64, // int64_t** ret_sizes // returns borrowed reference
+    ) -> AOTITorchError;
+
+    pub unsafe fn aoti_torch_get_size(
+        tensor: AtenTensorHandle,
+        d: i64,
+        ret_size: *mut i64,
+    ) -> AOTITorchError;
+
+    pub unsafe fn aoti_torch_get_strides(
+        tensor: AtenTensorHandle,
+        ret_strides: &mut *const i64, // int64_t** ret_strides // returns borrowed reference
+    ) -> AOTITorchError;
+
+    pub unsafe fn aoti_torch_get_stride(
+        tensor: AtenTensorHandle,
+        d: i64,
+        ret_stride: *mut i64,
+    ) -> AOTITorchError;
+
+    pub unsafe fn aoti_torch_get_dtype(
+        tensor: AtenTensorHandle,
+        ret_dtype: *mut i32,
+    ) -> AOTITorchError;
+
     // https://github.com/pytorch/pytorch/blob/f2b47323ac2c438722c2db58aa31d9222676509d/torch/csrc/inductor/aoti_torch/c/shim.h#L244
 
     pub unsafe fn aoti_torch_get_device_type(
@@ -91,6 +140,22 @@ unsafe extern "C" {
     pub unsafe fn aoti_torch_get_device_index(
         tensor: AtenTensorHandle,
         ret_device_type: &mut i32,
+    ) -> AOTITorchError;
+
+    pub unsafe fn aoti_torch_get_layout(
+        tensor: AtenTensorHandle,
+        ret_layout: *mut i32,
+    ) -> AOTITorchError;
+
+    // https://github.com/pytorch/pytorch/blob/e0347a69ec5546b16b89f3665be60a0932905f19/torch/csrc/inductor/aoti_torch/c/shim.h#L256C1-L258C76
+    pub unsafe fn aoti_torch_is_contiguous(
+        tensor: AtenTensorHandle,
+        ret_is_contiguous: &mut bool,
+    ) -> AOTITorchError;
+
+    pub unsafe fn aoti_torch_is_defined(
+        tensor: AtenTensorHandle,
+        ret_is_contiguous: &mut bool,
     ) -> AOTITorchError;
 
     // https://github.com/pytorch/pytorch/blob/f2b47323ac2c438722c2db58aa31d9222676509d/torch/csrc/inductor/aoti_torch/c/shim.h#L289

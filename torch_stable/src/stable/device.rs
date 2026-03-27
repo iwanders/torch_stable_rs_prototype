@@ -15,6 +15,13 @@ pub struct Device {
 }
 
 impl Device {
+    pub(crate) fn from_parts(device_type: DeviceType, device_index: DeviceIndex) -> Self {
+        Self {
+            device_type,
+            device_index,
+        }
+    }
+
     pub fn from_str(device_string: &str) -> StableTorchResult<Self> {
         if device_string.is_empty() {
             // This causes an assert under the hood.

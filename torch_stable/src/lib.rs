@@ -28,7 +28,7 @@ use aoti_torch::*;
 // Output param: &mut AtenTensorHandle
 
 pub use util::StableTorchResult;
-pub(crate) use util::unsafe_call_bail;
+pub(crate) use util::{unsafe_call_bail, unsafe_call_panic};
 
 pub(crate) const RUN_SPAMMY_TESTS: bool = false;
 
