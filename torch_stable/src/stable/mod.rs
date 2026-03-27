@@ -2,3 +2,4 @@
 pub mod accelerator;
 pub mod c;
 pub mod device;
+pub mod tensor;

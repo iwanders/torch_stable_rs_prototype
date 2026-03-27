@@ -58,8 +58,9 @@ unsafe extern "C" {
     pub unsafe fn aoti_torch_memory_format_preserve_format() -> i32;
 
     // Get TORCH_ABI_VERSION of the built libtorch.so
-    //fn aoti_torch_abi_version() -> u64;
+    pub unsafe fn aoti_torch_abi_version() -> u64;
     // Not in my version :< Need to update my driver to use the latest libtorch :/
+    // Updated my driver, also needed that to parse the device string... and the stable api only exists from 2.10 really anyway.
 
     // Conversions
     // https://github.com/pytorch/pytorch/blob/f2b47323ac2c438722c2db58aa31d9222676509d/torch/csrc/inductor/aoti_torch/c/shim.h#L106

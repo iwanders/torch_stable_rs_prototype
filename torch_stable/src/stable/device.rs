@@ -6,48 +6,8 @@ use super::c::torch_parse_device_string;
 use crate::{StableTorchResult, unsafe_call_bail};
 use anyhow::{anyhow, bail};
 
+use crate::headeronly::core::DeviceType;
 use std::ffi::CString;
-// https://github.com/pytorch/pytorch/tree/fbdef9635b009f670321b1263bec7b48e2d7379f/torch/headeronly/core
-
-// https://github.com/pytorch/pytorch/blob/fbdef9635b009f670321b1263bec7b48e2d7379f/torch/headeronly/core/DeviceType.h#L35
-// Should this be in headeronly/core/DeviceType?
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-#[repr(i8)]
-pub enum DeviceType {
-    CPU = 0,
-    CUDA = 1,         // CUDA.
-    MKLDNN = 2,       // Reserved for explicit MKLDNN
-    OPENGL = 3,       // OpenGL
-    OPENCL = 4,       // OpenCL
-    IDEEP = 5,        // IDEEP.
-    HIP = 6,          // AMD HIP
-    FPGA = 7,         // FPGA
-    MAIA = 8,         // ONNX Runtime / Microsoft
-    XLA = 9,          // XLA / TPU
-    Vulkan = 10,      // Vulkan
-    Metal = 11,       // Metal
-    XPU = 12,         // XPU
-    MPS = 13,         // MPS
-    Meta = 14,        // Meta (tensors with no data)
-    HPU = 15,         // HPU / HABANA
-    VE = 16,          // SX-Aurora / NEC
-    Lazy = 17,        // Lazy Tensors
-    IPU = 18,         // Graphcore IPU
-    MTIA = 19,        // Meta training and inference devices
-    PrivateUse1 = 20, // PrivateUse1 device
-}
-
-impl TryFrom<u32> for DeviceType {
-    type Error = anyhow::Error;
-
-    fn try_from(value: u32) -> Result<Self, Self::Error> {
-        match value {
-            v if v == (DeviceType::CPU as u32) => Ok(DeviceType::CPU),
-            v if v == (DeviceType::CUDA as u32) => Ok(DeviceType::CUDA),
-            _ => Err(anyhow!("could not convert {} into DeviceType", value)),
-        }
-    }
-}
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct Device {
