@@ -189,6 +189,21 @@ unsafe extern "C" {
 
 // https://github.com/pytorch/pytorch/blob/3848e11d554a7f49925b593c40b8be0b86ac6b3f/torch/csrc/inductor/aoti_torch/c/shim.h#L485-L486
 // pub type StableIValue = u64;
-#[derive(Debug, Copy, Clone)]
+#[derive(Copy, Clone)]
 #[repr(transparent)]
 pub struct StableIValue(pub u64);
+impl std::fmt::Debug for StableIValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "StableIValue(0x{:x})", self.0) //0>16
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn test_aoti_torch_abi_version_print() {
+        let value = unsafe { aoti_torch_abi_version() };
+        println!("aoti_torch_abi_version 0x{value:0>8x}");
+    }
+}

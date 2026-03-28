@@ -1,11 +1,42 @@
 use super::device::Device;
+use super::stableivalue_conversions::StableIValue;
 use super::tensor::Tensor;
 use crate::aoti_torch::*;
 use crate::headeronly::core::{Layout, MemoryFormat, ScalarType};
+use crate::stable::c::*;
 use crate::{StableTorchResult, unsafe_call_bail};
 
+// This is a macro mostly to ensure we have the correct line number and file :/
+macro_rules! unsafe_call_dispatch_bail {
+    ($op_name:expr, $overload_name:expr, $stack:expr) => {{
+        let op_name = std::ffi::CString::new($op_name).expect("CString::new failed");
+        let op_name_cstr = op_name.as_ptr();
+
+        let overload_name = std::ffi::CString::new($overload_name).expect("CString::new failed");
+        let overload_name_cstr = overload_name.as_ptr();
+
+        let api_call_result = unsafe {
+            torch_call_dispatcher(
+                op_name_cstr,
+                overload_name_cstr,
+                $stack.as_mut_ptr(),
+                crate::TORCH_ABI_VERSION,
+            )
+        };
+        if api_call_result == crate::AOTI_TORCH_FAILURE {
+            anyhow::bail!(
+                "dispatch failed ({}, {}) at {}:{}",
+                $op_name,
+                $overload_name,
+                file!(),
+                line!()
+            );
+        }
+    }};
+}
+
 #[derive(Copy, Clone, Debug, Default)]
-struct ToOptions {
+pub struct ToOptions {
     pub dtype: Option<ScalarType>,
     pub layout: Option<Layout>,
     pub device: Option<Device>,
@@ -29,9 +60,25 @@ impl Tensor {
     }
     // For some reason, addition is NOT a default op? >_<
 
-    // https://github.com/pytorch/pytorch/blob/f2b47323ac2c438722c2db58aa31d9222676509d/torch/csrc/stable/ops.h#L824
+    // https://github.com/pytorch/pytorch/blob/v2.11.0/torch/csrc/stable/ops.h#L824
     pub fn to(&self, options: &ToOptions) -> StableTorchResult<Tensor> {
-        todo!("needs this call dispatch thing")
+        let mut stack: [StableIValue; 8] = [
+            self.into(),
+            (&options.dtype).into(),
+            (&options.layout).into(),
+            (&options.device).into(),
+            (&options.pin_memory).into(),
+            options.non_blocking.into(),
+            options.copy.into(),
+            (&options.memory_format).into(),
+        ];
+        println!("self: {:?}", self.get() as *const Tensor);
+        println!("Stack: {:?}", stack);
+        for (i, v) in stack.iter().enumerate() {
+            println!("i: {i}: addr: 0x{:x?}", v as *const StableIValue);
+        }
+        unsafe_call_dispatch_bail!("aten::to", "dtype_layout", stack.as_mut_slice());
+        stack[0].try_into()
     }
 }
 
@@ -52,10 +99,12 @@ mod test {
         use crate::contrib::{FromScalar, ToScalar};
         let a = Tensor::from_f32(5.0).unwrap();
         a.to(&ToOptions {
-            device: Some(Device::from_str("cuda")?),
+            device: Some(Device::from_str("cpu")?),
+            copy: true,
             ..Default::default()
         })
         .unwrap();
+        std::process::exit(0);
 
         Ok(())
     }

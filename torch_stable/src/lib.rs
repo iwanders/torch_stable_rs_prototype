@@ -33,3 +33,5 @@ pub(crate) use util::{unsafe_call_bail, unsafe_call_panic};
 
 #[cfg(test)]
 pub(crate) const RUN_SPAMMY_TESTS: bool = false;
+
+pub const TORCH_ABI_VERSION: u64 = 0x20b000000000000; // as retrieved by _torch_abi_version, through test_aoti_torch_abi_version_print

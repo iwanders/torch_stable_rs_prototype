@@ -2,6 +2,10 @@ use anyhow::anyhow;
 
 // https://github.com/pytorch/pytorch/blob/3848e11d554a7f49925b593c40b8be0b86ac6b3f/torch/csrc/stable/stableivalue_conversions.h#L100-L101
 // Gaaah, these are the header side values only, they always call through the shim to get the actual values.
+// TODO:
+// Something like:
+// static DEVICE_TYPE_CPU: i8  = unsafe{aoti_torch_device_type_cpu()};
+// Eliminate the constants from this file completely.
 
 // https://github.com/pytorch/pytorch/tree/fbdef9635b009f670321b1263bec7b48e2d7379f/torch/headeronly/core
 
