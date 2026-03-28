@@ -218,3 +218,28 @@ impl TryFrom<i32> for ScalarType {
         }
     }
 }
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[repr(i8)]
+#[allow(non_camel_case_types)]
+pub enum MemoryFormat {
+    Contiguous,
+    Preserve,
+    ChannelsLast,
+    ChannelsLast3d,
+    // NumOptions,
+}
+
+impl TryFrom<i32> for MemoryFormat {
+    type Error = anyhow::Error;
+
+    fn try_from(value: i32) -> Result<Self, Self::Error> {
+        match value {
+            v if v == (MemoryFormat::Contiguous as i32) => Ok(MemoryFormat::Contiguous),
+            v if v == (MemoryFormat::Preserve as i32) => Ok(MemoryFormat::Preserve),
+            v if v == (MemoryFormat::ChannelsLast as i32) => Ok(MemoryFormat::ChannelsLast),
+            v if v == (MemoryFormat::ChannelsLast3d as i32) => Ok(MemoryFormat::ChannelsLast3d),
+            _ => Err(anyhow!("could not convert {} into ChannelsLast3d", value)),
+        }
+    }
+}
