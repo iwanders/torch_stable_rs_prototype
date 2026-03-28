@@ -11,7 +11,7 @@ macro_rules! unsafe_call_bail {
         let api_call_result = unsafe {$($tokens)*};
         let code_text = stringify!($($tokens)*);
         if api_call_result == crate::AOTI_TORCH_FAILURE {
-            bail!("call failed ({}) at {}:{}", code_text, file!(), line!());
+            anyhow::bail!("call failed ({}) at {}:{}", code_text, file!(), line!());
         }
     }};
 }

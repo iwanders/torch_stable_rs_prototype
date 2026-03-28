@@ -13,7 +13,8 @@ use std::sync::Arc;
 use crate::{StableTorchResult, unsafe_call_bail, unsafe_call_panic};
 use anyhow::{anyhow, bail};
 
-struct Tensordropper(AtenTensorHandle);
+// Yes, you can look at this, yes you can do whatever you want, I don't care.
+pub struct Tensordropper(pub AtenTensorHandle);
 impl Drop for Tensordropper {
     fn drop(&mut self) {
         // We can't do anything with the return value here, so we quietly ignore it :/
@@ -31,9 +32,7 @@ impl Tensor {
     pub fn new() -> StableTorchResult<Self> {
         let mut handle_res: AtenTensorHandle = std::ptr::null_mut();
         unsafe_call_bail!(aoti_torch_new_uninitialized_tensor(&mut handle_res));
-        Ok(Self {
-            ath: Arc::new(Tensordropper(handle_res)),
-        })
+        Ok(Self::from_handle(handle_res))
     }
 
     /// Direct access to the tensor handle.
@@ -145,6 +144,19 @@ impl Tensor {
     }
 }
 
+// Some minimal contrib below
+impl Tensor {
+    pub(crate) fn from_handle(handle: AtenTensorHandle) -> Self {
+        Self {
+            ath: Arc::new(Tensordropper(handle)),
+        }
+    }
+
+    pub(crate) fn get_arc(&self) -> &Arc<Tensordropper> {
+        &self.ath
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -161,5 +173,20 @@ mod test {
         assert_eq!(t.defined(), false);
         assert_eq!(t.scalar_type(), ScalarType::Undefined);
         // assert_eq!(t.device(), Device::from_str("cpu").unwrap());
+    }
+    #[test]
+    fn test_tensor_from_scalar() {
+        use crate::contrib::FromScalar;
+        let t = Tensor::from_f32(std::f32::consts::PI).unwrap();
+        assert_eq!(t.dim(), 0);
+        assert_eq!(t.numel(), 1);
+        assert_eq!(t.sizes(), &[]);
+        assert_eq!(t.strides(), &[]);
+        assert_eq!(t.is_contiguous(), true);
+        // assert_eq!(t.stride(0), 0); // no dimensions
+        assert_eq!(t.get_device_index(), DeviceIndex(-1));
+        assert_eq!(t.defined(), true);
+        assert_eq!(t.scalar_type(), ScalarType::Float);
+        assert_eq!(t.device(), Device::from_str("cpu").unwrap());
     }
 }
