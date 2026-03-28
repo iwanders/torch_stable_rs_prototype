@@ -1,4 +1,5 @@
 // This holds things that aren't actually part of the upstream stable API, but make sense.
+// They're implemented as a trait, to make it clear it is opt in.
 
 use crate::aoti_torch::AtenTensorHandle;
 use crate::aoti_torch::*;
@@ -23,6 +24,24 @@ impl FromScalar for Tensor {
     }
 }
 
+pub trait ToScalar {
+    fn to_f32(&self) -> StableTorchResult<f32>;
+    fn to_f64(&self) -> StableTorchResult<f64>;
+}
+impl ToScalar for Tensor {
+    fn to_f32(&self) -> StableTorchResult<f32> {
+        let mut sum_result: f32 = 0.0;
+        unsafe_call_bail!(aoti_torch_item_float32(self.get(), &mut sum_result));
+        Ok(sum_result)
+    }
+
+    fn to_f64(&self) -> StableTorchResult<f64> {
+        let mut sum_result: f64 = 0.0;
+        unsafe_call_bail!(aoti_torch_item_float64(self.get(), &mut sum_result));
+        Ok(sum_result)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -31,8 +50,9 @@ mod test {
 
     use crate::stable::device::{Device, DeviceIndex, DeviceType};
     #[test]
-    fn test_tensor_from_scalar() {
+    fn test_tensor_from_to_scalar() {
         use crate::contrib::FromScalar;
+        use crate::contrib::ToScalar;
         let t = Tensor::from_f32(std::f32::consts::PI).unwrap();
         assert_eq!(t.dim(), 0);
         assert_eq!(t.numel(), 1);
@@ -44,7 +64,12 @@ mod test {
         assert_eq!(t.defined(), true);
         assert_eq!(t.scalar_type(), ScalarType::Float);
         assert_eq!(t.device(), Device::from_str("cpu").unwrap());
+        assert_eq!(t.to_f32().unwrap(), std::f32::consts::PI);
+
+        // and double
+
         let t = Tensor::from_f64(std::f64::consts::PI).unwrap();
         assert_eq!(t.scalar_type(), ScalarType::Double);
+        assert_eq!(t.to_f64().unwrap(), std::f64::consts::PI);
     }
 }

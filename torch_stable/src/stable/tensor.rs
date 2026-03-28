@@ -146,13 +146,13 @@ impl Tensor {
 
 // Some minimal contrib below
 impl Tensor {
-    pub(crate) fn from_handle(handle: AtenTensorHandle) -> Self {
+    pub fn from_handle(handle: AtenTensorHandle) -> Self {
         Self {
             ath: Arc::new(Tensordropper(handle)),
         }
     }
 
-    pub(crate) fn get_arc(&self) -> &Arc<Tensordropper> {
+    pub fn get_arc(&self) -> &Arc<Tensordropper> {
         &self.ath
     }
 }

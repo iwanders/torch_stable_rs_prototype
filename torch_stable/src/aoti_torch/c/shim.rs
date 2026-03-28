@@ -70,6 +70,11 @@ unsafe extern "C" {
         ret_value: *mut f32,
     ) -> AOTITorchError;
 
+    pub unsafe fn aoti_torch_item_float64(
+        tensor: AtenTensorHandle,
+        ret_value: *mut f64,
+    ) -> AOTITorchError;
+
     // Scalar to single element tensor
     // https://github.com/pytorch/pytorch/blob/f2b47323ac2c438722c2db58aa31d9222676509d/torch/csrc/inductor/aoti_torch/c/shim.h#L137
     pub unsafe fn aoti_torch_scalar_to_tensor_float32(

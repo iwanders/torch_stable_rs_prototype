@@ -6,4 +6,12 @@ unsafe extern "C" {
         _self: AtenTensorHandle,
         value: f64,
     ) -> AOTITorchError;
+
+    pub unsafe fn aoti_torch_aten_subtract_Tensor(
+        _self: AtenTensorHandle,
+        other: AtenTensorHandle,
+        alpha: f64,
+        ret0: *mut AtenTensorHandle,
+    ) -> AOTITorchError;
+
 }
