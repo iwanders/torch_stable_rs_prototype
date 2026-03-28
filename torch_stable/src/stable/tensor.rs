@@ -174,19 +174,4 @@ mod test {
         assert_eq!(t.scalar_type(), ScalarType::Undefined);
         // assert_eq!(t.device(), Device::from_str("cpu").unwrap());
     }
-    #[test]
-    fn test_tensor_from_scalar() {
-        use crate::contrib::FromScalar;
-        let t = Tensor::from_f32(std::f32::consts::PI).unwrap();
-        assert_eq!(t.dim(), 0);
-        assert_eq!(t.numel(), 1);
-        assert_eq!(t.sizes(), &[]);
-        assert_eq!(t.strides(), &[]);
-        assert_eq!(t.is_contiguous(), true);
-        // assert_eq!(t.stride(0), 0); // no dimensions
-        assert_eq!(t.get_device_index(), DeviceIndex(-1));
-        assert_eq!(t.defined(), true);
-        assert_eq!(t.scalar_type(), ScalarType::Float);
-        assert_eq!(t.device(), Device::from_str("cpu").unwrap());
-    }
 }

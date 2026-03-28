@@ -77,6 +77,11 @@ unsafe extern "C" {
         ret_new_tensor: &mut AtenTensorHandle,
     ) -> AOTITorchError;
 
+    pub unsafe fn aoti_torch_scalar_to_tensor_float64(
+        value: f64,
+        ret_new_tensor: &mut AtenTensorHandle,
+    ) -> AOTITorchError;
+
     // https://github.com/pytorch/pytorch/blob/f2b47323ac2c438722c2db58aa31d9222676509d/torch/csrc/inductor/aoti_torch/c/shim.h#L180
     //
     pub unsafe fn aoti_torch_delete_tensor_object(tensor: AtenTensorHandle) -> AOTITorchError;
