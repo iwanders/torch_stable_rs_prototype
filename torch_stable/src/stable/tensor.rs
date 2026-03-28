@@ -17,6 +17,7 @@ use anyhow::{anyhow, bail};
 pub struct Tensordropper(pub AtenTensorHandle);
 impl Drop for Tensordropper {
     fn drop(&mut self) {
+        println!("dropping 0x{:x?}", self.0);
         // We can't do anything with the return value here, so we quietly ignore it :/
         unsafe_call_panic!(aoti_torch_delete_tensor_object(self.0));
     }
@@ -147,6 +148,7 @@ impl Tensor {
 // Some minimal contrib below
 impl Tensor {
     pub fn from_handle(handle: AtenTensorHandle) -> Self {
+        println!("Making tensor from handle: {:x?}", handle);
         Self {
             ath: Arc::new(Tensordropper(handle)),
         }

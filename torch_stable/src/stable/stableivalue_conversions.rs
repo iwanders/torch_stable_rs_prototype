@@ -1,5 +1,6 @@
 // https://github.com/pytorch/pytorch/blob/f2b47323ac2c438722c2db58aa31d9222676509d/torch/csrc/stable/stableivalue_conversions.h
 
+use crate::aoti_torch::*;
 use anyhow::bail;
 
 use crate::{
@@ -9,6 +10,7 @@ use crate::{
         device::{Device, DeviceIndex},
         tensor::Tensor,
     },
+    unsafe_call_panic,
 };
 
 // https://github.com/pytorch/pytorch/blob/3848e11d554a7f49925b593c40b8be0b86ac6b3f/torch/csrc/stable/stableivalue_conversions.h#L100-L101
@@ -60,7 +62,19 @@ impl From<bool> for StableIValue {
 
 impl From<&Tensor> for StableIValue {
     fn from(value: &Tensor) -> Self {
-        Self(value.get() as u64)
+        // https://github.com/pytorch/pytorch/blob/v2.11.0/docs/source/notes/libtorch_stable_abi.md?plain=1#L167
+        // Is this even right?
+        // | torch::stable::Tensor | raw bitwise copy of underlying AtenTensorHandle into leading bytes of uint64_t | at::Tensor |  Tensor |
+        // conflicts with:
+        // https://github.com/pytorch/pytorch/blob/v2.11.0/torch/csrc/stable/stableivalue_conversions.h#L277
+        // which does;
+        // AtenTensorHandle new_ath;
+        // TORCH_ERROR_CODE_CHECK(aoti_torch_new_tensor_handle(val.get(), &new_ath));
+        // return torch::stable::detail::from(new_ath);
+
+        let mut handle_res: AtenTensorHandle = std::ptr::null_mut();
+        unsafe_call_panic!(aoti_torch_new_tensor_handle(value.get(), &mut handle_res));
+        StableIValue(handle_res as u64)
     }
 }
 
@@ -131,7 +145,17 @@ impl TryFrom<StableIValue> for Tensor {
         if value.0 == 0 {
             bail!("failed to convert StableIValue to Tensor; nullptr");
         }
+        /*
+        let handle: *mut AtenTensorHandle = value.0 as *mut AtenTensorHandle;
+        if handle.is_null() {
+            bail!("failed to convert StableIValue nullptr to Tensor");
+        }
+        Ok(Tensor::from_handle(unsafe { *handle }))
+        */
         let handle: AtenTensorHandle = value.0 as AtenTensorHandle;
-        Ok(Tensor::from_handle(handle))
+        if handle.is_null() {
+            bail!("failed to convert StableIValue nullptr to Tensor");
+        }
+        Ok(Tensor::from_handle(unsafe { handle }))
     }
 }

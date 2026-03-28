@@ -18,6 +18,9 @@
 // The file structure follows the upstream torch repository.
 // The root of this crate is https://github.com/pytorch/pytorch/tree/f2b47323ac2c438722c2db58aa31d9222676509d/torch/csrc
 
+// ooh https://github.com/pytorch/extension-cpp/tree/1c325b202ae5e11de3cefb9a65be28f47949edd4
+// they just pass a pytorch Tensor to a torch::stable::Tensor!? O_O
+
 pub mod aoti_torch;
 pub mod contrib;
 pub mod headeronly;

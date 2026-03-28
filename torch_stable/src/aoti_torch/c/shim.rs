@@ -168,6 +168,11 @@ unsafe extern "C" {
         ret_is_contiguous: &mut bool,
     ) -> AOTITorchError;
 
+    pub unsafe fn aoti_torch_new_tensor_handle(
+        orig_handle: AtenTensorHandle,
+        new_handle: &mut AtenTensorHandle,
+    ) -> AOTITorchError;
+
     // https://github.com/pytorch/pytorch/blob/f2b47323ac2c438722c2db58aa31d9222676509d/torch/csrc/inductor/aoti_torch/c/shim.h#L289
     // New tensor object, returned through *out, caller has to clear it.
     pub unsafe fn aoti_torch_empty_strided(

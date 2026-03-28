@@ -53,10 +53,25 @@ impl Tensor {
         println!("self: {:?}", self.get() as *const Tensor);
         println!("Stack: {:?}", stack);
         for (i, v) in stack.iter().enumerate() {
-            println!("i: {i}: addr: 0x{:x?}", v as *const StableIValue);
+            let z = v.0 as *mut u64;
+            let d = if !z.is_null() { unsafe { *z } } else { 0 };
+            println!(
+                "i: {i}: addr: 0x{:x?}  value: {:x?},,  *v: {:x?}",
+                v as *const StableIValue, z, d
+            );
         }
         unsafe_call_dispatch_bail!("aten::unsqueeze", "", stack.as_mut_slice());
+        // println!("stack[0]: {:x?}", stack[0]);
+        for (i, v) in stack.iter().enumerate() {
+            let z = v.0 as *mut u64;
+            let d = if !z.is_null() { unsafe { *z } } else { 0 };
+            println!(
+                "i: {i}: addr: 0x{:x?}  value: {:x?},,  *v: {:x?}",
+                v as *const StableIValue, z, d
+            );
+        }
         stack[0].try_into()
+        // Ok(self)
     }
 
     // Lets try a simpler operation first.
@@ -150,9 +165,14 @@ mod test {
     fn test_tensor_ops_unsqueeze() -> StableTorchResult<()> {
         use crate::contrib::{FromScalar, ToScalar};
         let a = Tensor::from_f32(5.0).unwrap();
-        let a = a.unsqueeze(0).unwrap();
-        println!("dim: {:?}", a.sizes());
-        assert_eq!(a.sizes(), &[1]);
+        println!("a get: {:?}  prior", a.get());
+        let b = a.unsqueeze(0).unwrap();
+        println!("a get: {:?}", a.get());
+        println!("b get: {:?}", b.get());
+        // println!("a dim: {:?}", a.sizes());
+        // println!("b dim: {:?}", b.sizes());
+        // assert_eq!(a.sizes(), &[1]);
+        // assert_eq!(b.sizes(), &[1]);
 
         Ok(())
     }
