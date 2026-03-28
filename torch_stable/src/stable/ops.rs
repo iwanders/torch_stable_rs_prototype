@@ -46,6 +46,14 @@ pub struct ToOptions {
     pub copy: bool,
 }
 
+#[derive(Copy, Clone, Debug, Default)]
+pub struct EmtpyOptions {
+    pub dtype: Option<ScalarType>,
+    pub layout: Option<Layout>,
+    pub device: Option<Device>,
+    pub pin_memory: Option<bool>,
+    pub memory_format: Option<MemoryFormat>,
+}
 impl Tensor {
     // https://github.com/pytorch/pytorch/blob/v2.11.0/torch/csrc/stable/ops.h#L442
     pub fn unsqueeze(&self, dim: usize) -> StableTorchResult<Tensor> {
@@ -61,6 +69,21 @@ impl Tensor {
         unsafe_call_dispatch_bail!("aten::matmul", "", stack.as_mut_slice());
         stack[0].try_into()
     }
+
+    // https://github.com/pytorch/pytorch/blob/v2.11.0/torch/csrc/stable/ops.h#L594-L628
+    pub fn empty(dimensions: &[usize], options: &EmtpyOptions) -> StableTorchResult<Tensor> {
+        let mut stack: [StableIValue; 6] = [
+            (dimensions).into(),
+            (&options.dtype).into(),
+            (&options.layout).into(),
+            (&options.device).into(),
+            (&options.pin_memory).into(),
+            (&options.memory_format).into(),
+        ];
+        unsafe_call_dispatch_bail!("aten::empty", "memory_format", stack.as_mut_slice());
+        stack[0].try_into()
+    }
+
     // https://github.com/pytorch/pytorch/blob/v2.11.0/torch/csrc/stable/ops.h#L824
     pub fn to(&self, options: &ToOptions) -> StableTorchResult<Tensor> {
         let mut stack: [StableIValue; 8] = [
@@ -145,6 +168,15 @@ mod test {
         let b = a.unsqueeze(0)?;
         assert_eq!(a.sizes(), &[]); // scalar is dimensionless.
         assert_eq!(b.sizes(), &[1]);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_tensor_ops_empty() -> StableTorchResult<()> {
+        let b = Tensor::empty(&[3, 3], &Default::default())?;
+        assert_eq!(b.dim(), 2);
+        assert_eq!(b.sizes(), &[3, 3]);
 
         Ok(())
     }

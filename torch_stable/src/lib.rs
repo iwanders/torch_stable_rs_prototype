@@ -21,6 +21,12 @@
 // ooh https://github.com/pytorch/extension-cpp/tree/1c325b202ae5e11de3cefb9a65be28f47949edd4
 // they just pass a pytorch Tensor to a torch::stable::Tensor!? O_O
 
+// Notes:
+//   https://github.com/pytorch/pytorch/issues/174507
+//   Lack of retrieving error messages, or even disabling the c++ backtrace.
+//   new StableIValue is not portable, malloc != new? It's complex, valgrind lights up.
+//   Why are sizes i64s? Same with enums being i32s?
+
 pub mod aoti_torch;
 pub mod contrib;
 pub mod headeronly;

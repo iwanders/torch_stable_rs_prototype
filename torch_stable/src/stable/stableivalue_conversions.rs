@@ -1,6 +1,9 @@
-// https://github.com/pytorch/pytorch/blob/f2b47323ac2c438722c2db58aa31d9222676509d/torch/csrc/stable/stableivalue_conversions.h
+// https://github.com/pytorch/pytorch/blob/v2.11.0/torch/csrc/stable/stableivalue_conversions.h
 
+// This entire file is a bit freeform and doesn't follow the upstream file too precisely.
+// But it just converts that C++ metaprogramming into the rust equivalent for ergonomic stack / ivalue generation.
 use crate::aoti_torch::*;
+use crate::stable::c::*;
 use anyhow::bail;
 
 use crate::{
@@ -15,8 +18,6 @@ use crate::{
 
 // https://github.com/pytorch/pytorch/blob/3848e11d554a7f49925b593c40b8be0b86ac6b3f/torch/csrc/stable/stableivalue_conversions.h#L100-L101
 
-// This is a bit freeform...
-// But it just converts that C++ metaprogramming into the rust equivalent for ergonomic stack / ivalue generation.
 // StableIValue is a transparent wrapper around u64, so this should work quite nicely.
 pub use super::super::aoti_torch::StableIValue;
 
@@ -73,6 +74,24 @@ where
             }
             None => StableIValue(0), // nullptr
         }
+    }
+}
+
+// https://github.com/pytorch/pytorch/blob/v2.11.0/torch/csrc/stable/stableivalue_conversions.h#L353-L378
+// HeaderOnlyArrayRef is effectively a slice, so lets handle it as a slice.
+impl<'a, T> From<&'a [T]> for StableIValue
+// HeaderOnlyArrayRef
+where
+    T: Into<StableIValue>,
+    T: Copy,
+{
+    fn from(values: &'a [T]) -> Self {
+        let mut handle_res: StableListHandle = std::ptr::null_mut();
+        unsafe_call_panic!(torch_new_list_reserve_size(values.len(), &mut handle_res));
+        for v in values.iter() {
+            unsafe_call_panic!(torch_list_push_back(handle_res, (*v).into()));
+        }
+        StableIValue(handle_res as u64)
     }
 }
 

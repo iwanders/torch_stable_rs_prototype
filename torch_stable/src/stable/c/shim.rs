@@ -5,18 +5,60 @@ use libc::c_char;
 
 // Keep the order the same as the original file.
 unsafe extern "C" {
-    // https://github.com/pytorch/pytorch/blob/b5afee0dda86ab028efe66c1eac7028a351edc90/torch/csrc/stable/c/shim.h#L69
-    pub unsafe fn torch_parse_device_string(
-        device_string: *const c_char,
-        out_device_type: *mut u32,
-        out_device_index: *mut i32,
-    ) -> AOTITorchError;
-
-    // https://github.com/pytorch/pytorch/blob/7e1205e5321419014c7971a00d9d2292798dfa46/torch/csrc/stable/c/shim.h#L20-L29
+    // https://github.com/pytorch/pytorch/blob/v2.11.0/torch/csrc/stable/c/shim.h#L20-L29
     pub unsafe fn torch_call_dispatcher(
         op_name: *const c_char,
         overload_name: *const c_char,
         stack: *const StableIValue,
         extension_build_version: u64,
     ) -> AOTITorchError;
+
+    // https://github.com/pytorch/pytorch/blob/v2.11.0/torch/csrc/stable/c/shim.h#L69
+    pub unsafe fn torch_parse_device_string(
+        device_string: *const c_char,
+        out_device_type: *mut u32,
+        out_device_index: *mut i32,
+    ) -> AOTITorchError;
+
+}
+// https://github.com/pytorch/pytorch/blob/v2.11.0/torch/csrc/stable/c/shim.h#L39
+#[repr(C)]
+pub struct StableListOpaque {
+    _private: [u8; 0],
+}
+pub type StableListHandle = *mut StableListOpaque;
+
+unsafe extern "C" {
+
+    // returns an owning reference of a StableList. callee is responsible for
+    // freeing memory.
+    pub unsafe fn torch_new_list_reserve_size(
+        size: usize,
+        ret: *mut StableListHandle,
+    ) -> AOTITorchError;
+
+    pub unsafe fn torch_list_size(
+        list_handle: StableListHandle,
+        size: *mut usize,
+    ) -> AOTITorchError;
+
+    pub unsafe fn torch_list_get_item(
+        list_handle: StableListHandle,
+        index: usize,
+        element: *mut StableIValue,
+    ) -> AOTITorchError;
+
+    pub unsafe fn torch_list_set_item(
+        list_handle: StableListHandle,
+        index: usize,
+        element: StableIValue,
+    ) -> AOTITorchError;
+
+    pub unsafe fn torch_list_push_back(
+        list_handle: StableListHandle,
+        element: StableIValue,
+    ) -> AOTITorchError;
+
+    // deletes the underlying list referenced by list_handle
+    pub unsafe fn torch_delete_list(list_handle: StableListHandle) -> AOTITorchError;
 }
