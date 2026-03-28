@@ -38,6 +38,17 @@ pub enum DeviceType {
     MTIA = 19,        // Meta training and inference devices
     PrivateUse1 = 20, // PrivateUse1 device
 }
+impl DeviceType {
+    pub fn to_constant(&self) -> i32 {
+        unsafe {
+            match self {
+                DeviceType::CPU => aoti_torch_device_type_cpu(),
+                DeviceType::CUDA => aoti_torch_device_type_cuda(),
+                _ => todo!(),
+            }
+        }
+    }
+}
 
 impl TryFrom<u32> for DeviceType {
     type Error = anyhow::Error;

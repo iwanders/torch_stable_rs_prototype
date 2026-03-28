@@ -20,17 +20,48 @@ use crate::{
 // StableIValue is a transparent wrapper around u64, so this should work quite nicely.
 pub use super::super::aoti_torch::StableIValue;
 
+// Okay, this is quite the thing...
+// https://github.com/pytorch/pytorch/blob/v2.11.0/torch/csrc/stable/stableivalue_conversions.h#L224-L266
+// So for nullpointers, this is a nullpointer.
+// For non nullpointers a 'new StableIValue' heap allocated u64 is created, and that pointer goes into the outer
+// StableIValue, we hit a snag here... we're allocating with rust, but the c++ side is clearing it up.
+// Okay, so this causes mismatched free() / delete warnings in valgrind, but it may not actually be an issue?
 impl<'a, T> From<&'a Option<T>> for StableIValue
 where
     T: Into<StableIValue>,
+    T: Copy,
 {
     fn from(value: &Option<T>) -> Self {
         match value {
             Some(val) => {
-                //  Ref to pointer, then to u64.
-                let ptr: *const T = val as *const T;
-                let ptr_as_u64: u64 = ptr as u64;
-                StableIValue(ptr_as_u64)
+                // Allocate a new u64, convert value into that.
+                let converted: StableIValue = (*val).into();
+                let value_u64: u64 = converted.0;
+                // println!("vvalue_u64 : {value_u64:x?}");
+                if true {
+                    let boxed_stable_value: Box<u64> = Box::new(value_u64);
+                    let stable_value = Box::into_raw(boxed_stable_value);
+                    let ptr_as_u64: u64 = stable_value as u64;
+                    StableIValue(ptr_as_u64)
+                } else if false {
+                    use std::alloc::{Layout, System};
+                    let z = System;
+                    use std::alloc::GlobalAlloc;
+                    let u64_layout = Layout::new::<u64>();
+                    let raw_malloc_ptr = unsafe { z.alloc(u64_layout) };
+                    let raw_malloc_ptr_u64 = raw_malloc_ptr.cast::<u64>();
+                    unsafe { *raw_malloc_ptr_u64 = value_u64 };
+                    let ptr_as_u64: u64 = raw_malloc_ptr_u64 as u64;
+                    StableIValue(ptr_as_u64)
+                } else {
+                    let raw_malloc_ptr =
+                        unsafe { libc::malloc(std::mem::size_of::<u64>() as libc::size_t) }
+                            as *mut u64;
+                    let raw_malloc_ptr_u64 = raw_malloc_ptr.cast::<u64>();
+                    unsafe { *raw_malloc_ptr_u64 = value_u64 };
+                    let ptr_as_u64: u64 = raw_malloc_ptr_u64 as u64;
+                    StableIValue(ptr_as_u64)
+                }
             }
             None => StableIValue(0), // nullptr
         }
@@ -86,7 +117,7 @@ impl From<ScalarType> for StableIValue {
 
 impl From<DeviceType> for StableIValue {
     fn from(value: DeviceType) -> Self {
-        Self(value as u64)
+        value.to_constant().into()
     }
 }
 
@@ -121,19 +152,23 @@ impl From<f64> for StableIValue {
 }
 impl From<DeviceIndex> for StableIValue {
     fn from(value: DeviceIndex) -> Self {
-        let bitwise_value: u64 = u64::from_ne_bytes((value.0 as i64).to_ne_bytes());
+        let bitwise_value: u64 = u32::from_ne_bytes((value.0 as i32).to_ne_bytes()) as u64;
         Self(bitwise_value)
     }
 }
 
-// https://github.com/pytorch/pytorch/blob/3848e11d554a7f49925b593c40b8be0b86ac6b3f/torch/csrc/stable/stableivalue_conversions.h#L400-L414
+// https://github.com/pytorch/pytorch/blob/v2.11.0/torch/csrc/stable/stableivalue_conversions.h#L400-L414
 impl From<Device> for StableIValue {
     fn from(value: Device) -> Self {
         // Pack: lower 32 bits = device index, upper 32 bits = device type (shim)
-        let device_type_shim: StableIValue = value.device_type().into();
         let device_index_shim: StableIValue = value.device_index().into();
         let device_index_bits: u64 = device_index_shim.0;
+        // println!("value.device_type(): {:?}", value.device_type());
+        let device_type_shim: StableIValue = value.device_type().into();
+        // println!("value.device_type_shim(): {:?}", device_type_shim);
         let device_type_bits: u64 = device_type_shim.0 << 32;
+        // Device is made up of left: ffffffff | 0
+        // println!("device_index_bits: {device_index_bits:x?} | {device_type_bits:x?}");
         Self(device_index_bits | device_type_bits)
     }
 }

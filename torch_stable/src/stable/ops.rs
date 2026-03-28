@@ -76,7 +76,10 @@ impl Tensor {
         println!("self: {:?}", self.get() as *const Tensor);
         println!("Stack: {:?}", stack);
         for (i, v) in stack.iter().enumerate() {
-            println!("i: {i}: addr: 0x{:x?}", v as *const StableIValue);
+            println!(
+                "i: {i}: addr: 0x{:x?}  v: {:?}",
+                v as *const StableIValue, v
+            );
         }
         unsafe_call_dispatch_bail!("aten::to", "dtype_layout", stack.as_mut_slice());
         stack[0].try_into()
@@ -112,39 +115,34 @@ mod test {
     fn test_tensor_ops_to() -> StableTorchResult<()> {
         use crate::contrib::{FromScalar, ToScalar};
         let a = Tensor::from_f32(5.0).unwrap();
-        a.to(&ToOptions {
+        let b = a.to(&ToOptions {
             device: Some(Device::from_str("cpu")?),
+            // device: Some(Device::from_str("cuda:5")?),
             copy: true,
             ..Default::default()
-        })
-        .unwrap();
-        std::process::exit(0);
-
+        })?;
         Ok(())
     }
     #[test]
     fn test_tensor_ops_matmul() -> StableTorchResult<()> {
         use crate::contrib::{FromScalar, ToScalar};
-        let a = Tensor::from_f32(5.0).unwrap();
-        let b = Tensor::from_f32(3.0).unwrap();
-        let a = a.unsqueeze(0).unwrap();
-        let b = b.unsqueeze(0).unwrap();
-        assert_eq!(b.layout(), Layout::Strided); // Calling on uninitialised tensor is an error.
-        assert_eq!(b.layout(), Layout::Strided); // Calling on uninitialised tensor is an error.
-        let c = a.matmul(&b).unwrap();
+        let a = Tensor::from_f32(5.0)?;
+        let b = Tensor::from_f32(3.0)?;
+        let a = a.unsqueeze(0)?; // need a dimension to perform a matmul.
+        let b = b.unsqueeze(0)?;
+        assert_eq!(b.layout(), Layout::Strided);
+        assert_eq!(b.layout(), Layout::Strided);
+        let c = a.matmul(&b)?;
         let res = c.to_f32();
         assert_eq!(res.unwrap(), 15.0);
-        // println!("c: {:?}", c);
         Ok(())
     }
     #[test]
     fn test_tensor_ops_unsqueeze() -> StableTorchResult<()> {
         use crate::contrib::FromScalar;
-        let a = Tensor::from_f32(5.0).unwrap();
-        let b = a.unsqueeze(0).unwrap();
-        println!("a dim: {:?}", a.sizes());
-        println!("b dim: {:?}", b.sizes());
-        assert_eq!(a.sizes(), &[]);
+        let a = Tensor::from_f32(5.0)?;
+        let b = a.unsqueeze(0)?;
+        assert_eq!(a.sizes(), &[]); // scalar is dimensionless.
         assert_eq!(b.sizes(), &[1]);
 
         Ok(())

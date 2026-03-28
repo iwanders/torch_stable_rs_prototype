@@ -11,5 +11,5 @@ fn main() {
     // shared library.
     println!("cargo:rustc-link-lib=torch");
     println!("cargo:rustc-link-lib=torch_cpu");
-    //println!("cargo:rustc-link-lib=torch_cuda");
+    println!("cargo:rustc-link-lib=torch_cuda");
 }
