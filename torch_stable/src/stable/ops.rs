@@ -50,39 +50,14 @@ impl Tensor {
     // https://github.com/pytorch/pytorch/blob/v2.11.0/torch/csrc/stable/ops.h#L442
     pub fn unsqueeze(&self, dim: usize) -> StableTorchResult<Tensor> {
         let mut stack: [StableIValue; 2] = [self.into(), dim.into()];
-        println!("self: {:?}", self.get() as *const Tensor);
-        println!("Stack: {:?}", stack);
-        for (i, v) in stack.iter().enumerate() {
-            let z = v.0 as *mut u64;
-            let d = if !z.is_null() { unsafe { *z } } else { 0 };
-            println!(
-                "i: {i}: addr: 0x{:x?}  value: {:x?},,  *v: {:x?}",
-                v as *const StableIValue, z, d
-            );
-        }
         unsafe_call_dispatch_bail!("aten::unsqueeze", "", stack.as_mut_slice());
-        // println!("stack[0]: {:x?}", stack[0]);
-        for (i, v) in stack.iter().enumerate() {
-            let z = v.0 as *mut u64;
-            let d = if !z.is_null() { unsafe { *z } } else { 0 };
-            println!(
-                "i: {i}: addr: 0x{:x?}  value: {:x?},,  *v: {:x?}",
-                v as *const StableIValue, z, d
-            );
-        }
         stack[0].try_into()
-        // Ok(self)
     }
 
     // Lets try a simpler operation first.
     // https://github.com/pytorch/pytorch/blob/v2.11.0/torch/csrc/stable/ops.h#L531
     pub fn matmul(&self, other: &Tensor) -> StableTorchResult<Tensor> {
         let mut stack: [StableIValue; 2] = [self.into(), other.into()];
-        println!("self: {:?}", self.get() as *const Tensor);
-        println!("Stack: {:?}", stack);
-        for (i, v) in stack.iter().enumerate() {
-            println!("i: {i}: addr: 0x{:x?}", v as *const StableIValue);
-        }
         unsafe_call_dispatch_bail!("aten::matmul", "", stack.as_mut_slice());
         stack[0].try_into()
     }
@@ -156,23 +131,21 @@ mod test {
         let b = b.unsqueeze(0).unwrap();
         assert_eq!(b.layout(), Layout::Strided); // Calling on uninitialised tensor is an error.
         assert_eq!(b.layout(), Layout::Strided); // Calling on uninitialised tensor is an error.
-        a.matmul(&b).unwrap();
-        std::process::exit(0);
-
+        let c = a.matmul(&b).unwrap();
+        let res = c.to_f32();
+        assert_eq!(res.unwrap(), 15.0);
+        // println!("c: {:?}", c);
         Ok(())
     }
     #[test]
     fn test_tensor_ops_unsqueeze() -> StableTorchResult<()> {
-        use crate::contrib::{FromScalar, ToScalar};
+        use crate::contrib::FromScalar;
         let a = Tensor::from_f32(5.0).unwrap();
-        println!("a get: {:?}  prior", a.get());
         let b = a.unsqueeze(0).unwrap();
-        println!("a get: {:?}", a.get());
-        println!("b get: {:?}", b.get());
-        // println!("a dim: {:?}", a.sizes());
-        // println!("b dim: {:?}", b.sizes());
-        // assert_eq!(a.sizes(), &[1]);
-        // assert_eq!(b.sizes(), &[1]);
+        println!("a dim: {:?}", a.sizes());
+        println!("b dim: {:?}", b.sizes());
+        assert_eq!(a.sizes(), &[]);
+        assert_eq!(b.sizes(), &[1]);
 
         Ok(())
     }
