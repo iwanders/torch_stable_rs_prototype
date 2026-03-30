@@ -15,8 +15,8 @@ RELEASE_TYPE=debug
 NAME_IN_CARGO=$(grep -Po "(?<=name ?= ?\")([^\"]+)" Cargo.toml -m 1)
 
 # cpython-313-x86_64-linux-gnu
+PYTHON_SOABI=$(python3 -c "import sysconfig; t=sysconfig.get_config_vars('SOABI')[0];print(t)")
 PYTHONVERSION_WITHDOT=$(python3 -c "import platform; t=platform.python_version_tuple();print(f'{t[0]}.{t[1]}')")
-PYTHONVERSION_CONCAT=$(python3 -c "import platform; t=platform.python_version_tuple();print(f'{t[0]}{t[1]}')")
 
 PACKAGE_NAME=${NAME_IN_CARGO}
 PACKAGE_DIR=${VIRTUAL_ENV}/lib/python${PYTHONVERSION_WITHDOT}/site-packages/${PACKAGE_NAME}
@@ -25,7 +25,7 @@ mkdir -p ${PACKAGE_DIR}
 
 TARGETLIBPATH=$(realpath ./target/${RELEASE_TYPE}/lib${PACKAGE_NAME}.so)
 
-ln -s ${TARGETLIBPATH}  ${PACKAGE_DIR}/${PACKAGE_NAME}.cpython-${PYTHONVERSION_CONCAT}-x86_64-linux-gnu.so
+ln -s ${TARGETLIBPATH}  ${PACKAGE_DIR}/${PACKAGE_NAME}.${PYTHON_SOABI}.so
 
 read -r -d '' INIT_FILE_PAYLOAD <<EOF
 from .${PACKAGE_NAME} import *
