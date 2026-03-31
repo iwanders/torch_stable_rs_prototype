@@ -65,7 +65,12 @@ pub trait Math {
 }
 impl Math for Tensor {
     fn add(&self, other: &Tensor) -> StableTorchResult<Tensor> {
-        if false {
+        if cfg!(feature = "use_torch_devel") {
+            let mut stack: [StableIValue; 3] =
+                [self.into(), other.into(), Scalar::from_f64(1.0).into()];
+            unsafe_call_dispatch_bail!("aten::add", "Tensor", stack.as_mut_slice());
+            stack[0].try_into()
+        } else {
             let mut handle_res: AtenTensorHandle = std::ptr::null_mut();
             // How do we call a native function like https://github.com/pytorch/pytorch/blob/v2.11.0/aten/src/ATen/native/native_functions.yaml#L577C9-L577C16 ?
             // Yes, this is a subtract with self - alpha * other with alpha = -1.0.
@@ -76,11 +81,6 @@ impl Math for Tensor {
                 &mut handle_res
             ));
             Ok(Self::from_handle(handle_res))
-        } else {
-            let mut stack: [StableIValue; 3] =
-                [self.into(), other.into(), Scalar::from_f64(1.0).into()];
-            unsafe_call_dispatch_bail!("aten::add", "Tensor", stack.as_mut_slice());
-            stack[0].try_into()
         }
     }
     fn sub2(&self, other: &Tensor) -> StableTorchResult<Tensor> {

@@ -8,9 +8,15 @@ fn main() {
         .compile("iw_torch_stable");
     println!("cargo::rerun-if-changed=support/alloc_stableivalue.cpp");
 
+    let lib_path = if std::env::var("CARGO_FEATURE_USE_TORCH_DEVEL").is_ok() {
+        "/workspace/ivor/ml/pytorch_dev/pytorch/build/lib"
+    } else {
+        "../train/.venv/lib/python3.13/site-packages/torch/lib"
+    };
+
     //println!("cargo::rerun-if-changed=build.rs");
-    // let lib_path = "../train/.venv/lib/python3.13/site-packages/torch/lib";
-    let lib_path = "/workspace/ivor/ml/pytorch_dev/pytorch/build/lib";
+    // let lib_path = ;
+    //let lib_path = "/workspace/ivor/ml/pytorch_dev/pytorch/build/lib";
     // let lib_path = "/home/ivor/Documents/Code/rust/overlay_segmenter/repo/train/.venv/lib/python3.13/site-packages/torch/lib/";
     // Tell cargo to look for shared libraries in the specified directory
     println!("cargo:rustc-link-search={lib_path}");
