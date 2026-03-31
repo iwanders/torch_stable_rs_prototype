@@ -6,6 +6,7 @@ use crate::aoti_torch::{AtenTensorHandle, aoti_torch_delete_tensor_object};
 use crate::headeronly::core::{Layout, ScalarType};
 
 use crate::aoti_torch::*;
+use crate::stable::c::*;
 use crate::stable::device::{Device, DeviceType};
 
 use std::sync::Arc;
@@ -142,6 +143,48 @@ impl Tensor {
         let mut layout: i32 = 0;
         unsafe_call_panic!(aoti_torch_get_layout(self.get(), &mut layout));
         return Layout::try_from(layout).unwrap();
+    }
+
+    pub fn storage_offset(&self) -> usize {
+        let mut storage_offset: i64 = 0;
+        unsafe_call_panic!(aoti_torch_get_storage_offset(
+            self.get(),
+            &mut storage_offset
+        ));
+        if storage_offset < 0 {
+            panic!("storage_offset got negative value");
+        }
+        return storage_offset as usize;
+    }
+
+    pub fn element_size(&self) -> usize {
+        let mut dtype: i32 = 0;
+        unsafe_call_panic!(aoti_torch_get_dtype(self.get(), &mut dtype));
+        unsafe { aoti_torch_dtype_element_size(dtype) }
+    }
+
+    // What's the deal with the three below? Does the first one not have the storage_offset()?
+
+    // https://github.com/pytorch/pytorch/blob/v2.11.0/torch/csrc/stable/tensor_struct.h#L126
+    // Actually a void pointer, but lets keep this sort of convenient.
+    pub fn data_ptr(&self) -> *mut u8 {
+        let mut data_ptr: *mut libc::c_void = std::ptr::null_mut();
+        unsafe_call_panic!(aoti_torch_get_data_ptr(self.get(), &mut data_ptr));
+        data_ptr.cast::<u8>()
+    }
+    // https://github.com/pytorch/pytorch/blob/v2.11.0/torch/csrc/stable/tensor_struct.h#L140
+    // Actually a void pointer, but lets keep this sort of convenient.
+    pub fn mutable_data_ptr(&self) -> *mut u8 {
+        let mut data_ptr: *mut libc::c_void = std::ptr::null_mut();
+        unsafe_call_panic!(torch_get_mutable_data_ptr(self.get(), &mut data_ptr));
+        data_ptr.cast::<u8>()
+    }
+    // https://github.com/pytorch/pytorch/blob/v2.11.0/torch/csrc/stable/tensor_struct.h#L153
+    // Actually a void pointer, but lets keep this sort of convenient.
+    pub fn const_data_ptr(&self) -> *const u8 {
+        let mut data_ptr: *const libc::c_void = std::ptr::null();
+        unsafe_call_panic!(torch_get_const_data_ptr(self.get(), &mut data_ptr));
+        data_ptr.cast::<u8>()
     }
 }
 

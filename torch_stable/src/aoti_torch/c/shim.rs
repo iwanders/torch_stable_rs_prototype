@@ -165,6 +165,12 @@ unsafe extern "C" {
         ret_layout: *mut i32,
     ) -> AOTITorchError;
 
+    // https://github.com/pytorch/pytorch/blob/v2.11.0/torch/csrc/inductor/aoti_torch/c/shim.h#L248
+    pub unsafe fn aoti_torch_get_storage_offset(
+        tensor: AtenTensorHandle,
+        ret_storage_offset: *mut i64,
+    ) -> AOTITorchError;
+
     // https://github.com/pytorch/pytorch/blob/v2.11.0/torch/csrc/inductor/aoti_torch/c/shim.h#L252
     pub unsafe fn aoti_torch_is_contiguous(
         tensor: AtenTensorHandle,

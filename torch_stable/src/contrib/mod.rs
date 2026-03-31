@@ -91,6 +91,27 @@ impl Math for Tensor {
     }
 }
 
+pub trait Manipulation {
+    fn data_ref(&self) -> StableTorchResult<&[u8]>;
+    fn data_mut(&self) -> StableTorchResult<&mut [u8]>;
+}
+
+impl Manipulation for Tensor {
+    fn data_ref(&self) -> StableTorchResult<&[u8]> {
+        let element_size = self.element_size();
+        let elements = self.numel();
+        let data_ptr = self.const_data_ptr();
+        Ok(unsafe { std::slice::from_raw_parts(data_ptr, elements * element_size) })
+    }
+
+    fn data_mut(&self) -> StableTorchResult<&mut [u8]> {
+        let element_size = self.element_size();
+        let elements = self.numel();
+        let data_ptr = self.mutable_data_ptr();
+        Ok(unsafe { std::slice::from_raw_parts_mut(data_ptr, elements * element_size) })
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -141,6 +162,21 @@ mod test {
             let c = a.sub2(&b).unwrap();
             assert_eq!(c.to_f32().unwrap(), 2.0);
         }
+        Ok(())
+    }
+
+    #[test]
+    fn test_tensor_contrib_data() -> StableTorchResult<()> {
+        let a = Tensor::from_f32(5.0)?.unsqueeze(0)?;
+        println!("a.element_size(): {:?}", a.element_size());
+        println!("a.scalar_type(): {:?}", a.scalar_type());
+        println!("a.data_ptr: {:?}", a.data_ptr());
+        println!("a.const_data_ptr: {:?}", a.const_data_ptr());
+        println!("a.mutable_data_ptr: {:?}", a.mutable_data_ptr());
+        println!("a.data_mut(): {:?}", a.data_mut()?);
+        a.data_mut()?[0] = 3;
+        println!("a.data_ref(): {:?}", a.data_ref()?);
+        assert_eq!(a.data_ref()?, &[3, 0, 160, 64]);
         Ok(())
     }
 }
