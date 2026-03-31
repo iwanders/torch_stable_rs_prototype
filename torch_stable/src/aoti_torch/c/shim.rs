@@ -1,10 +1,11 @@
-// https://github.com/pytorch/pytorch/blob/f2b47323ac2c438722c2db58aa31d9222676509d/torch/csrc/inductor/aoti_torch/c/shim.h
+// https://github.com/pytorch/pytorch/blob/v2.11.0/torch/csrc/inductor/aoti_torch/c/shim.h
 use super::macros::*;
+use libc::c_void;
 
 // Keep the order the same as the original file.
 unsafe extern "C" {
 
-    // https://github.com/pytorch/pytorch/blob/f2b47323ac2c438722c2db58aa31d9222676509d/torch/csrc/inductor/aoti_torch/c/shim.h#L56
+    // https://github.com/pytorch/pytorch/blob/v2.11.0/torch/csrc/inductor/aoti_torch/c/shim.h#L56
     //
     pub unsafe fn aoti_torch_device_type_cpu() -> i32;
     pub unsafe fn aoti_torch_device_type_cuda() -> i32;
@@ -13,7 +14,7 @@ unsafe extern "C" {
     pub unsafe fn aoti_torch_device_type_mps() -> i32;
     pub unsafe fn aoti_torch_device_type_privateuse1() -> i32;
 
-    // https://github.com/pytorch/pytorch/blob/f2b47323ac2c438722c2db58aa31d9222676509d/torch/csrc/inductor/aoti_torch/c/shim.h#L63
+    // https://github.com/pytorch/pytorch/blob/v2.11.0/torch/csrc/inductor/aoti_torch/c/shim.h#L62
     pub unsafe fn aoti_torch_dtype_float8_e5m2() -> i32;
     pub unsafe fn aoti_torch_dtype_float8_e4m3fn() -> i32;
     pub unsafe fn aoti_torch_dtype_float8_e5m2fnuz() -> i32;
@@ -51,7 +52,7 @@ unsafe extern "C" {
     pub unsafe fn aoti_torch_layout__mkldnn() -> i32;
     pub unsafe fn aoti_torch_layout_jagged() -> i32;
 
-    // https://github.com/pytorch/pytorch/blob/f2b47323ac2c438722c2db58aa31d9222676509d/torch/csrc/inductor/aoti_torch/c/shim.h#L97C1-L102C1
+    // https://github.com/pytorch/pytorch/blob/v2.11.0/torch/csrc/inductor/aoti_torch/c/shim.h#L93
     pub unsafe fn aoti_torch_memory_format_contiguous_format() -> i32;
     pub unsafe fn aoti_torch_memory_format_channels_last() -> i32;
     pub unsafe fn aoti_torch_memory_format_channels_last_3d() -> i32;
@@ -63,7 +64,7 @@ unsafe extern "C" {
     // Updated my driver, also needed that to parse the device string... and the stable api only exists from 2.10 really anyway.
 
     // Conversions
-    // https://github.com/pytorch/pytorch/blob/f2b47323ac2c438722c2db58aa31d9222676509d/torch/csrc/inductor/aoti_torch/c/shim.h#L106
+    // https://github.com/pytorch/pytorch/blob/v2.11.0/torch/csrc/inductor/aoti_torch/c/shim.h#L101
 
     pub unsafe fn aoti_torch_item_float32(
         tensor: AtenTensorHandle,
@@ -76,7 +77,7 @@ unsafe extern "C" {
     ) -> AOTITorchError;
 
     // Scalar to single element tensor
-    // https://github.com/pytorch/pytorch/blob/f2b47323ac2c438722c2db58aa31d9222676509d/torch/csrc/inductor/aoti_torch/c/shim.h#L137
+    // https://github.com/pytorch/pytorch/blob/v2.11.0/torch/csrc/inductor/aoti_torch/c/shim.h#L132
     pub unsafe fn aoti_torch_scalar_to_tensor_float32(
         value: f32,
         ret_new_tensor: &mut AtenTensorHandle,
@@ -87,11 +88,18 @@ unsafe extern "C" {
         ret_new_tensor: &mut AtenTensorHandle,
     ) -> AOTITorchError;
 
-    // https://github.com/pytorch/pytorch/blob/f2b47323ac2c438722c2db58aa31d9222676509d/torch/csrc/inductor/aoti_torch/c/shim.h#L180
-    //
+    // https://github.com/pytorch/pytorch/blob/v2.11.0/torch/csrc/inductor/aoti_torch/c/shim.h#L175
     pub unsafe fn aoti_torch_delete_tensor_object(tensor: AtenTensorHandle) -> AOTITorchError;
 
-    // https://github.com/pytorch/pytorch/blob/e0347a69ec5546b16b89f3665be60a0932905f19/torch/csrc/inductor/aoti_torch/c/shim.h#L212
+    // https://github.com/pytorch/pytorch/blob/v2.11.0/torch/csrc/inductor/aoti_torch/c/shim.h#L201
+
+    // How is this one different from torch_get_mutable_data_ptr and torch_get_const_data_ptr?
+    pub unsafe fn aoti_torch_get_data_ptr(
+        tensor: AtenTensorHandle,
+        ret_data_ptr: *mut *mut c_void, // returns borrowed reference
+    ) -> AOTITorchError;
+
+    // https://github.com/pytorch/pytorch/blob/v2.11.0/torch/csrc/inductor/aoti_torch/c/shim.h#L207
 
     // Get the nbytes of the underlying storage
     pub unsafe fn aoti_torch_get_storage_size(
@@ -140,7 +148,7 @@ unsafe extern "C" {
         ret_dtype: *mut i32,
     ) -> AOTITorchError;
 
-    // https://github.com/pytorch/pytorch/blob/f2b47323ac2c438722c2db58aa31d9222676509d/torch/csrc/inductor/aoti_torch/c/shim.h#L244
+    // https://github.com/pytorch/pytorch/blob/v2.11.0/torch/csrc/inductor/aoti_torch/c/shim.h#L240
 
     pub unsafe fn aoti_torch_get_device_type(
         tensor: AtenTensorHandle,
@@ -157,7 +165,7 @@ unsafe extern "C" {
         ret_layout: *mut i32,
     ) -> AOTITorchError;
 
-    // https://github.com/pytorch/pytorch/blob/e0347a69ec5546b16b89f3665be60a0932905f19/torch/csrc/inductor/aoti_torch/c/shim.h#L256C1-L258C76
+    // https://github.com/pytorch/pytorch/blob/v2.11.0/torch/csrc/inductor/aoti_torch/c/shim.h#L252
     pub unsafe fn aoti_torch_is_contiguous(
         tensor: AtenTensorHandle,
         ret_is_contiguous: &mut bool,
@@ -173,7 +181,9 @@ unsafe extern "C" {
         new_handle: &mut AtenTensorHandle,
     ) -> AOTITorchError;
 
-    // https://github.com/pytorch/pytorch/blob/f2b47323ac2c438722c2db58aa31d9222676509d/torch/csrc/inductor/aoti_torch/c/shim.h#L289
+    // aoti_torch__reinterpret_tensor <- probably what we need for slicing?
+
+    // https://github.com/pytorch/pytorch/blob/v2.11.0/torch/csrc/inductor/aoti_torch/c/shim.h#L288
     // New tensor object, returned through *out, caller has to clear it.
     pub unsafe fn aoti_torch_empty_strided(
         ndim: i64,
@@ -185,10 +195,11 @@ unsafe extern "C" {
         ret_new_tensor: &mut AtenTensorHandle,
     ) -> AOTITorchError;
 
-    // https://github.com/pytorch/pytorch/blob/f2b47323ac2c438722c2db58aa31d9222676509d/torch/csrc/inductor/aoti_torch/c/shim.h#L345
+    // https://github.com/pytorch/pytorch/blob/v2.11.0/torch/csrc/inductor/aoti_torch/c/shim.h#L343
     pub unsafe fn aoti_torch_new_uninitialized_tensor(ret: &mut AtenTensorHandle)
     -> AOTITorchError;
 
+    #[cfg(feature = "use_torch_devel")]
     pub unsafe fn aoti_torch_new_stable_ivalue(ret_value: *mut *mut StableIValue);
 }
 

@@ -1,5 +1,5 @@
 use super::super::super::aoti_torch::*;
-use libc::c_char;
+use libc::{c_char, c_void};
 
 // https://github.com/pytorch/pytorch/blob/b5afee0dda86ab028efe66c1eac7028a351edc90/torch/csrc/stable/c/shim.h#L69
 
@@ -61,4 +61,19 @@ unsafe extern "C" {
 
     // deletes the underlying list referenced by list_handle
     pub unsafe fn torch_delete_list(list_handle: StableListHandle) -> AOTITorchError;
+}
+
+unsafe extern "C" {
+
+    // https://github.com/pytorch/pytorch/blob/v2.11.0/torch/csrc/stable/c/shim.h#L94
+    // Get a pointer to the underlying storage data
+    pub unsafe fn torch_get_mutable_data_ptr(
+        tensor: AtenTensorHandle,
+        ret_data_ptr: *mut *mut c_void, // returns borrowed reference
+    ) -> AOTITorchError;
+
+    pub unsafe fn torch_get_const_data_ptr(
+        tensor: AtenTensorHandle,
+        ret_data_ptr: *mut *const c_void, // returns borrowed reference
+    ) -> AOTITorchError;
 }
