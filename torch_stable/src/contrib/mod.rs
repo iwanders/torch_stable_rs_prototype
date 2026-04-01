@@ -68,13 +68,16 @@ pub trait Math {
 impl Math for Tensor {
     fn add(&self, other: &Tensor) -> StableTorchResult<Tensor> {
         if cfg!(feature = "use_torch_devel") {
+            // How do we call a native function like https://github.com/pytorch/pytorch/blob/v2.11.0/aten/src/ATen/native/native_functions.yaml#L577C9-L577C16
+            // I think functionality is missing right now, see:
+            // https://github.com/pytorch/pytorch/issues/174507#issuecomment-4150977835
             let mut stack: [StableIValue; 3] =
                 [self.into(), other.into(), Scalar::from_f64(1.0).into()];
             unsafe_call_dispatch_bail!("aten::add", "Tensor", stack.as_mut_slice());
             stack[0].try_into()
         } else {
             let mut handle_res: AtenTensorHandle = std::ptr::null_mut();
-            // How do we call a native function like https://github.com/pytorch/pytorch/blob/v2.11.0/aten/src/ATen/native/native_functions.yaml#L577C9-L577C16 ?
+
             // Yes, this is a subtract with self - alpha * other with alpha = -1.0.
             unsafe_call_bail!(aoti_torch_aten_subtract_Tensor(
                 self.get(),
@@ -93,14 +96,14 @@ impl Math for Tensor {
     }
 }
 
-pub trait Manipulation {
+pub trait DataManipulation {
     fn data_ref(&self) -> StableTorchResult<&[u8]>;
     fn data_mut(&self) -> StableTorchResult<&mut [u8]>;
     fn f32_ref(&self) -> StableTorchResult<&[f32]>;
     fn f32_mut(&self) -> StableTorchResult<&mut [f32]>;
 }
 
-impl Manipulation for Tensor {
+impl DataManipulation for Tensor {
     fn data_ref(&self) -> StableTorchResult<&[u8]> {
         let element_size = self.element_size();
         let elements = self.numel();
@@ -240,7 +243,19 @@ mod test {
         t.f32_mut()?[0] = 3.3;
         t.f32_mut()?[1] = 5.3;
         t.f32_mut()?[2] = 89.5;
+        t.f32_mut()?[3] = 1.5;
         println!("t.f32_ref(): {:?}", t.f32_ref()?);
+
+        // This definitely shares storage;
+        let b = t.to(&ToOptions {
+            device: Some(Device::from_str("cpu")?),
+            //device: Some(Device::from_str("cuda:0")?),
+            copy: false,
+            ..Default::default()
+        })?;
+        println!("before: b.f32_ref(): {:?}", b.f32_ref()?);
+        t.f32_mut()?[3] = 10000.5;
+        println!("after   b.f32_ref(): {:?}", b.f32_ref()?);
 
         Ok(())
     }
