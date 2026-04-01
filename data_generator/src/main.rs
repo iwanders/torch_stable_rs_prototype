@@ -1,28 +1,29 @@
-// struct Foo;
+struct Foo;
 
-// trait FooF32 {
-//     fn s(&self, v: f32);
-// }
-// impl FooF32 for Foo {
-//     fn s(&self, v: f32) {
-//         todo!()
-//     }
-// }
-// trait FooF64 {
-//     fn s(&self, v: f64);
-// }
-// impl FooF64 for Foo {
-//     fn s(&self, v: f64) {
-//         todo!()
-//     }
-// }
-
+trait FooTrait<T> {
+    fn s(&self, v: T);
+}
+impl FooTrait<f32> for Foo {
+    fn s(&self, v: f32) {
+        println!("f32 overload");
+        todo!()
+    }
+}
+impl FooTrait<f64> for Foo {
+    fn s(&self, v: f64) {
+        println!("f64 overload");
+        // todo!()
+    }
+}
 use torch_stable::{
     StableTorchResult,
     contrib::{DataManipulation, FromScalar},
     stable::{device::Device, ops::ToOptions, tensor::Tensor},
 };
 pub fn main() -> StableTorchResult<()> {
+    let f = Foo;
+    f.s(3.3f64);
+    f.s(3.3f32);
     let a = Tensor::from_f32(5.0)?.unsqueeze(0)?;
     println!("a.element_size(): {:?}", a.element_size());
     println!("a.scalar_type(): {:?}", a.scalar_type());
@@ -61,9 +62,6 @@ pub fn main() -> StableTorchResult<()> {
     println!("back {:?}", tcpu.data_ptr());
     println!("back {:?}", tcpu.device());
     */
-
-    // let f = Foo;
-    // f.s(3.3f32);
     /*
      * 0x55ef651e4e00
      cuda 0x7f3a53a00000

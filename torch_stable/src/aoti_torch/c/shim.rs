@@ -188,6 +188,15 @@ unsafe extern "C" {
     ) -> AOTITorchError;
 
     // aoti_torch__reinterpret_tensor <- probably what we need for slicing?
+    // https://github.com/pytorch/pytorch/blob/v2.11.0/torch/csrc/inductor/aoti_torch/c/shim.h#L275
+    pub unsafe fn aoti_torch__reinterpret_tensor(
+        _self: AtenTensorHandle,
+        ndim: i64,
+        sizes_ptr: *const i64,
+        strides_ptr: *const i64,
+        storage_offset: i64,
+        ret_new_tensor: &mut AtenTensorHandle, // returns new reference
+    ) -> AOTITorchError;
 
     // https://github.com/pytorch/pytorch/blob/v2.11.0/torch/csrc/inductor/aoti_torch/c/shim.h#L288
     // New tensor object, returned through *out, caller has to clear it.
