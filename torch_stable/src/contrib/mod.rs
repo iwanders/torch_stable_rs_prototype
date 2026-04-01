@@ -20,6 +20,7 @@
 use anyhow::bail;
 
 use crate::aoti_torch::AtenTensorHandle;
+use crate::stable::ops::EmtpyOptions;
 use crate::stable::scalar::Scalar;
 use crate::stable::tensor::Tensor;
 use crate::{StableTorchResult, unsafe_call_bail};
@@ -71,6 +72,9 @@ impl Math for Tensor {
             // How do we call a native function like https://github.com/pytorch/pytorch/blob/v2.11.0/aten/src/ATen/native/native_functions.yaml#L577C9-L577C16
             // I think functionality is missing right now, see:
             // https://github.com/pytorch/pytorch/issues/174507#issuecomment-4150977835
+            //
+            // could probably also do this; https://github.com/pytorch/pytorch/blob/v2.11.0/torch/csrc/inductor/aoti_torch/c/shim.h#L377-L382
+            // with some identity matrices... >_<
             let mut stack: [StableIValue; 3] =
                 [self.into(), other.into(), Scalar::from_f64(1.0).into()];
             unsafe_call_dispatch_bail!("aten::add", "Tensor", stack.as_mut_slice());
@@ -141,6 +145,28 @@ impl DataManipulation for Tensor {
             Ok(e) => Ok(e),
             Err(z) => bail!("failed slice conversion: {z:?}"),
         }
+    }
+}
+
+pub trait Creation {
+    fn zeros(dimensions: &[usize], options: &EmtpyOptions) -> StableTorchResult<Tensor>;
+}
+impl Creation for Tensor {
+    fn zeros(dimensions: &[usize], options: &EmtpyOptions) -> StableTorchResult<Tensor> {
+        let mut stack: [StableIValue; 6] = [
+            (dimensions).into(),
+            (&options.dtype).into(),
+            (&options.layout).into(),
+            (&options.device).into(),
+            (&options.pin_memory).into(),
+            (&options.memory_format).into(),
+        ];
+        unsafe_call_dispatch_bail!("aten::empty", "memory_format", stack.as_mut_slice());
+        let r: Tensor = stack[0].try_into()?;
+
+        unsafe_call_bail!(aoti_torch_zero_(r.get()));
+
+        Ok(r)
     }
 }
 
@@ -227,6 +253,24 @@ mod test {
         Ok(())
     }
 
+    #[test]
+    fn test_tensor_contrib_creation() -> StableTorchResult<()> {
+        let t = Tensor::zeros(
+            &[2, 2],
+            &EmtpyOptions {
+                dtype: Some(ScalarType::Float),
+                ..Default::default()
+            },
+        )?;
+        println!("t.data_ptr: {:?}", t.data_ptr());
+        println!("t.f32_ref(): {:?}", t.f32_ref()?);
+        let s = t.f32_ref()?;
+        assert_eq!(s, &[0.0, 0.0, 0.0, 0.0]);
+        assert_eq!(t.dim(), 2);
+        assert_eq!(t.sizes(), &[2, 2]);
+
+        Ok(())
+    }
     #[test]
     fn test_tensor_contrib_f32() -> StableTorchResult<()> {
         let t = Tensor::empty(

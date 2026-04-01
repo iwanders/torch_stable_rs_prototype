@@ -207,6 +207,9 @@ unsafe extern "C" {
 
     #[cfg(feature = "use_torch_devel")]
     pub unsafe fn aoti_torch_new_stable_ivalue(ret_value: *mut *mut StableIValue);
+
+    // https://github.com/pytorch/pytorch/blob/v2.11.0/torch/csrc/inductor/aoti_torch/c/shim.h#L422C1-L423C74
+    pub unsafe fn aoti_torch_zero_(_self: AtenTensorHandle) -> AOTITorchError;
 }
 
 // https://github.com/pytorch/pytorch/blob/3848e11d554a7f49925b593c40b8be0b86ac6b3f/docs/source/notes/libtorch_stable_abi.md#stableivalue-conversions
