@@ -29,6 +29,7 @@ pub struct EmtpyOptions {
     pub pin_memory: Option<bool>,
     pub memory_format: Option<MemoryFormat>,
 }
+
 impl Tensor {
     // https://github.com/pytorch/pytorch/blob/v2.11.0/torch/csrc/stable/ops.h#L442
     pub fn unsqueeze(&self, dim: usize) -> StableTorchResult<Tensor> {

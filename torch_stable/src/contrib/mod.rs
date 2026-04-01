@@ -25,6 +25,7 @@ use crate::stable::scalar::Scalar;
 use crate::stable::tensor::Tensor;
 use crate::{StableTorchResult, unsafe_call_bail};
 use crate::{aoti_torch::*, unsafe_call_dispatch_bail};
+use zerocopy::{Immutable, IntoBytes, TryFromBytes};
 
 pub trait FromScalar {
     fn from_f32(value: f32) -> StableTorchResult<Tensor>;
@@ -103,8 +104,12 @@ impl Math for Tensor {
 pub trait DataManipulation {
     fn data_ref(&self) -> StableTorchResult<&[u8]>;
     fn data_mut(&self) -> StableTorchResult<&mut [u8]>;
+
     fn f32_ref(&self) -> StableTorchResult<&[f32]>;
     fn f32_mut(&self) -> StableTorchResult<&mut [f32]>;
+
+    fn t_ref<T: IntoBytes + TryFromBytes + Immutable>(&self) -> StableTorchResult<&[T]>;
+    fn t_mut<T: IntoBytes + TryFromBytes + Immutable>(&self) -> StableTorchResult<&mut [T]>;
 }
 
 impl DataManipulation for Tensor {
@@ -140,8 +145,21 @@ impl DataManipulation for Tensor {
     }
     fn f32_mut(&self) -> StableTorchResult<&mut [f32]> {
         let byte_ref = self.data_mut()?;
-        use zerocopy::TryFromBytes;
         match <[f32]>::try_mut_from_bytes(byte_ref) {
+            Ok(e) => Ok(e),
+            Err(z) => bail!("failed slice conversion: {z:?}"),
+        }
+    }
+    fn t_ref<T: IntoBytes + TryFromBytes + Immutable>(&self) -> StableTorchResult<&[T]> {
+        let byte_ref = self.data_mut()?;
+        match <[T]>::try_ref_from_bytes(byte_ref) {
+            Ok(e) => Ok(e),
+            Err(z) => bail!("failed slice conversion: {z:?}"),
+        }
+    }
+    fn t_mut<T: IntoBytes + TryFromBytes + Immutable>(&self) -> StableTorchResult<&mut [T]> {
+        let byte_ref = self.data_mut()?;
+        match <[T]>::try_mut_from_bytes(byte_ref) {
             Ok(e) => Ok(e),
             Err(z) => bail!("failed slice conversion: {z:?}"),
         }
@@ -250,6 +268,9 @@ mod test {
             println!("b.mutable_data_ptr: {:?}", b.mutable_data_ptr());
             assert_eq!(b.data_mut().is_err(), true);
         }
+
+        assert_eq!(a.data_ref()?, a.t_ref::<u8>()?);
+
         Ok(())
     }
 
