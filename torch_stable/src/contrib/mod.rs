@@ -338,7 +338,7 @@ mod test {
         println!("t.data_ptr: {:?}", t.data_ptr());
         println!("t.const_data_ptr: {:?}", t.const_data_ptr());
         println!("t.mutable_data_ptr: {:?}", t.mutable_data_ptr());
-        println!("t.f32_ref(): {:?}", t.f32_ref()?);
+        // println!("t.f32_ref(): {:?}", t.f32_ref()?); yes this is unitialised, lets not look at it as valgrind lights up.
         t.f32_mut()?[0] = 3.3;
         t.f32_mut()?[1] = 5.3;
         t.f32_mut()?[2] = 89.5;
