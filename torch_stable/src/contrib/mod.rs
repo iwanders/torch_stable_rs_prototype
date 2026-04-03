@@ -84,14 +84,21 @@ impl Math for Tensor {
         } else {
             let mut handle_res: AtenTensorHandle = std::ptr::null_mut();
 
-            // Yes, this is a subtract with self - alpha * other with alpha = -1.0.
-            // unsafe_call_bail!(aoti_torch_cpu_add_Tensor(
-            unsafe_call_bail!(aoti_torch_cuda_add_Tensor(
-                self.get(),
-                other.get(),
-                1.0,
-                &mut handle_res
-            ));
+            if self.is_cpu() && other.is_cpu() {
+                unsafe_call_bail!(aoti_torch_cpu_add_Tensor(
+                    self.get(),
+                    other.get(),
+                    1.0,
+                    &mut handle_res
+                ));
+            } else {
+                unsafe_call_bail!(aoti_torch_cuda_add_Tensor(
+                    self.get(),
+                    other.get(),
+                    1.0,
+                    &mut handle_res
+                ));
+            }
             Ok(Self::from_handle(handle_res))
         }
     }
@@ -390,25 +397,6 @@ mod test {
         assert_eq!(t.dim(), 1); // torch.arange(0, 24).dim()
         assert_eq!(t.sizes(), &[24]); // torch.arange(0, 24).shape
         assert!(t.t_ref::<u64>()?.iter().zip(0..24u64).all(|(a, b)| *a == b));
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_tensor_contrib_nv_jpg() -> StableTorchResult<()> {
-        // https://github.com/pytorch/vision/blob/v0.26.0/torchvision/csrc/io/image/image.cpp#L18
-        // https://github.com/pytorch/vision/blob/v0.26.0/torchvision/csrc/io/image/cpu/encode_jpeg.h#L8
-        let t = Tensor::zeros(
-            &[2, 2],
-            &EmtpyOptions {
-                dtype: Some(ScalarType::Float),
-                ..Default::default()
-            },
-        )?;
-        let quality: i64 = 30;
-        let mut stack: [StableIValue; 2] = [(&t).into(), quality.into()];
-        unsafe_call_dispatch_bail!("image::encode_jpeg", "", stack.as_mut_slice());
-        let z: Tensor = stack[0].try_into()?;
 
         Ok(())
     }

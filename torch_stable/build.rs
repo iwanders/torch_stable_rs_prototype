@@ -21,22 +21,6 @@ fn main() {
             std::env::var("VIRTUAL_ENV").unwrap_or("".to_owned())
         )
     };
-
-    let vision_lib_path = {
-        let torchvision = format!(
-            "{}/lib/python3.13/site-packages/torchvision",
-            std::env::var("VIRTUAL_ENV").unwrap_or("".to_owned())
-        );
-        let image_so_path = std::path::PathBuf::from(&torchvision).join("image.so");
-        if image_so_path.exists() {
-            Some(torchvision)
-        } else {
-            // std::process::exit(1);
-
-            None
-        }
-    };
-
     //println!("cargo::rerun-if-changed=build.rs");
     // let lib_path = ;
     //let lib_path = "/workspace/ivor/ml/pytorch_dev/pytorch/build/lib";
@@ -44,9 +28,6 @@ fn main() {
     // Tell cargo to look for shared libraries in the specified directory
     println!("cargo:rustc-link-search={lib_path}");
     println!("cargo:rustc-link-lib=iw_torch_stable");
-    if let Some(torch_vision_dir) = &vision_lib_path {
-        println!("cargo:rustc-link-search={}", torch_vision_dir);
-    }
 
     // Tell cargo to tell rustc to link the system bzip2
     // shared library.
@@ -59,20 +40,8 @@ fn main() {
     println!("cargo:rustc-link-arg=-ltorch");
     // println!("cargo:rustc-link-arg=-L{}", lib_path);
     //
-    if let Some(torch_vision_dir) = &vision_lib_path {
-        println!("cargo:rustc-link-lib=torch_python");
-        // println!("cargo:rustc-link-arg=-limage");
-        //
-        println!("cargo:rustc-link-arg=-Wl,--no-as-needed");
-        // println!("cargo:rustc-link-lib=dylib:+verbatim=image.so");
-        println!("cargo:rustc-link-arg=-limage");
-    }
-
     println!("cargo:rustc-link-arg=-Wl,-rpath,{}", lib_path);
 
-    if let Some(torch_vision_dir) = &vision_lib_path {
-        println!("cargo:rustc-link-arg=-Wl,-rpath,{}", torch_vision_dir);
-    }
     // let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
     // println!("cargo:rustc-link-search=static:{}", out_path.display());
     // println!("cargo:rustc-link-lib=static:+whole-archive,-bundle=torch_stable");
