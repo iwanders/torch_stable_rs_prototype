@@ -291,6 +291,11 @@ mod test {
             use crate::contrib::{FromScalar, ToScalar};
             let a = Tensor::from_f32(5.0)?.unsqueeze(0)?;
             let b = Tensor::from_f32(3.0)?.unsqueeze(0)?;
+            // let b = b.to(&ToOptions {
+            //     device: Some(Device::from_str("cuda:0")?),
+            //     copy: true,
+            //     ..Default::default()
+            // })?;
             let c = a.sub2(&b).unwrap();
             assert_eq!(c.to_f32().unwrap(), 2.0);
         }
@@ -385,6 +390,25 @@ mod test {
         assert_eq!(t.dim(), 1); // torch.arange(0, 24).dim()
         assert_eq!(t.sizes(), &[24]); // torch.arange(0, 24).shape
         assert!(t.t_ref::<u64>()?.iter().zip(0..24u64).all(|(a, b)| *a == b));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_tensor_contrib_nv_jpg() -> StableTorchResult<()> {
+        // https://github.com/pytorch/vision/blob/v0.26.0/torchvision/csrc/io/image/image.cpp#L18
+        // https://github.com/pytorch/vision/blob/v0.26.0/torchvision/csrc/io/image/cpu/encode_jpeg.h#L8
+        let t = Tensor::zeros(
+            &[2, 2],
+            &EmtpyOptions {
+                dtype: Some(ScalarType::Float),
+                ..Default::default()
+            },
+        )?;
+        let quality: i64 = 30;
+        let mut stack: [StableIValue; 2] = [(&t).into(), quality.into()];
+        unsafe_call_dispatch_bail!("image::encode_jpeg", "", stack.as_mut_slice());
+        let z: Tensor = stack[0].try_into()?;
 
         Ok(())
     }
