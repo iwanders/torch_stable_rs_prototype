@@ -7,12 +7,14 @@ fn main() {
         .cpp(true)
         .compile("iw_torch_stable");
     println!("cargo::rerun-if-changed=support/alloc_stableivalue.cpp");
-
+ 
     let lib_path = if std::env::var("CARGO_FEATURE_USE_TORCH_DEVEL").is_ok() {
         "/workspace/ivor/ml/pytorch_dev/pytorch/build/lib"
     } else {
-        "../train/.venv/lib/python3.13/site-packages/torch/lib"
+        &format!("{}/lib/python3.13/site-packages/torch/lib", std::env::var("VIRTUAL_ENV").unwrap_or("".to_owned()))
     };
+
+
 
     //println!("cargo::rerun-if-changed=build.rs");
     // let lib_path = ;
