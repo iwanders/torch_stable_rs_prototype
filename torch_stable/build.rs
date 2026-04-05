@@ -8,14 +8,14 @@ fn main() {
         .compile("iw_torch_stable");
     println!("cargo::rerun-if-changed=support/alloc_stableivalue.cpp");
 
-    if std::env::var("VIRTUAL_ENV").is_err() {
-        eprintln!("Source a virtualenv!");
-        std::process::exit(1);
-    }
-
     let lib_path = if std::env::var("CARGO_FEATURE_USE_TORCH_DEVEL").is_ok() {
-        "/workspace/ivor/ml/pytorch_dev/pytorch/build/lib"
+        "/workspace/pytorch/build/lib"
     } else {
+        if std::env::var("VIRTUAL_ENV").is_err() {
+            eprintln!("Source a virtualenv!");
+            std::process::exit(1);
+        }
+
         &format!(
             "{}/lib/python3.13/site-packages/torch/lib",
             std::env::var("VIRTUAL_ENV").unwrap_or("".to_owned())
@@ -32,7 +32,7 @@ fn main() {
     // Tell cargo to tell rustc to link the system bzip2
     // shared library.
     // println!("cargo:rustc-link-lib=torch");
-    println!("cargo:rustc-link-lib=torch_cuda");
+    //println!("cargo:rustc-link-lib=torch_cuda");
     println!("cargo:rustc-link-lib=torch_cpu");
     // println!("cargo:rustc-link-lib=static:+whole-archive,-bundle=torch_cuda");
     //

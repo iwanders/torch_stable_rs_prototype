@@ -54,6 +54,7 @@ where
                 {
                     let mut handle_res: *mut StableIValue = std::ptr::null_mut();
                     unsafe { aoti_torch_new_stable_ivalue(&mut handle_res) };
+                    unsafe { *handle_res = converted };
                     let ptr_as_u64: u64 = handle_res as u64;
                     StableIValue(ptr_as_u64)
                 }
