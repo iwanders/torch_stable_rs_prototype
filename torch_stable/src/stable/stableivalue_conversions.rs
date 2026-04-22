@@ -11,7 +11,6 @@ use crate::{
     headeronly::core::{DeviceType, Layout, MemoryFormat, ScalarType},
     stable::{
         device::{Device, DeviceIndex},
-        scalar::Scalar,
         tensor::Tensor,
     },
     unsafe_call_panic,
@@ -193,21 +192,6 @@ impl From<DeviceIndex> for StableIValue {
     fn from(value: DeviceIndex) -> Self {
         let bitwise_value: u64 = u32::from_ne_bytes((value.0 as i32).to_ne_bytes()) as u64;
         Self(bitwise_value)
-    }
-}
-
-impl From<Scalar> for StableIValue {
-    fn from(value: Scalar) -> Self {
-        let mut handle_res: StableListHandle = std::ptr::null_mut();
-        unsafe_call_panic!(torch_new_list_reserve_size(2, &mut handle_res));
-
-        let scalar_type = value.scalar_type();
-        let scalar_value = value.value();
-
-        unsafe_call_panic!(torch_list_push_back(handle_res, scalar_type.into()));
-        unsafe_call_panic!(torch_list_push_back(handle_res, scalar_value.into()));
-
-        Self(handle_res as u64)
     }
 }
 

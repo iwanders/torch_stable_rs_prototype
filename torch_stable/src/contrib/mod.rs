@@ -22,7 +22,6 @@ use anyhow::bail;
 use crate::aoti_torch::AtenTensorHandle;
 use crate::headeronly::core::ScalarType;
 use crate::stable::ops::EmtpyOptions;
-use crate::stable::scalar::Scalar;
 use crate::stable::tensor::Tensor;
 use crate::{StableTorchResult, unsafe_call_bail};
 use crate::{aoti_torch::*, unsafe_call_dispatch_bail};
@@ -66,48 +65,27 @@ impl ToScalar for Tensor {
 
 pub trait Math {
     fn add(&self, other: &Tensor) -> StableTorchResult<Tensor>;
-    fn sub2(&self, other: &Tensor) -> StableTorchResult<Tensor>;
 }
 impl Math for Tensor {
     fn add(&self, other: &Tensor) -> StableTorchResult<Tensor> {
-        if cfg!(feature = "use_torch_devel") && false {
-            // How do we call a native function like https://github.com/pytorch/pytorch/blob/v2.11.0/aten/src/ATen/native/native_functions.yaml#L577C9-L577C16
-            // I think functionality is missing right now, see:
-            // https://github.com/pytorch/pytorch/issues/174507#issuecomment-4150977835
-            //
-            // could probably also do this; https://github.com/pytorch/pytorch/blob/v2.11.0/torch/csrc/inductor/aoti_torch/c/shim.h#L377-L382
-            // with some identity matrices... >_<
-            let mut stack: [StableIValue; 3] =
-                [self.into(), other.into(), Scalar::from_f64(1.0).into()];
-            unsafe_call_dispatch_bail!("aten::add", "Tensor", stack.as_mut_slice());
-            stack[0].try_into()
+        let mut handle_res: AtenTensorHandle = std::ptr::null_mut();
+
+        if self.is_cpu() && other.is_cpu() {
+            unsafe_call_bail!(aoti_torch_cpu_add_Tensor(
+                self.get(),
+                other.get(),
+                1.0,
+                &mut handle_res
+            ));
         } else {
-            let mut handle_res: AtenTensorHandle = std::ptr::null_mut();
-
-            if self.is_cpu() && other.is_cpu() {
-                unsafe_call_bail!(aoti_torch_cpu_add_Tensor(
-                    self.get(),
-                    other.get(),
-                    1.0,
-                    &mut handle_res
-                ));
-            } else {
-                #[cfg(not(feature = "use_torch_devel"))]
-                unsafe_call_bail!(aoti_torch_cuda_add_Tensor(
-                    self.get(),
-                    other.get(),
-                    1.0,
-                    &mut handle_res
-                ));
-            }
-            Ok(Self::from_handle(handle_res))
+            unsafe_call_bail!(aoti_torch_cuda_add_Tensor(
+                self.get(),
+                other.get(),
+                1.0,
+                &mut handle_res
+            ));
         }
-    }
-    fn sub2(&self, other: &Tensor) -> StableTorchResult<Tensor> {
-        let mut stack: [StableIValue; 2] = [self.into(), other.into()];
-        unsafe_call_dispatch_bail!("aten::subtract", "Tensor", stack.as_mut_slice()); // does something, mostly complain about scalars
-
-        stack[0].try_into()
+        Ok(Self::from_handle(handle_res))
     }
 }
 
@@ -294,24 +272,7 @@ mod test {
         Ok(())
     }
 
-    #[test]
-    fn test_tensor_contrib_sub2() -> StableTorchResult<()> {
-        if false {
-            use crate::contrib::{FromScalar, ToScalar};
-            let a = Tensor::from_f32(5.0)?.unsqueeze(0)?;
-            let b = Tensor::from_f32(3.0)?.unsqueeze(0)?;
-            // let b = b.to(&ToOptions {
-            //     device: Some(Device::from_str("cuda:0")?),
-            //     copy: true,
-            //     ..Default::default()
-            // })?;
-            let c = a.sub2(&b).unwrap();
-            assert_eq!(c.to_f32().unwrap(), 2.0);
-        }
-        Ok(())
-    }*/
-
-    #[test]
+    */
     fn test_tensor_contrib_data() -> StableTorchResult<()> {
         let a = Tensor::from_f32(5.0)?.unsqueeze(0)?;
         println!("a.element_size(): {:?}", a.element_size());
