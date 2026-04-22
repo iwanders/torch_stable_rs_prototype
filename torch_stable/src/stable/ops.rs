@@ -96,7 +96,7 @@ mod test {
 
     #[test]
     fn test_tensor_ops_subtract() {
-        use crate::contrib::{FromScalar, ToScalar};
+        use crate::contrib::{TensorFromScalar, TensorToScalar};
         let a = Tensor::from_f32(5.0).unwrap();
         let b = Tensor::from_f32(3.0).unwrap();
         let c = a.subtract(&b).unwrap();
@@ -104,7 +104,7 @@ mod test {
     }
     #[test]
     fn test_tensor_ops_to() -> StableTorchResult<()> {
-        use crate::contrib::{FromScalar, ToScalar};
+        use crate::contrib::{TensorFromScalar, TensorToScalar};
         let a = Tensor::from_f32(5.0).unwrap();
         let a = a.unsqueeze(0)?;
         let b = a.to(&ToOptions {
@@ -125,7 +125,7 @@ mod test {
     }
     #[test]
     fn test_tensor_ops_matmul() -> StableTorchResult<()> {
-        use crate::contrib::{FromScalar, ToScalar};
+        use crate::contrib::{TensorFromScalar, TensorToScalar};
         let a = Tensor::from_f32(5.0)?;
         let b = Tensor::from_f32(3.0)?;
         let a = a.unsqueeze(0)?; // need a dimension to perform a matmul.
@@ -139,7 +139,7 @@ mod test {
     }
     #[test]
     fn test_tensor_ops_unsqueeze() -> StableTorchResult<()> {
-        use crate::contrib::FromScalar;
+        use crate::contrib::TensorFromScalar;
         let a = Tensor::from_f32(5.0)?;
         let b = a.unsqueeze(0)?;
         assert_eq!(a.sizes(), &[]); // scalar is dimensionless.

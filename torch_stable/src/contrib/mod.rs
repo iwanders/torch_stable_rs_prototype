@@ -27,12 +27,12 @@ use crate::{StableTorchResult, unsafe_call_bail};
 use crate::{aoti_torch::*, unsafe_call_dispatch_bail};
 use zerocopy::{Immutable, IntoBytes, TryFromBytes};
 
-pub trait FromScalar {
+pub trait TensorFromScalar {
     fn from_f32(value: f32) -> StableTorchResult<Tensor>;
     fn from_f64(value: f64) -> StableTorchResult<Tensor>;
 }
 
-impl FromScalar for Tensor {
+impl TensorFromScalar for Tensor {
     fn from_f32(value: f32) -> StableTorchResult<Self> {
         let mut handle_res: AtenTensorHandle = std::ptr::null_mut();
         unsafe_call_bail!(aoti_torch_scalar_to_tensor_float32(value, &mut handle_res));
@@ -45,11 +45,11 @@ impl FromScalar for Tensor {
     }
 }
 
-pub trait ToScalar {
+pub trait TensorToScalar {
     fn to_f32(&self) -> StableTorchResult<f32>;
     fn to_f64(&self) -> StableTorchResult<f64>;
 }
-impl ToScalar for Tensor {
+impl TensorToScalar for Tensor {
     fn to_f32(&self) -> StableTorchResult<f32> {
         let mut sum_result: f32 = 0.0;
         unsafe_call_bail!(aoti_torch_item_float32(self.get(), &mut sum_result));
@@ -219,8 +219,8 @@ mod test {
     use crate::stable::device::{Device, DeviceIndex};
     #[test]
     fn test_tensor_conbtrib_from_to_scalar() {
-        use crate::contrib::FromScalar;
-        use crate::contrib::ToScalar;
+        use crate::contrib::TensorFromScalar;
+        use crate::contrib::TensorToScalar;
         let t = Tensor::from_f32(std::f32::consts::PI).unwrap();
         assert_eq!(t.dim(), 0);
         assert_eq!(t.numel(), 1);
@@ -243,7 +243,7 @@ mod test {
 
     #[test]
     fn test_tensor_contrib_addition() -> StableTorchResult<()> {
-        use crate::contrib::{FromScalar, ToScalar};
+        use crate::contrib::{TensorFromScalar, TensorToScalar};
         let a = Tensor::from_f32(5.0)?;
         let b = Tensor::from_f32(3.0)?;
         let c = a.add(&b)?;
@@ -251,28 +251,7 @@ mod test {
         Ok(())
     }
 
-    /*
     #[test]
-    fn test_tensor_contrib_addition_cuda() -> StableTorchResult<()> {
-        use crate::contrib::{FromScalar, ToScalar};
-        let a = Tensor::from_f32(5.0)?.unsqueeze(0)?;
-        let b = Tensor::from_f32(3.0)?.unsqueeze(0)?;
-        let a = a.to(&ToOptions {
-            device: Some(Device::from_str("cuda:0")?),
-            copy: true,
-            ..Default::default()
-        })?;
-        let b = b.to(&ToOptions {
-            device: Some(Device::from_str("cuda:0")?),
-            copy: true,
-            ..Default::default()
-        })?;
-        let c = a.add(&b)?;
-        assert_eq!(c.to_f32().unwrap(), 8.0);
-        Ok(())
-    }
-
-    */
     fn test_tensor_contrib_data() -> StableTorchResult<()> {
         let a = Tensor::from_f32(5.0)?.unsqueeze(0)?;
         println!("a.element_size(): {:?}", a.element_size());
