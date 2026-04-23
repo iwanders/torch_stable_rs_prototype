@@ -13,6 +13,7 @@ use crate::aoti_torch::*;
 use crate::headeronly::core::ScalarType;
 use crate::stable::device::{Device, DeviceIndex};
 use crate::stable::ops::{EmtpyOptions, ToOptions};
+use crate::util::unsafe_call_dispatch_panic;
 use crate::{
     StableTorchResult,
     aoti_torch::{AtenTensorHandle, StableIValue, aoti_torch_zero_},
@@ -26,6 +27,17 @@ use crate::{
 pub struct Tensor {
     tensor: StableTensor,
 }
+impl Clone for Tensor {
+    fn clone(&self) -> Self {
+        // Clone cannot throw... so we use a lazy clone; https://github.com/pytorch/pytorch/blob/v2.11.0/aten/src/ATen/native/native_functions.yaml#L1278
+        let mut stack: [StableIValue; 1] = [(&self.tensor).into()];
+        unsafe_call_dispatch_panic!("aten::_lazy_clone", "", stack.as_mut_slice());
+        let r: Tensor = Self::new(stack[0].try_into().unwrap());
+
+        r
+    }
+}
+
 impl Tensor {
     fn new(tensor: StableTensor) -> Self {
         Self { tensor }
@@ -127,21 +139,27 @@ impl Tensor {
 pub struct Ten<'a> {
     // This is the backing tensor that shares data with the 'parent'.
     tensor: StableTensor,
-    parent: &'a StableTensor,
+    _parent: &'a StableTensor,
 }
 impl<'a> Ten<'a> {
     pub fn new(parent: &'a StableTensor, tensor: StableTensor) -> Self {
-        Self { parent, tensor }
+        Self {
+            _parent: parent,
+            tensor,
+        }
     }
 }
 pub struct TenMut<'a> {
     // This is the backing tensor that shares data with the 'parent'.
     tensor: StableTensor,
-    parent: &'a StableTensor,
+    _parent: &'a StableTensor,
 }
 impl<'a> TenMut<'a> {
     pub fn new(parent: &'a StableTensor, tensor: StableTensor) -> Self {
-        Self { parent, tensor }
+        Self {
+            _parent: parent,
+            tensor,
+        }
     }
 }
 
@@ -283,6 +301,11 @@ mod test {
         let view = t.narrow(0, 0, 3)?;
         println!("view: {:?}", view.f32_ref()?);
         println!("t: {:?}", t.f32_ref()?);
+
+        let mut z = t.clone();
+        z.fill_f64(5.5)?;
+        println!("t: {:?}", t.f32_ref()?);
+        println!("z: {:?}", z.f32_ref()?);
 
         Ok(())
     }
