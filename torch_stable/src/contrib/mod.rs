@@ -27,6 +27,8 @@ use crate::{StableTorchResult, unsafe_call_bail};
 use crate::{aoti_torch::*, unsafe_call_dispatch_bail};
 use zerocopy::{Immutable, IntoBytes, TryFromBytes};
 
+mod flash_powder;
+
 pub trait TensorFromScalar {
     fn from_f32(value: f32) -> StableTorchResult<Tensor>;
     fn from_f64(value: f64) -> StableTorchResult<Tensor>;
