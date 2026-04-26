@@ -79,7 +79,8 @@ impl Math for Tensor {
                 1.0,
                 &mut handle_res
             ));
-        } else {
+        } else if self.is_cuda() && other.is_cuda() {
+            #[cfg(feature = "use_cuda")]
             unsafe_call_bail!(aoti_torch_cuda_add_Tensor(
                 self.get(),
                 other.get(),
@@ -253,6 +254,7 @@ mod test {
         Ok(())
     }
 
+    #[cfg(feature = "use_cuda")]
     #[test]
     fn test_tensor_contrib_data() -> StableTorchResult<()> {
         let a = Tensor::from_f32(5.0)?.unsqueeze(0)?;

@@ -77,3 +77,15 @@ unsafe extern "C" {
         ret_data_ptr: *mut *const c_void, // returns borrowed reference
     ) -> AOTITorchError;
 }
+
+// From https://github.com/pytorch/pytorch/pull/180135/
+unsafe extern "C" {
+
+    pub unsafe fn torch_exception_get_what() -> *const c_char;
+    pub unsafe fn torch_exception_get_what_without_backtrace() -> *const c_char;
+
+    pub unsafe fn torch_exception_set_exception_printing(should_print: bool) -> bool;
+
+    pub unsafe fn torch_exception_get_exception_printing() -> bool;
+
+}

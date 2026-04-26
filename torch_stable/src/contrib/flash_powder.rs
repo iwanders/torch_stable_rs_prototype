@@ -281,6 +281,32 @@ mod test {
 
         Ok(())
     }
+
+    #[test]
+    fn test_flash_powder_create_error() -> StableTorchResult<()> {
+        unsafe {
+            crate::stable::c::torch_exception_set_exception_printing(false);
+        }
+        let a = Tensor::zeros(
+            &[usize::MAX, 5],
+            &EmtpyOptions {
+                ..Default::default()
+            },
+        );
+
+        let error_msg_ptr =
+            unsafe { crate::stable::c::torch_exception_get_what_without_backtrace() };
+
+        let error_msg = unsafe { std::ffi::CStr::from_ptr(error_msg_ptr) };
+        let owned_error = error_msg.to_owned().into_string()?;
+        assert_eq!(
+            owned_error,
+            "Trying to create tensor with negative dimension -1: [-1, 5]"
+        );
+
+        Ok(())
+    }
+
     #[test]
     fn test_flash_powder_narrow() -> StableTorchResult<()> {
         let mut t = Tensor::zeros(

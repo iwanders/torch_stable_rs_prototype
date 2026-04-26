@@ -9,30 +9,46 @@ fn main() {
     println!("cargo::rerun-if-changed=support/alloc_stableivalue.cpp");
 
     let lib_path = if std::env::var("CARGO_FEATURE_USE_TORCH_DEVEL").is_ok() {
-        "/workspace/pytorch/build/lib"
+        PathBuf::from("/workspace/pytorch/build/lib")
     } else {
         if std::env::var("VIRTUAL_ENV").is_err() {
             eprintln!("Source a virtualenv!");
             std::process::exit(1);
         }
 
-        &format!(
+        let normal_venv = PathBuf::from(&format!(
             "{}/lib/python3.13/site-packages/torch/lib",
             std::env::var("VIRTUAL_ENV").unwrap_or("".to_owned())
-        )
+        ));
+        let dev_venv = PathBuf::from(&format!(
+            "{}/../build/lib/",
+            std::env::var("VIRTUAL_ENV").unwrap_or("".to_owned())
+        ));
+        if normal_venv.is_dir() {
+            normal_venv
+        } else if dev_venv.is_dir() {
+            dev_venv
+        } else {
+            eprintln!("This really doesn't look like a venv I can use.");
+            std::process::exit(1);
+        }
     };
     //println!("cargo::rerun-if-changed=build.rs");
     // let lib_path = ;
     //let lib_path = "/workspace/ivor/ml/pytorch_dev/pytorch/build/lib";
     // let lib_path = "/home/ivor/Documents/Code/rust/overlay_segmenter/repo/train/.venv/lib/python3.13/site-packages/torch/lib/";
     // Tell cargo to look for shared libraries in the specified directory
+    let lib_path = lib_path.display();
     println!("cargo:rustc-link-search={lib_path}");
     println!("cargo:rustc-link-lib=iw_torch_stable");
 
     // Tell cargo to tell rustc to link the system bzip2
     // shared library.
     // println!("cargo:rustc-link-lib=torch");
-    println!("cargo:rustc-link-lib=torch_cuda");
+    //
+    if std::env::var("CARGO_FEATURE_USE_CUDA").is_ok() {
+        println!("cargo:rustc-link-lib=torch_cuda");
+    }
     println!("cargo:rustc-link-lib=torch_cpu");
     // println!("cargo:rustc-link-lib=static:+whole-archive,-bundle=torch_cuda");
     //

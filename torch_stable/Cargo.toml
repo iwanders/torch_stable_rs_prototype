@@ -18,3 +18,4 @@ cc = "1.0"
 
 [features]
 use_torch_devel = []
+use_cuda = []
