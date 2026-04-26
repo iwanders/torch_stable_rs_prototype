@@ -12,12 +12,12 @@ use zerocopy::{Immutable, IntoBytes, TryFromBytes};
 
 pub mod native_functions;
 pub mod tensor;
-use crate::aoti_torch::*;
-use crate::headeronly::core::ScalarType;
-use crate::stable::device::{Device, DeviceIndex};
-use crate::stable::ops::{EmtpyOptions, ToOptions};
-use crate::util::unsafe_call_dispatch_panic;
-use crate::{
+use torch_stable::aoti_torch::*;
+use torch_stable::headeronly::core::ScalarType;
+use torch_stable::stable::device::{Device, DeviceIndex};
+use torch_stable::stable::ops::{EmtpyOptions, ToOptions};
+use torch_stable::unsafe_call_dispatch_panic;
+use torch_stable::{
     StableTorchResult,
     aoti_torch::{AtenTensorHandle, StableIValue, aoti_torch_zero_},
     stable::tensor::Tensor as StableTensor,
@@ -128,7 +128,7 @@ mod test {
     #[test]
     fn test_flash_powder_create_error() -> StableTorchResult<()> {
         unsafe {
-            crate::stable::c::torch_exception_set_exception_printing(false);
+            torch_stable::stable::c::torch_exception_set_exception_printing(false);
         }
         let a = Tensor::zeros(
             &[usize::MAX, 5],
@@ -138,7 +138,7 @@ mod test {
         );
 
         let error_msg_ptr =
-            unsafe { crate::stable::c::torch_exception_get_what_without_backtrace() };
+            unsafe { torch_stable::stable::c::torch_exception_get_what_without_backtrace() };
 
         let error_msg = unsafe { std::ffi::CStr::from_ptr(error_msg_ptr) };
         let owned_error = error_msg.to_owned().into_string()?;

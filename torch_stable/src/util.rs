@@ -6,11 +6,12 @@
 pub type StableTorchResult<T> = anyhow::Result<T>;
 
 /// For functions that can fail somewhat gracefully.
+#[macro_export]
 macro_rules! unsafe_call_bail {
     ($($tokens:tt)*) => {{
         let api_call_result = unsafe {$($tokens)*};
         let code_text = stringify!($($tokens)*);
-        if api_call_result == crate::AOTI_TORCH_FAILURE {
+        if api_call_result == $crate::AOTI_TORCH_FAILURE {
             anyhow::bail!("call failed ({}) at {}:{}", code_text, file!(), line!());
         }
     }};
@@ -18,17 +19,19 @@ macro_rules! unsafe_call_bail {
 
 /// For functions that cannot return a failure like Drop, or functions where it would lead to questionmark soup
 /// like getting the dim() on a guaranteed existing tensor pointer.
+#[macro_export]
 macro_rules! unsafe_call_panic {
     ($($tokens:tt)*) => {{
         let api_call_result = unsafe {$($tokens)*};
         let code_text = stringify!($($tokens)*);
-        if api_call_result == crate::AOTI_TORCH_FAILURE {
+        if api_call_result == $crate::AOTI_TORCH_FAILURE {
             panic!("call failed ({}) at {}:{}", code_text, file!(), line!());
         }
     }};
 }
 
 // This is a macro mostly to ensure we have the correct line number and file :/
+#[macro_export]
 macro_rules! unsafe_call_dispatch_bail {
     ($op_name:expr, $overload_name:expr, $stack:expr) => {{
         let op_name = std::ffi::CString::new($op_name).expect("CString::new failed");
@@ -38,14 +41,14 @@ macro_rules! unsafe_call_dispatch_bail {
         let overload_name_cstr = overload_name.as_ptr();
 
         let api_call_result = unsafe {
-            crate::stable::c::torch_call_dispatcher(
+            $crate::stable::c::torch_call_dispatcher(
                 op_name_cstr,
                 overload_name_cstr,
                 $stack.as_mut_ptr(),
-                crate::TORCH_ABI_VERSION,
+                $crate::TORCH_ABI_VERSION,
             )
         };
-        if api_call_result == crate::AOTI_TORCH_FAILURE {
+        if api_call_result == $crate::AOTI_TORCH_FAILURE {
             anyhow::bail!(
                 "dispatch failed ({}, {}) at {}:{}",
                 $op_name,
@@ -57,6 +60,7 @@ macro_rules! unsafe_call_dispatch_bail {
     }};
 }
 
+#[macro_export]
 macro_rules! unsafe_call_dispatch_panic {
     ($op_name:expr, $overload_name:expr, $stack:expr) => {{
         let op_name = std::ffi::CString::new($op_name).expect("CString::new failed");
@@ -66,14 +70,14 @@ macro_rules! unsafe_call_dispatch_panic {
         let overload_name_cstr = overload_name.as_ptr();
 
         let api_call_result = unsafe {
-            crate::stable::c::torch_call_dispatcher(
+            $crate::stable::c::torch_call_dispatcher(
                 op_name_cstr,
                 overload_name_cstr,
                 $stack.as_mut_ptr(),
-                crate::TORCH_ABI_VERSION,
+                $crate::TORCH_ABI_VERSION,
             )
         };
-        if api_call_result == crate::AOTI_TORCH_FAILURE {
+        if api_call_result == $crate::AOTI_TORCH_FAILURE {
             panic!(
                 "dispatch failed ({}, {}) at {}:{}",
                 $op_name,

@@ -40,7 +40,7 @@ where
                 let value_u64: u64 = converted.0;
                 // println!("vvalue_u64 : {value_u64:x?}");
                 // if true
-                #[cfg(not(feature = "use_torch_devel"))]
+                // #[cfg(not(feature = "use_torch_devel"))]
                 {
                     let raw_malloc_ptr_u64 =
                         unsafe { crate::support::iw_stable_torch_alloc_stableivalue() };
@@ -49,14 +49,14 @@ where
                     StableIValue(ptr_as_u64)
                 }
                 //
-                #[cfg(feature = "use_torch_devel")]
-                {
-                    let mut handle_res: *mut StableIValue = std::ptr::null_mut();
-                    unsafe { aoti_torch_new_stable_ivalue(&mut handle_res) };
-                    unsafe { *handle_res = converted };
-                    let ptr_as_u64: u64 = handle_res as u64;
-                    StableIValue(ptr_as_u64)
-                }
+                // #[cfg(feature = "use_torch_devel")]
+                // {
+                //     let mut handle_res: *mut StableIValue = std::ptr::null_mut();
+                //     unsafe { aoti_torch_new_stable_ivalue(&mut handle_res) };
+                //     unsafe { *handle_res = converted };
+                //     let ptr_as_u64: u64 = handle_res as u64;
+                //     StableIValue(ptr_as_u64)
+                // }
 
                 /* else if false {
                 let boxed_stable_value: Box<u64> = Box::new(value_u64);

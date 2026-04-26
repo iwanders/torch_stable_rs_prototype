@@ -1,5 +1,5 @@
 [package]
-name = "torch_stable"
+name = "flash_powder"
 version = "0.1.0"
 edition = "2024"
 license = "BSD-3-Clause"
@@ -11,12 +11,7 @@ license = "BSD-3-Clause"
 libc = {workspace=true}
 anyhow = {workspace=true}
 zerocopy = {workspace=true}
+torch_stable = {workspace=true, features=["use_torch_devel"]}
 
 [build-dependencies]
-cc={workspace=true}
-
-
-
-[features]
-use_torch_devel = []
-use_cuda = []
+torch_stable = {workspace=true, features=["use_torch_devel"]}

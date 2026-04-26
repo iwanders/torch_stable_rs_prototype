@@ -61,4 +61,12 @@ fn main() {
     // let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
     // println!("cargo:rustc-link-search=static:{}", out_path.display());
     // println!("cargo:rustc-link-lib=static:+whole-archive,-bundle=torch_stable");
+
+    let out_dir = env::var_os("OUT_DIR").unwrap();
+    let dest_path = std::path::Path::new(&out_dir).join("generated_consts.rs");
+    std::fs::write(
+        &dest_path,
+        format!("pub const LIB_PATH: &str = \"{lib_path}\";\n"),
+    )
+    .unwrap();
 }

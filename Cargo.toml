@@ -1,0 +1,17 @@
+[workspace]
+resolver = "2"
+
+members = ["torch_stable", "flash_powder"]
+
+
+[workspace.dependencies]
+
+torch_stable = { version = "0.1.0", path = "./torch_stable/"}
+flash_powder = { version = "0.1.0", path = "./flash_powder/"}
+
+
+cc = "1.0"
+
+libc = "0.2.183"
+anyhow = "1.0.102"
+zerocopy = "0.8.48"

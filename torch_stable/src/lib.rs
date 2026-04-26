@@ -34,16 +34,24 @@ pub mod contrib;
 pub mod headeronly;
 pub mod stable;
 mod support;
-mod util;
+pub mod util;
 
 use aoti_torch::*;
+pub use aoti_torch::{AOTI_TORCH_FAILURE, AOTI_TORCH_SUCCESS};
 // Input param: AtenTensorHandle
 // Output param: &mut AtenTensorHandle
 
 pub use util::StableTorchResult;
-pub(crate) use util::{unsafe_call_bail, unsafe_call_dispatch_bail, unsafe_call_panic};
+// pub use util::{unsafe_call_bail, unsafe_call_dispatch_bail, unsafe_call_panic};
 
 #[cfg(test)]
 pub(crate) const RUN_SPAMMY_TESTS: bool = false;
 
 pub const TORCH_ABI_VERSION: u64 = 0x20b000000000000; // as retrieved by _torch_abi_version, through test_aoti_torch_abi_version_print
+
+include!(concat!(env!("OUT_DIR"), "/generated_consts.rs"));
+
+pub fn downtree_build_rs() {
+    println!("cargo:rustc-link-search=native={LIB_PATH}");
+    println!("cargo:rustc-link-arg=-Wl,-rpath,{}", LIB_PATH);
+}

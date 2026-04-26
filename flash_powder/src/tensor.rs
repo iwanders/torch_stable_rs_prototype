@@ -1,8 +1,8 @@
-use crate::headeronly::core::ScalarType;
-use crate::stable::device::{Device, DeviceIndex};
-use crate::stable::ops::{EmtpyOptions, ToOptions};
-use crate::util::unsafe_call_dispatch_panic;
-use crate::{
+use torch_stable::headeronly::core::ScalarType;
+use torch_stable::stable::device::{Device, DeviceIndex};
+use torch_stable::stable::ops::{EmtpyOptions, ToOptions};
+use torch_stable::unsafe_call_dispatch_panic;
+use torch_stable::{
     StableTorchResult,
     aoti_torch::{AtenTensorHandle, StableIValue, aoti_torch_zero_},
     stable::tensor::Tensor as StableTensor,
@@ -95,10 +95,9 @@ impl Tensor {
 
     pub fn from_f32(value: f32) -> StableTorchResult<Self> {
         let mut handle_res: AtenTensorHandle = std::ptr::null_mut();
-        unsafe_call_bail!(crate::aoti_torch::aoti_torch_scalar_to_tensor_float32(
-            value,
-            &mut handle_res
-        ));
+        unsafe_call_bail!(
+            torch_stable::aoti_torch::aoti_torch_scalar_to_tensor_float32(value, &mut handle_res)
+        );
         Ok(Self {
             tensor: StableTensor::from_handle(handle_res),
         })
