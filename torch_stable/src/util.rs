@@ -5,14 +5,52 @@
 
 pub type StableTorchResult<T> = anyhow::Result<T>;
 
+pub struct InhibitLoggingRaii {
+    previous_value: bool,
+}
+impl InhibitLoggingRaii {
+    pub fn new() -> Self {
+        #[cfg(feature = "use_torch_devel")]
+        let previous_value =
+            unsafe { crate::stable::c::torch_exception_set_exception_printing(false) };
+        #[cfg(not(feature = "use_torch_devel"))]
+        let previous_value = false;
+        Self { previous_value }
+    }
+}
+impl Drop for InhibitLoggingRaii {
+    fn drop(&mut self) {
+        unsafe {
+            #[cfg(feature = "use_torch_devel")]
+            crate::stable::c::torch_exception_set_exception_printing(self.previous_value);
+        }
+    }
+}
+
+#[cfg(feature = "use_torch_devel")]
+pub fn get_exception_what() -> String {
+    let error_msg_ptr = unsafe { crate::stable::c::torch_exception_get_what_without_backtrace() };
+
+    let error_msg = unsafe { std::ffi::CStr::from_ptr(error_msg_ptr) };
+    error_msg
+        .to_owned()
+        .into_string()
+        .unwrap_or("failed to convert error message".to_owned())
+}
+#[cfg(not(feature = "use_torch_devel"))]
+pub fn get_exception_what() -> String {
+    return "".to_owned();
+}
+
 /// For functions that can fail somewhat gracefully.
 #[macro_export]
 macro_rules! unsafe_call_bail {
     ($($tokens:tt)*) => {{
+        let _ = $crate::util::InhibitLoggingRaii::new();
         let api_call_result = unsafe {$($tokens)*};
         let code_text = stringify!($($tokens)*);
         if api_call_result == $crate::AOTI_TORCH_FAILURE {
-            anyhow::bail!("call failed ({}) at {}:{}", code_text, file!(), line!());
+            anyhow::bail!("call failed ({}) at {}:{} ({})", code_text, file!(), line!(), $crate::util::get_exception_what());
         }
     }};
 }
@@ -22,10 +60,11 @@ macro_rules! unsafe_call_bail {
 #[macro_export]
 macro_rules! unsafe_call_panic {
     ($($tokens:tt)*) => {{
+        let _ = $crate::util::InhibitLoggingRaii::new();
         let api_call_result = unsafe {$($tokens)*};
         let code_text = stringify!($($tokens)*);
         if api_call_result == $crate::AOTI_TORCH_FAILURE {
-            panic!("call failed ({}) at {}:{}", code_text, file!(), line!());
+            panic!("call failed ({}) at {}:{} ({})", code_text, file!(), line!(), $crate::util::get_exception_what());
         }
     }};
 }
@@ -39,6 +78,7 @@ macro_rules! unsafe_call_dispatch_bail {
 
         let overload_name = std::ffi::CString::new($overload_name).expect("CString::new failed");
         let overload_name_cstr = overload_name.as_ptr();
+        let _ = $crate::util::InhibitLoggingRaii::new();
 
         let api_call_result = unsafe {
             $crate::stable::c::torch_call_dispatcher(
@@ -50,11 +90,12 @@ macro_rules! unsafe_call_dispatch_bail {
         };
         if api_call_result == $crate::AOTI_TORCH_FAILURE {
             anyhow::bail!(
-                "dispatch failed ({}, {}) at {}:{}",
+                "dispatch failed ({}, {}) at {}:{} ({})",
                 $op_name,
                 $overload_name,
                 file!(),
-                line!()
+                line!(),
+                $crate::util::get_exception_what()
             );
         }
     }};
@@ -63,6 +104,7 @@ macro_rules! unsafe_call_dispatch_bail {
 #[macro_export]
 macro_rules! unsafe_call_dispatch_panic {
     ($op_name:expr, $overload_name:expr, $stack:expr) => {{
+        let _ = $crate::util::InhibitLoggingRaii::new();
         let op_name = std::ffi::CString::new($op_name).expect("CString::new failed");
         let op_name_cstr = op_name.as_ptr();
 
@@ -79,11 +121,12 @@ macro_rules! unsafe_call_dispatch_panic {
         };
         if api_call_result == $crate::AOTI_TORCH_FAILURE {
             panic!(
-                "dispatch failed ({}, {}) at {}:{}",
+                "dispatch failed ({}, {}) at {}:{} ({})",
                 $op_name,
                 $overload_name,
                 file!(),
-                line!()
+                line!(),
+                $crate::util::get_exception_what()
             );
         }
     }};

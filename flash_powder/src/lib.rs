@@ -137,15 +137,11 @@ mod test {
             },
         );
 
-        let error_msg_ptr =
-            unsafe { torch_stable::stable::c::torch_exception_get_what_without_backtrace() };
+        assert!(a.is_err());
+        let failure = a.err().unwrap();
+        let v = failure.to_string();
 
-        let error_msg = unsafe { std::ffi::CStr::from_ptr(error_msg_ptr) };
-        let owned_error = error_msg.to_owned().into_string()?;
-        assert_eq!(
-            owned_error,
-            "Trying to create tensor with negative dimension -1: [-1, 5]"
-        );
+        assert!(v.contains("Trying to create tensor with negative dimension -1: [-1, 5]"));
 
         Ok(())
     }
