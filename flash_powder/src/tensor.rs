@@ -102,24 +102,6 @@ impl Tensor {
             tensor: StableTensor::from_handle(handle_res),
         })
     }
-    pub fn narrow(&self, dim: usize, start: usize, end: usize) -> StableTorchResult<Ten<'_>> {
-        // https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L4489
-        let mut stack: [StableIValue; 4] =
-            [(&self.tensor).into(), dim.into(), start.into(), end.into()];
-        unsafe_call_dispatch_bail!("aten::narrow", "", stack.as_mut_slice());
-        Ok(Ten::new(&self.tensor, stack[0].try_into()?))
-    }
-    pub fn narrow_mut(
-        &mut self,
-        dim: usize,
-        start: usize,
-        end: usize,
-    ) -> StableTorchResult<TenMut<'_>> {
-        let mut stack: [StableIValue; 4] =
-            [(&self.tensor).into(), dim.into(), start.into(), end.into()];
-        unsafe_call_dispatch_bail!("aten::narrow", "", stack.as_mut_slice());
-        Ok(TenMut::new(&self.tensor, stack[0].try_into()?))
-    }
 }
 
 pub struct Ten<'a> {
