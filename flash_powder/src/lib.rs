@@ -8,6 +8,7 @@
 // We don't put the device type in the type, because that can also be toggled with a global switch easily.
 
 pub mod data;
+pub mod methods;
 pub mod native_functions;
 pub mod tensor;
 pub use tensor::{Ten, TenMut, Tensor, TensorAccess};
@@ -16,6 +17,7 @@ pub use torch_stable::StableTorchResult;
 pub mod prelude {
     use super::*;
     pub use data::{DataAccess, DataManipulationMut};
+    pub use methods::TensorMethods;
     pub use native_functions::{NativeFunctions, NativeFunctionsMut};
     pub use tensor::{Ten, TenMut, Tensor, TensorAccess};
 }
@@ -23,48 +25,20 @@ pub mod prelude {
 #[cfg(test)]
 mod test {
     use super::*;
-    use torch_stable::{
-        headeronly::core::ScalarType,
-        stable::ops::{EmtpyOptions, ToOptions},
-    };
-
-    #[test]
-    fn test_flash_powder_to() -> StableTorchResult<()> {
-        let t = Tensor::zeros(
-            &[5, 5],
-            &EmtpyOptions {
-                ..Default::default()
-            },
-        )?;
-        assert_eq!(t.scalar_type(), ScalarType::Float);
-        let orig = t.const_data_ptr();
-
-        let z = t.to(&ToOptions {
-            ..Default::default()
-        })?;
-        assert_eq!(z.storage_offset(), 0);
-        assert_ne!(orig, z.const_data_ptr());
-
-        Ok(())
-    }
+    use native_functions::NativeFunctionsOwned;
 
     #[test]
     fn test_flash_powder_create_error() -> StableTorchResult<()> {
         unsafe {
             torch_stable::stable::c::torch_exception_set_exception_printing(false);
         }
-        let a = Tensor::zeros(
-            &[usize::MAX, 5],
-            &EmtpyOptions {
-                ..Default::default()
-            },
-        );
+        let a = Tensor::zeros(&[usize::MAX, 5], &Default::default());
 
         assert!(a.is_err());
         let failure = a.err().unwrap();
         let v = failure.to_string();
-
-        assert!(v.contains("Trying to create tensor with negative dimension -1: [-1, 5]"));
+        println!("v: {v}");
+        assert!(v.contains("(zeros: Dimension size must be non-negative.)"));
 
         Ok(())
     }

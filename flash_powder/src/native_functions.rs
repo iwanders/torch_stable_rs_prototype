@@ -1,5 +1,5 @@
 use torch_stable::aoti_torch::*;
-use torch_stable::headeronly::core::ScalarType;
+use torch_stable::headeronly::core::{Layout, ScalarType};
 use torch_stable::stable::device::{Device, DeviceIndex};
 use torch_stable::stable::ops::{EmtpyOptions, ToOptions};
 use torch_stable::unsafe_call_dispatch_panic;
@@ -8,6 +8,21 @@ use torch_stable::{
     stable::tensor::Tensor as StableTensor,
     unsafe_call_bail, unsafe_call_dispatch_bail,
 };
+
+// This file has three traits:
+// - NativeFunctions; Implemented for Tensor, Ten and Tenmut
+// - NativeFunctionsMut; Implemented for Tensor and TenMut, so not for Ten.
+// - NativeFunctionsOwned; Implemented only for Tensor
+//
+// These are strictly from the native functions yaml.
+
+#[derive(Copy, Clone, Debug, Default)]
+pub struct ZeroOptions {
+    pub dtype: Option<ScalarType>,
+    pub layout: Option<Layout>,
+    pub device: Option<Device>,
+    pub pin_memory: Option<bool>,
+}
 
 use crate::{StableTorchResult, Ten, TenMut, Tensor, TensorAccess};
 pub trait NativeFunctions: TensorAccess {
@@ -22,10 +37,29 @@ pub trait NativeFunctions: TensorAccess {
         unsafe_call_dispatch_bail!("aten::narrow", "", stack.as_mut_slice());
         Ok(Ten::new(&self.get_tensor(), stack[0].try_into()?))
     }
+
+    // https://github.com/pytorch/pytorch/blob/v2.11.0/aten/src/ATen/native/native_functions.yaml#L8033
+    fn to(&self, options: &ToOptions) -> StableTorchResult<Tensor> {
+        const MAKE_COPY: bool = true;
+        let mut stack: [StableIValue; 8] = [
+            self.get_tensor().into(),
+            (&options.dtype).into(),
+            (&options.layout).into(),
+            (&options.device).into(),
+            (&options.pin_memory).into(),
+            options.non_blocking.into(),
+            MAKE_COPY.into(),
+            (&options.memory_format).into(),
+        ];
+        unsafe_call_dispatch_bail!("aten::to", "dtype_layout", stack.as_mut_slice());
+        let r: StableTensor = stack[0].try_into()?;
+
+        Ok(Tensor::new(r))
+    }
 }
 impl NativeFunctions for Tensor {}
 impl<'a> NativeFunctions for Ten<'a> {}
-//impl<'a> NativeFunctions for TenMut<'a> {}
+impl<'a> NativeFunctions for TenMut<'a> {}
 
 pub trait NativeFunctionsMut: TensorAccess {
     fn narrow_mut(
@@ -60,18 +94,48 @@ impl NativeFunctionsMut for Tensor {}
 impl<'a> NativeFunctionsMut for Ten<'a> {}
 impl<'a> NativeFunctionsMut for TenMut<'a> {}
 
+pub trait NativeFunctionsOwned: TensorAccess {
+    fn empty(dimensions: &[usize], options: &EmtpyOptions) -> StableTorchResult<Tensor> {
+        let mut stack: [StableIValue; 6] = [
+            (dimensions).into(),
+            (&options.dtype).into(),
+            (&options.layout).into(),
+            (&options.device).into(),
+            (&options.pin_memory).into(),
+            (&options.memory_format).into(),
+        ];
+        // https://github.com/pytorch/pytorch/blob/v2.11.0/aten/src/ATen/native/native_functions.yaml#L2424
+        unsafe_call_dispatch_bail!("aten::empty", "memory_format", stack.as_mut_slice());
+        let r: StableTensor = stack[0].try_into()?;
+
+        unsafe_call_bail!(aoti_torch_zero_(r.get()));
+
+        Ok(Tensor::new(r))
+    }
+    // https://github.com/pytorch/pytorch/blob/v2.11.0/aten/src/ATen/native/native_functions.yaml#L6800
+    fn zeros(dimensions: &[usize], options: &ZeroOptions) -> StableTorchResult<Tensor> {
+        let mut stack: [StableIValue; 5] = [
+            (dimensions).into(),
+            (&options.dtype).into(),
+            (&options.layout).into(),
+            (&options.device).into(),
+            (&options.pin_memory).into(),
+        ];
+        unsafe_call_dispatch_bail!("aten::zeros", "", stack.as_mut_slice());
+        let r: StableTensor = stack[0].try_into()?;
+
+        Ok(Tensor::new(r))
+    }
+}
+impl NativeFunctionsOwned for Tensor {}
+
 #[cfg(test)]
 mod test {
     use super::*;
     use crate::prelude::*;
     #[test]
     fn test_flash_powder_narrow() -> StableTorchResult<()> {
-        let mut t = Tensor::zeros(
-            &[5, 5],
-            &EmtpyOptions {
-                ..Default::default()
-            },
-        )?;
+        let mut t = Tensor::zeros(&[5, 5], &Default::default())?;
 
         let mut view_mut = t.narrow_mut(0, 0, 3)?;
         view_mut.fill_tensor(&Tensor::from_f32(3.3)?)?;
@@ -89,6 +153,32 @@ mod test {
         z.fill_f64(5.5)?;
         println!("t: {:?}", t.f32_ref()?);
         println!("z: {:?}", z.f32_ref()?);
+
+        Ok(())
+    }
+    #[test]
+    fn test_flash_powder_aten_empty() -> StableTorchResult<()> {
+        let a = Tensor::empty(&[5, 5], &Default::default())?.fill_f64(0.0);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_flash_powder_to() -> StableTorchResult<()> {
+        let t = Tensor::zeros(
+            &[5, 5],
+            &ZeroOptions {
+                ..Default::default()
+            },
+        )?;
+        assert_eq!(t.scalar_type(), ScalarType::Float);
+        let orig = t.const_data_ptr();
+
+        let z = t.to(&ToOptions {
+            ..Default::default()
+        })?;
+        assert_eq!(z.storage_offset(), 0);
+        assert_ne!(orig, z.const_data_ptr());
 
         Ok(())
     }

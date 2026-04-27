@@ -23,74 +23,8 @@ impl Clone for Tensor {
 }
 
 impl Tensor {
-    fn new(tensor: StableTensor) -> Self {
+    pub fn new(tensor: StableTensor) -> Self {
         Self { tensor }
-    }
-
-    fn get(&self) -> AtenTensorHandle {
-        self.tensor.get()
-    }
-    pub fn dim(&self) -> usize {
-        self.tensor.dim()
-    }
-    pub fn scalar_type(&self) -> ScalarType {
-        self.tensor.scalar_type()
-    }
-    pub fn element_size(&self) -> usize {
-        self.tensor.element_size()
-    }
-    pub fn device(&self) -> Device {
-        self.tensor.device()
-    }
-    pub fn storage_offset(&self) -> usize {
-        self.tensor.storage_offset()
-    }
-    pub fn numel(&self) -> usize {
-        self.tensor.numel()
-    }
-    pub fn is_cpu(&self) -> bool {
-        self.tensor.is_cpu()
-    }
-
-    pub fn zeros(dimensions: &[usize], options: &EmtpyOptions) -> StableTorchResult<Tensor> {
-        let mut stack: [StableIValue; 6] = [
-            (dimensions).into(),
-            (&options.dtype).into(),
-            (&options.layout).into(),
-            (&options.device).into(),
-            (&options.pin_memory).into(),
-            (&options.memory_format).into(),
-        ];
-        unsafe_call_dispatch_bail!("aten::empty", "memory_format", stack.as_mut_slice());
-        let r: Tensor = Self::new(stack[0].try_into()?);
-
-        unsafe_call_bail!(aoti_torch_zero_(r.get()));
-
-        Ok(r)
-    }
-
-    pub fn to(&self, options: &ToOptions) -> StableTorchResult<Tensor> {
-        const MAKE_COPY: bool = true;
-        let mut stack: [StableIValue; 8] = [
-            (&self.tensor).into(),
-            (&options.dtype).into(),
-            (&options.layout).into(),
-            (&options.device).into(),
-            (&options.pin_memory).into(),
-            options.non_blocking.into(),
-            MAKE_COPY.into(),
-            (&options.memory_format).into(),
-        ];
-        unsafe_call_dispatch_bail!("aten::to", "dtype_layout", stack.as_mut_slice());
-        Ok(Self::new(stack[0].try_into()?))
-    }
-
-    pub fn const_data_ptr(&self) -> *const u8 {
-        self.tensor.const_data_ptr()
-    }
-
-    pub fn mutable_data_ptr(&self) -> *mut u8 {
-        self.tensor.mutable_data_ptr()
     }
 
     pub fn from_f32(value: f32) -> StableTorchResult<Self> {
