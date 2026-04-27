@@ -1,10 +1,9 @@
 use torch_stable::aoti_torch::*;
 use torch_stable::headeronly::core::{Layout, ScalarType};
-use torch_stable::stable::device::{Device, DeviceIndex};
+use torch_stable::stable::device::Device;
 use torch_stable::stable::ops::{EmtpyOptions, ToOptions};
-use torch_stable::unsafe_call_dispatch_panic;
 use torch_stable::{
-    aoti_torch::{AtenTensorHandle, StableIValue, aoti_torch_zero_},
+    aoti_torch::{StableIValue, aoti_torch_zero_},
     stable::tensor::Tensor as StableTensor,
     unsafe_call_bail, unsafe_call_dispatch_bail,
 };
@@ -158,7 +157,7 @@ mod test {
     }
     #[test]
     fn test_flash_powder_aten_empty() -> StableTorchResult<()> {
-        let a = Tensor::empty(&[5, 5], &Default::default())?.fill_f64(0.0);
+        let _ = Tensor::empty(&[5, 5], &Default::default())?.fill_f64(0.0);
 
         Ok(())
     }

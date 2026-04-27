@@ -1,12 +1,9 @@
-use torch_stable::headeronly::core::ScalarType;
-use torch_stable::stable::device::{Device, DeviceIndex};
-use torch_stable::stable::ops::{EmtpyOptions, ToOptions};
 use torch_stable::unsafe_call_dispatch_panic;
 use torch_stable::{
     StableTorchResult,
-    aoti_torch::{AtenTensorHandle, StableIValue, aoti_torch_zero_},
+    aoti_torch::{AtenTensorHandle, StableIValue},
     stable::tensor::Tensor as StableTensor,
-    unsafe_call_bail, unsafe_call_dispatch_bail,
+    unsafe_call_bail,
 };
 pub struct Tensor {
     tensor: StableTensor,

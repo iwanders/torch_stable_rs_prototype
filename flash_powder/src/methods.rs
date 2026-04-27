@@ -1,15 +1,6 @@
-use torch_stable::aoti_torch::*;
+use crate::{Ten, TenMut, Tensor, TensorAccess};
 use torch_stable::headeronly::core::ScalarType;
-use torch_stable::stable::device::{Device, DeviceIndex};
-use torch_stable::stable::ops::{EmtpyOptions, ToOptions};
-use torch_stable::unsafe_call_dispatch_panic;
-use torch_stable::{
-    aoti_torch::{AtenTensorHandle, StableIValue, aoti_torch_zero_},
-    stable::tensor::Tensor as StableTensor,
-    unsafe_call_bail, unsafe_call_dispatch_bail,
-};
-
-use crate::{StableTorchResult, Ten, TenMut, Tensor, TensorAccess};
+use torch_stable::stable::device::Device;
 pub trait TensorMethods: TensorAccess {
     fn dim(&self) -> usize {
         self.get_tensor().dim()
