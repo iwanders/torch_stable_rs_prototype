@@ -36,7 +36,6 @@ pub mod stable;
 mod support;
 pub mod util;
 
-use aoti_torch::*;
 pub use aoti_torch::{AOTI_TORCH_FAILURE, AOTI_TORCH_SUCCESS};
 // Input param: AtenTensorHandle
 // Output param: &mut AtenTensorHandle

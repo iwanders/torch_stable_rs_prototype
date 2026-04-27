@@ -2,7 +2,7 @@
 
 use super::c::torch_parse_device_string;
 use crate::{StableTorchResult, unsafe_call_bail};
-use anyhow::{anyhow, bail};
+use anyhow::bail;
 
 pub use super::accelerator::DeviceIndex;
 pub use crate::headeronly::core::DeviceType;

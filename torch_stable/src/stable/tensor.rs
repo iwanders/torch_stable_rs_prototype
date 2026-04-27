@@ -12,7 +12,6 @@ use crate::stable::device::{Device, DeviceType};
 use std::sync::Arc;
 
 use crate::{StableTorchResult, unsafe_call_bail, unsafe_call_panic};
-use anyhow::{anyhow, bail};
 
 // Yes, you can look at this, yes you can do whatever you want, I don't care.
 pub struct Tensordropper(pub AtenTensorHandle);
@@ -39,7 +38,7 @@ impl Tensor {
 
     /// Direct access to the tensor handle.
     pub fn get(&self) -> AtenTensorHandle {
-        (*self.ath).0
+        self.ath.0
     }
 
     // https://github.com/pytorch/pytorch/blob/f2b47323ac2c438722c2db58aa31d9222676509d/torch/csrc/stable/tensor_struct.h#L126
@@ -51,13 +50,13 @@ impl Tensor {
     pub fn dim(&self) -> usize {
         let mut dim: i64 = 0;
         unsafe_call_panic!(aoti_torch_get_dim(self.get(), &mut dim));
-        return dim as usize;
+        dim as usize
     }
 
     pub fn numel(&self) -> usize {
         let mut numel: i64 = 0;
         unsafe_call_panic!(aoti_torch_get_numel(self.get(), &mut numel));
-        return numel as usize;
+        numel as usize
     }
 
     pub fn sizes(&self) -> &[usize] {
@@ -66,7 +65,7 @@ impl Tensor {
         unsafe_call_panic!(aoti_torch_get_sizes(self.get(), &mut i64_size_ptr));
         let len = self.dim();
         let usize_ptr = i64_size_ptr.cast::<usize>();
-        return unsafe { std::slice::from_raw_parts(usize_ptr, len) };
+        unsafe { std::slice::from_raw_parts(usize_ptr, len) }
     }
 
     pub fn strides(&self) -> &[usize] {
@@ -75,25 +74,25 @@ impl Tensor {
         unsafe_call_panic!(aoti_torch_get_strides(self.get(), &mut i64_size_ptr));
         let len = self.dim();
         let usize_ptr = i64_size_ptr.cast::<usize>();
-        return unsafe { std::slice::from_raw_parts(usize_ptr, len) };
+        unsafe { std::slice::from_raw_parts(usize_ptr, len) }
     }
 
     pub fn is_contiguous(&self) -> bool {
         let mut is_contiguous: bool = true;
         unsafe_call_panic!(aoti_torch_is_contiguous(self.get(), &mut is_contiguous));
-        return is_contiguous;
+        is_contiguous
     }
 
     pub fn stride(&self, dim: usize) -> usize {
         let mut stride: i64 = 0;
         unsafe_call_panic!(aoti_torch_get_stride(self.get(), dim as i64, &mut stride));
-        return stride as usize;
+        stride as usize
     }
 
     pub fn get_device_index(&self) -> DeviceIndex {
         let mut device_index: i32 = 0;
         unsafe_call_panic!(aoti_torch_get_device_index(self.get(), &mut device_index));
-        return DeviceIndex(device_index);
+        DeviceIndex(device_index)
     }
 
     pub fn is_cuda(&self) -> bool {
@@ -111,20 +110,20 @@ impl Tensor {
     pub fn size(&self, dim: usize) -> usize {
         let mut size: i64 = 0;
         unsafe_call_panic!(aoti_torch_get_size(self.get(), dim as i64, &mut size));
-        return size as usize;
+        size as usize
     }
 
     // Function name should've been is_defined, but lets go with the following the upstream naming.
     pub fn defined(&self) -> bool {
         let mut is_defined: bool = false;
         unsafe_call_panic!(aoti_torch_is_defined(self.get(), &mut is_defined));
-        return is_defined;
+        is_defined
     }
 
     pub fn scalar_type(&self) -> ScalarType {
         let mut dtype: i32 = 0;
         unsafe_call_panic!(aoti_torch_get_dtype(self.get(), &mut dtype));
-        return ScalarType::try_from(dtype).unwrap();
+        ScalarType::try_from(dtype).unwrap()
     }
 
     pub fn device(&self) -> Device {
@@ -140,7 +139,7 @@ impl Tensor {
     pub fn layout(&self) -> Layout {
         let mut layout: i32 = 0;
         unsafe_call_panic!(aoti_torch_get_layout(self.get(), &mut layout));
-        return Layout::try_from(layout).unwrap();
+        Layout::try_from(layout).unwrap()
     }
 
     pub fn storage_offset(&self) -> usize {
@@ -152,7 +151,7 @@ impl Tensor {
         if storage_offset < 0 {
             panic!("storage_offset got negative value");
         }
-        return storage_offset as usize;
+        storage_offset as usize
     }
 
     pub fn element_size(&self) -> usize {

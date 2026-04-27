@@ -205,7 +205,7 @@ pub trait Indexing<T> {
 }
 
 impl Indexing<std::ops::Range<usize>> for Tensor {
-    fn i(&self, i: std::ops::Range<usize>) -> StableTorchResult<Tensor> {
+    fn i(&self, _i: std::ops::Range<usize>) -> StableTorchResult<Tensor> {
         todo!()
     }
 }

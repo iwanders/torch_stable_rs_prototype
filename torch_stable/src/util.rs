@@ -8,6 +8,12 @@ pub type StableTorchResult<T> = anyhow::Result<T>;
 pub struct InhibitLoggingRaii {
     previous_value: bool,
 }
+impl Default for InhibitLoggingRaii {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl InhibitLoggingRaii {
     pub fn new() -> Self {
         #[cfg(feature = "use_torch_devel")]
@@ -39,7 +45,7 @@ pub fn get_exception_what() -> String {
 }
 #[cfg(not(feature = "use_torch_devel"))]
 pub fn get_exception_what() -> String {
-    return "".to_owned();
+    "".to_owned()
 }
 
 /// For functions that can fail somewhat gracefully.
@@ -131,7 +137,3 @@ macro_rules! unsafe_call_dispatch_panic {
         }
     }};
 }
-pub(crate) use unsafe_call_bail;
-pub(crate) use unsafe_call_dispatch_bail;
-pub(crate) use unsafe_call_dispatch_panic;
-pub(crate) use unsafe_call_panic;

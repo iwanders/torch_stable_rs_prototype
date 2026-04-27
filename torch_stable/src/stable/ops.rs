@@ -3,7 +3,6 @@ use super::stableivalue_conversions::StableIValue;
 use super::tensor::Tensor;
 use crate::aoti_torch::*;
 use crate::headeronly::core::{Layout, MemoryFormat, ScalarType};
-use crate::stable::c::*;
 use crate::{StableTorchResult, unsafe_call_bail, unsafe_call_dispatch_bail};
 
 // Dispatch through?

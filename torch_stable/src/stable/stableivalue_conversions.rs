@@ -27,7 +27,7 @@ pub use super::super::aoti_torch::StableIValue;
 // For non nullpointers a 'new StableIValue' heap allocated u64 is created, and that pointer goes into the outer
 // StableIValue, we hit a snag here... we're allocating with rust, but the c++ side is clearing it up.
 // Okay, so this causes mismatched free() / delete warnings in valgrind, but it may not actually be an issue?
-impl<'a, T> From<&'a Option<T>> for StableIValue
+impl<T> From<&Option<T>> for StableIValue
 where
     T: Into<StableIValue>,
     T: Copy,
@@ -190,7 +190,7 @@ impl From<f64> for StableIValue {
 }
 impl From<DeviceIndex> for StableIValue {
     fn from(value: DeviceIndex) -> Self {
-        let bitwise_value: u64 = u32::from_ne_bytes((value.0 as i32).to_ne_bytes()) as u64;
+        let bitwise_value: u64 = u32::from_ne_bytes(value.0.to_ne_bytes()) as u64;
         Self(bitwise_value)
     }
 }
@@ -229,6 +229,6 @@ impl TryFrom<StableIValue> for Tensor {
         if handle.is_null() {
             bail!("failed to convert StableIValue nullptr to Tensor");
         }
-        Ok(Tensor::from_handle(unsafe { handle }))
+        Ok(Tensor::from_handle(handle))
     }
 }
