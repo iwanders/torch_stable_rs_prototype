@@ -23,8 +23,20 @@ pub struct ZeroOptions {
     pub pin_memory: Option<bool>,
 }
 
+#[derive(Copy, Clone, Debug, Default)]
+pub struct ConvOptions<'b, B: TensorAccess> {
+    pub bias: Option<&'b B>,
+    pub stride: Option<i64>,
+    pub padding: Option<i64>,
+    pub dilation: Option<i64>,
+    pub groups: Option<i64>,
+}
+
 use crate::{StableTorchResult, Ten, TenMut, Tensor, TensorAccess};
-pub trait NativeFunctions: TensorAccess {
+pub trait NativeFunctions: TensorAccess
+where
+    for<'a> &'a Self: Into<StableIValue>,
+{
     fn narrow(&self, dim: usize, start: usize, end: usize) -> StableTorchResult<Ten<'_>> {
         // https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L4489
         let mut stack: [StableIValue; 4] = [
@@ -49,6 +61,29 @@ pub trait NativeFunctions: TensorAccess {
             options.non_blocking.into(),
             MAKE_COPY.into(),
             (&options.memory_format).into(),
+        ];
+        unsafe_call_dispatch_bail!("aten::to", "dtype_layout", stack.as_mut_slice());
+        let r: StableTensor = stack[0].try_into()?;
+
+        Ok(Tensor::new(r))
+    }
+    // https://github.com/pytorch/pytorch/blob/v2.11.0/aten/src/ATen/native/native_functions.yaml#L1757
+    fn conv2d<T: TensorAccess>(
+        &self,
+        weight: &T,
+        options: &ConvOptions<T>,
+    ) -> StableTorchResult<Tensor>
+    where
+        for<'a> &'a T: Into<StableIValue>,
+    {
+        let mut stack: [StableIValue; 7] = [
+            self.into(),
+            weight.into(),
+            (&options.bias).into(),
+            (&options.stride).into(),
+            (&options.padding).into(),
+            (&options.dilation).into(),
+            (&options.groups).into(),
         ];
         unsafe_call_dispatch_bail!("aten::to", "dtype_layout", stack.as_mut_slice());
         let r: StableTensor = stack[0].try_into()?;

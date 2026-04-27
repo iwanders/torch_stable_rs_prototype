@@ -62,6 +62,12 @@ impl<'a> TenMut<'a> {
     }
 }
 
+/*
+
+: Into<StableIValue>
+where
+    for<'a> &'a Self: Into<StableIValue>,
+*/
 pub trait TensorAccess {
     fn get_tensor(&self) -> &StableTensor;
 }
@@ -80,5 +86,48 @@ impl<'a> TensorAccess for Ten<'a> {
 impl TensorAccess for Tensor {
     fn get_tensor(&self) -> &StableTensor {
         &self.tensor
+    }
+}
+
+pub trait ConvertibleToStableIValue
+where
+    for<'a> &'a Self: Into<StableIValue>,
+{
+}
+
+impl ConvertibleToStableIValue for Tensor {}
+
+impl From<Tensor> for StableIValue
+where
+    for<'a> &'a Self: Into<StableIValue>,
+{
+    fn from(value: Tensor) -> Self {
+        (value.get_tensor()).into()
+    }
+}
+impl From<&Tensor> for StableIValue {
+    fn from(value: &Tensor) -> Self {
+        (value.get_tensor()).into()
+    }
+}
+impl From<TenMut<'_>> for StableIValue {
+    fn from(value: TenMut<'_>) -> Self {
+        (value.get_tensor()).into()
+    }
+}
+impl From<&TenMut<'_>> for StableIValue {
+    fn from(value: &TenMut<'_>) -> Self {
+        (value.get_tensor()).into()
+    }
+}
+impl From<Ten<'_>> for StableIValue {
+    fn from(value: Ten<'_>) -> Self {
+        (value.get_tensor()).into()
+    }
+}
+
+impl From<&Ten<'_>> for StableIValue {
+    fn from(value: &Ten<'_>) -> Self {
+        (value.get_tensor()).into()
     }
 }
