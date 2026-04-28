@@ -64,9 +64,31 @@ impl<'a> TenMut<'a> {
 
 /*
 
-: Into<StableIValue>
+use crate::{StableTorchResult, Ten, TenMut, Tensor, TensorAccess};
+pub trait NativeFunctions: TensorAccess
 where
     for<'a> &'a Self: Into<StableIValue>,
+{
+// followed by
+fn conv2d<T: TensorAccess>(
+    &self,
+    weight: &T,
+    options: &ConvOptions<T>,
+) -> StableTorchResult<Tensor>
+where
+    for<'a> &'a T: Into<StableIValue>,
+{
+let mut stack: [StableIValue; 7] = [
+    self.into(),
+    weight.into(),
+    (&options.bias).into(),
+    (&options.stride).into(),
+    (&options.padding).into(),
+    (&options.dilation).into(),
+    (&options.groups).into(),
+];
+unsafe_call_dispatch_bail!("aten::to", "dtype_layout", stack.as_mut_slice());
+let r: StableTensor = stack[0].try_into()?;
 */
 pub trait TensorAccess {
     fn get_tensor(&self) -> &StableTensor;
@@ -86,48 +108,5 @@ impl<'a> TensorAccess for Ten<'a> {
 impl TensorAccess for Tensor {
     fn get_tensor(&self) -> &StableTensor {
         &self.tensor
-    }
-}
-
-pub trait ConvertibleToStableIValue
-where
-    for<'a> &'a Self: Into<StableIValue>,
-{
-}
-
-impl ConvertibleToStableIValue for Tensor {}
-
-impl From<Tensor> for StableIValue
-where
-    for<'a> &'a Self: Into<StableIValue>,
-{
-    fn from(value: Tensor) -> Self {
-        (value.get_tensor()).into()
-    }
-}
-impl From<&Tensor> for StableIValue {
-    fn from(value: &Tensor) -> Self {
-        (value.get_tensor()).into()
-    }
-}
-impl From<TenMut<'_>> for StableIValue {
-    fn from(value: TenMut<'_>) -> Self {
-        (value.get_tensor()).into()
-    }
-}
-impl From<&TenMut<'_>> for StableIValue {
-    fn from(value: &TenMut<'_>) -> Self {
-        (value.get_tensor()).into()
-    }
-}
-impl From<Ten<'_>> for StableIValue {
-    fn from(value: Ten<'_>) -> Self {
-        (value.get_tensor()).into()
-    }
-}
-
-impl From<&Ten<'_>> for StableIValue {
-    fn from(value: &Ten<'_>) -> Self {
-        (value.get_tensor()).into()
     }
 }

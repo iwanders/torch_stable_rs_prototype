@@ -170,8 +170,8 @@ impl From<Layout> for StableIValue {
     }
 }
 
-impl From<i64> for StableIValue {
-    fn from(value: i64) -> Self {
+impl From<&i64> for StableIValue {
+    fn from(value: &i64) -> Self {
         let bitwise_value: u64 = u64::from_ne_bytes(value.to_ne_bytes());
         Self(bitwise_value)
     }
