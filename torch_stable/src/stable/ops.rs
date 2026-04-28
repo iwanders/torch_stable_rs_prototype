@@ -150,7 +150,7 @@ mod test {
 
     #[test]
     fn test_tensor_ops_empty() -> StableTorchResult<()> {
-        return Ok(()); // TODO: VALGRIND; uninitialised moves
+        // return Ok(()); // TODO: VALGRIND; uninitialised moves
         let b = Tensor::empty(&[3, 3], &Default::default())?;
         assert_eq!(b.dim(), 2);
         assert_eq!(b.sizes(), &[3, 3]);
