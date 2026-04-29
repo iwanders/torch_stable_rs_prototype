@@ -103,7 +103,6 @@ mod test {
     }
     #[test]
     fn test_tensor_ops_to() -> StableTorchResult<()> {
-        return Ok(()); // TODO: VALGRIND; uninitialised moves
         use crate::contrib::{TensorFromScalar, TensorToScalar};
         let a = Tensor::from_f32(5.0).unwrap();
         let a = a.unsqueeze(0)?;
