@@ -118,15 +118,21 @@ pub trait NativeFunctionsMut: TensorAccess {
             start.into(),
             end.into(),
         ];
+        // https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L4489
         unsafe_call_dispatch_bail!("aten::narrow", "", stack.as_mut_slice());
         Ok(TenMut::new(&self.get_tensor(), stack[0].try_into()?))
     }
 
-    // https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L2724
+    // https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L2730
     fn fill_tensor<T: TensorAccess>(&mut self, value: &T) -> StableTorchResult<()> {
+        todo!(
+            "check if this dispatch always has uninitialised values in at::detail::empty_strided_cpu"
+        );
         let mut stack: [StableIValue; 2] =
             [(self.get_tensor()).into(), (value.get_tensor()).into()];
         unsafe_call_dispatch_bail!("aten::fill", "Tensor", stack.as_mut_slice());
+        let r: StableTensor = stack[0].try_into()?;
+        let _ = Tensor::new(r);
         Ok(())
     }
     fn fill_f64(&mut self, value: f64) -> StableTorchResult<()> {
@@ -184,12 +190,13 @@ mod test {
 
         let mut view_mut = t.narrow_mut(0, 0, 3)?;
         view_mut.fill_tensor(&Tensor::from_f32(3.3)?)?;
+        //view_mut.fill_f64(3.3)?;
+        return Ok(());
         println!("view_mut: {:?}", view_mut.f32_ref()?);
 
         view_mut.fill_f64(3.0)?;
         println!("view_mut: {:?}", view_mut.f32_ref()?);
         // println!("t: {:?}", t.f32_ref()?);
-
         let view = t.narrow(0, 0, 3)?;
         println!("view: {:?}", view.f32_ref()?);
         println!("t: {:?}", t.f32_ref()?);
