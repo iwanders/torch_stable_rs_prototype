@@ -125,9 +125,6 @@ pub trait NativeFunctionsMut: TensorAccess {
 
     // https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L2730
     fn fill_tensor<T: TensorAccess>(&mut self, value: &T) -> StableTorchResult<()> {
-        todo!(
-            "check if this dispatch always has uninitialised values in at::detail::empty_strided_cpu"
-        );
         let mut stack: [StableIValue; 2] =
             [(self.get_tensor()).into(), (value.get_tensor()).into()];
         unsafe_call_dispatch_bail!("aten::fill", "Tensor", stack.as_mut_slice());
@@ -146,7 +143,6 @@ impl<'a> NativeFunctionsMut for TenMut<'a> {}
 
 pub trait NativeFunctionsOwned: TensorAccess {
     fn empty(dimensions: &[usize], options: &EmtpyOptions) -> StableTorchResult<Tensor> {
-        todo!("This one has uninitialised moves, and appears to leak 8 bytes");
         let mut stack: [StableIValue; 6] = [
             (dimensions).into(),
             (&options.dtype).into(),
@@ -191,7 +187,6 @@ mod test {
         let mut view_mut = t.narrow_mut(0, 0, 3)?;
         view_mut.fill_tensor(&Tensor::from_f32(3.3)?)?;
         //view_mut.fill_f64(3.3)?;
-        return Ok(());
         println!("view_mut: {:?}", view_mut.f32_ref()?);
 
         view_mut.fill_f64(3.0)?;
@@ -210,9 +205,7 @@ mod test {
     }
     #[test]
     fn test_flash_powder_aten_empty() -> StableTorchResult<()> {
-        return Ok(()); // TODO: VALGRIND; uninitialised moves
         let _ = Tensor::empty(&[5, 5], &Default::default())?.fill_f64(0.0);
-
         Ok(())
     }
 
