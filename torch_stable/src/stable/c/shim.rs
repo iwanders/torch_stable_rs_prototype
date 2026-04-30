@@ -85,8 +85,4 @@ unsafe extern "C" {
     pub unsafe fn torch_exception_get_what() -> *const c_char;
     pub unsafe fn torch_exception_get_what_without_backtrace() -> *const c_char;
 
-    pub unsafe fn torch_exception_set_exception_printing(should_print: bool) -> bool;
-
-    pub unsafe fn torch_exception_get_exception_printing() -> bool;
-
 }

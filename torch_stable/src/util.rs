@@ -5,34 +5,6 @@
 
 pub type StableTorchResult<T> = anyhow::Result<T>;
 
-pub struct InhibitLoggingRaii {
-    previous_value: bool,
-}
-impl Default for InhibitLoggingRaii {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl InhibitLoggingRaii {
-    pub fn new() -> Self {
-        #[cfg(feature = "use_torch_devel")]
-        let previous_value =
-            unsafe { crate::stable::c::torch_exception_set_exception_printing(false) };
-        #[cfg(not(feature = "use_torch_devel"))]
-        let previous_value = false;
-        Self { previous_value }
-    }
-}
-impl Drop for InhibitLoggingRaii {
-    fn drop(&mut self) {
-        unsafe {
-            #[cfg(feature = "use_torch_devel")]
-            crate::stable::c::torch_exception_set_exception_printing(self.previous_value);
-        }
-    }
-}
-
 #[cfg(feature = "use_torch_devel")]
 pub fn get_exception_what() -> String {
     let error_msg_ptr = unsafe { crate::stable::c::torch_exception_get_what_without_backtrace() };
@@ -52,7 +24,6 @@ pub fn get_exception_what() -> String {
 #[macro_export]
 macro_rules! unsafe_call_bail {
     ($($tokens:tt)*) => {{
-        let _ = $crate::util::InhibitLoggingRaii::new();
         let api_call_result = unsafe {$($tokens)*};
         let code_text = stringify!($($tokens)*);
         if api_call_result == $crate::AOTI_TORCH_FAILURE {
@@ -66,7 +37,6 @@ macro_rules! unsafe_call_bail {
 #[macro_export]
 macro_rules! unsafe_call_panic {
     ($($tokens:tt)*) => {{
-        let _ = $crate::util::InhibitLoggingRaii::new();
         let api_call_result = unsafe {$($tokens)*};
         let code_text = stringify!($($tokens)*);
         if api_call_result == $crate::AOTI_TORCH_FAILURE {
@@ -84,7 +54,6 @@ macro_rules! unsafe_call_dispatch_bail {
 
         let overload_name = std::ffi::CString::new($overload_name).expect("CString::new failed");
         let overload_name_cstr = overload_name.as_ptr();
-        let _ = $crate::util::InhibitLoggingRaii::new();
 
         let api_call_result = unsafe {
             $crate::stable::c::torch_call_dispatcher(
@@ -110,7 +79,6 @@ macro_rules! unsafe_call_dispatch_bail {
 #[macro_export]
 macro_rules! unsafe_call_dispatch_panic {
     ($op_name:expr, $overload_name:expr, $stack:expr) => {{
-        let _ = $crate::util::InhibitLoggingRaii::new();
         let op_name = std::ffi::CString::new($op_name).expect("CString::new failed");
         let op_name_cstr = op_name.as_ptr();
 

@@ -29,9 +29,6 @@ mod test {
 
     #[test]
     fn test_flash_powder_create_error() -> StableTorchResult<()> {
-        unsafe {
-            torch_stable::stable::c::torch_exception_set_exception_printing(false);
-        }
         let a = Tensor::zeros(&[usize::MAX, 5], &Default::default());
 
         assert!(a.is_err());
