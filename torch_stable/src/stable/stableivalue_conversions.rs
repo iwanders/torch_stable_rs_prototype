@@ -195,6 +195,15 @@ impl From<DeviceIndex> for StableIValue {
     }
 }
 
+impl<T> From<&(T, T)> for StableIValue
+where
+    for<'a> &'a T: Into<StableIValue>,
+{
+    fn from(value: &(T, T)) -> Self {
+        (&[&value.0, &value.1][..]).into()
+    }
+}
+
 // https://github.com/pytorch/pytorch/blob/v2.11.0/torch/csrc/stable/stableivalue_conversions.h#L400-L414
 impl From<Device> for StableIValue {
     fn from(value: Device) -> Self {

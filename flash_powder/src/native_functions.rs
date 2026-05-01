@@ -24,18 +24,18 @@ pub struct ZeroOptions {
 }
 
 #[derive(Copy, Clone, Debug)]
-pub struct ConvOptions {
-    pub stride: i64,
-    pub padding: i64,
-    pub dilation: i64,
+pub struct Conv2DOptions {
+    pub stride: (i64, i64),
+    pub padding: (i64, i64),
+    pub dilation: (i64, i64),
     pub groups: i64,
 }
-impl Default for ConvOptions {
+impl Default for Conv2DOptions {
     fn default() -> Self {
         Self {
-            stride: 1,
-            padding: 0,
-            dilation: 1,
+            stride: (1, 1),
+            padding: (0, 0),
+            dilation: (1, 1),
             groups: 1,
         }
     }
@@ -74,27 +74,23 @@ pub trait NativeFunctions: TensorAccess {
         Ok(Tensor::new(r))
     }
     // https://github.com/pytorch/pytorch/blob/v2.11.0/aten/src/ATen/native/native_functions.yaml#L1757
+    // https://docs.pytorch.org/docs/2.11/generated/torch.ao.nn.quantized.functional.conv2d.html#conv2d
     fn conv2d<T: TensorAccess>(
-        &self,
+        &self, // input
         weight: &T,
         bias: Option<&T>,
-        options: &ConvOptions,
+        options: &Conv2DOptions,
     ) -> StableTorchResult<Tensor> {
         // return wrap(dispatch_conv2d(r.tensor(0), r.tensor(1), r.tensor(2), r.intlist(3), r.intlist(4), r.intlist(5), r.toInt64(6)));
-        // So yeah this is wrong here on the pading dilation stuff.
         let mut stack: [StableIValue; 7] = [
             self.get_tensor().into(),
             weight.get_tensor().into(),
             (&bias.map(|z| z.get_tensor())).into(),
-            //(&options.stride).into(),
-            (&[&1i64, &1i64][..]).into(),
-            //(&options.padding).into(),
-            (&[&0i64, &0i64][..]).into(),
-            //(&options.dilation).into(),
-            (&[&1i64, &1i64][..]).into(),
+            (&options.stride).into(),
+            (&options.padding).into(),
+            (&options.dilation).into(),
             (&options.groups).into(),
         ];
-        println!("stack: {stack:?}");
         unsafe_call_dispatch_bail!("aten::conv2d", "", stack.as_mut_slice());
         let r: StableTensor = stack[0].try_into()?;
 
@@ -250,12 +246,12 @@ mod test {
         */
         // let mut d = Tensor::empty(&[1, 4, 4], &Default::default())?;
         let mut d = Tensor::zeros(&[1, 4, 4], &Default::default())?;
-        for (i, v) in d.t_mut::<f32>()?.iter_mut().enumerate() {
+        for (i, v) in d.f32_mut()?.iter_mut().enumerate() {
             *v = (i + 1) as f32
         }
         assert_eq!(d.sizes(), &[1, 4, 4]);
         assert_eq!(
-            d.t_ref::<f32>()?,
+            d.f32_ref()?,
             &[
                 1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0,
                 16.0
@@ -272,9 +268,30 @@ mod test {
         assert_eq!(r.sizes(), &[1, 3, 3,]);
 
         assert_eq!(
-            r.t_ref::<f32>()?,
+            r.f32_ref()?,
             &[44.0f32, 54.0, 64.0, 84.0, 94.0, 104.0, 124.0, 134.0, 144.0]
         );
+
+        /*
+         *
+         r = torch.nn.functional.conv2d(d, w, stride=(1, 2))
+         print(r.shape)
+         print(r.reshape(-1))
+         """
+         torch.Size([1, 3, 2])
+         tensor([ 44,  64,  84, 104, 124, 144])
+         """
+        */
+        let r = d.conv2d(
+            &w,
+            None,
+            &Conv2DOptions {
+                stride: (1, 2),
+                ..Default::default()
+            },
+        )?;
+        assert_eq!(r.sizes(), &[1, 3, 2]);
+        assert_eq!(r.f32_ref()?, &[44.0f32, 64.0, 84.0, 104.0, 124.0, 144.0]);
 
         Ok(())
     }

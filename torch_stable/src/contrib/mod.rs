@@ -92,10 +92,10 @@ impl Math for Tensor {
 
 pub trait DataManipulation {
     fn data_ref(&self) -> StableTorchResult<&[u8]>;
-    fn data_mut(&self) -> StableTorchResult<&mut [u8]>;
+    fn data_mut(&mut self) -> StableTorchResult<&mut [u8]>;
 
     fn f32_ref(&self) -> StableTorchResult<&[f32]>;
-    fn f32_mut(&self) -> StableTorchResult<&mut [f32]>;
+    fn f32_mut(&mut self) -> StableTorchResult<&mut [f32]>;
 
     fn t_ref<T: IntoBytes + TryFromBytes + Immutable>(&self) -> StableTorchResult<&[T]>;
     fn t_mut<T: IntoBytes + TryFromBytes + Immutable>(&mut self) -> StableTorchResult<&mut [T]>;
@@ -113,7 +113,7 @@ impl DataManipulation for Tensor {
         }
     }
 
-    fn data_mut(&self) -> StableTorchResult<&mut [u8]> {
+    fn data_mut(&mut self) -> StableTorchResult<&mut [u8]> {
         let element_size = self.element_size();
         let elements = self.numel();
         let data_ptr = self.mutable_data_ptr();
@@ -132,7 +132,7 @@ impl DataManipulation for Tensor {
             Err(z) => bail!("failed slice conversion: {z:?}"),
         }
     }
-    fn f32_mut(&self) -> StableTorchResult<&mut [f32]> {
+    fn f32_mut(&mut self) -> StableTorchResult<&mut [f32]> {
         let byte_ref = self.data_mut()?;
         match <[f32]>::try_mut_from_bytes(byte_ref) {
             Ok(e) => Ok(e),
@@ -140,7 +140,7 @@ impl DataManipulation for Tensor {
         }
     }
     fn t_ref<T: IntoBytes + TryFromBytes + Immutable>(&self) -> StableTorchResult<&[T]> {
-        let byte_ref = self.data_mut()?;
+        let byte_ref = self.data_ref()?;
         match <[T]>::try_ref_from_bytes(byte_ref) {
             Ok(e) => Ok(e),
             Err(z) => bail!("failed slice conversion: {z:?}"),
@@ -317,7 +317,7 @@ mod test {
     }
     #[test]
     fn test_tensor_contrib_f32() -> StableTorchResult<()> {
-        let t = Tensor::zeros(
+        let mut t = Tensor::zeros(
             &[2, 2],
             &EmtpyOptions {
                 dtype: Some(ScalarType::Float),

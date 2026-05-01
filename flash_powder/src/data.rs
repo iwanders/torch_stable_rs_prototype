@@ -37,8 +37,8 @@ impl<'a> DataAccess for Ten<'a> {}
 impl<'a> DataAccess for TenMut<'a> {}
 
 pub trait DataManipulationMut: TensorAccess {
-    fn data_mut(&self) -> StableTorchResult<&mut [u8]> {
-        let z = self.get_tensor();
+    fn data_mut(&mut self) -> StableTorchResult<&mut [u8]> {
+        let z = self.get_tensor_mut();
         let element_size = z.element_size();
         let elements = z.numel();
         let data_ptr = z.mutable_data_ptr();
@@ -49,7 +49,7 @@ pub trait DataManipulationMut: TensorAccess {
         }
     }
 
-    fn f32_mut(&self) -> StableTorchResult<&mut [f32]> {
+    fn f32_mut(&mut self) -> StableTorchResult<&mut [f32]> {
         let byte_ref = self.data_mut()?;
         match <[f32]>::try_mut_from_bytes(byte_ref) {
             Ok(e) => Ok(e),

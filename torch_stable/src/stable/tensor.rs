@@ -171,7 +171,7 @@ impl Tensor {
     }
     // https://github.com/pytorch/pytorch/blob/v2.11.0/torch/csrc/stable/tensor_struct.h#L140
     // Actually a void pointer, but lets keep this sort of convenient.
-    pub fn mutable_data_ptr(&self) -> *mut u8 {
+    pub fn mutable_data_ptr(&mut self) -> *mut u8 {
         let mut data_ptr: *mut libc::c_void = std::ptr::null_mut();
         unsafe_call_panic!(torch_get_mutable_data_ptr(self.get(), &mut data_ptr));
         data_ptr.cast::<u8>()

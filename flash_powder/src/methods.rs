@@ -71,8 +71,8 @@ pub trait TensorMethods: TensorAccess {
         self.get_tensor().const_data_ptr()
     }
 
-    fn mutable_data_ptr(&self) -> *mut u8 {
-        self.get_tensor().mutable_data_ptr()
+    fn mutable_data_ptr(&mut self) -> *mut u8 {
+        self.get_tensor_mut().mutable_data_ptr()
     }
 }
 impl TensorMethods for Tensor {}
