@@ -51,10 +51,10 @@ impl<'a> Ten<'a> {
 pub struct TenMut<'a> {
     // This is the backing tensor that shares data with the 'parent'.
     tensor: StableTensor,
-    _parent: &'a StableTensor,
+    _parent: &'a mut StableTensor,
 }
 impl<'a> TenMut<'a> {
-    pub fn new(parent: &'a StableTensor, tensor: StableTensor) -> Self {
+    pub fn new(parent: &'a mut StableTensor, tensor: StableTensor) -> Self {
         Self {
             _parent: parent,
             tensor,
@@ -92,11 +92,15 @@ let r: StableTensor = stack[0].try_into()?;
 */
 pub trait TensorAccess {
     fn get_tensor(&self) -> &StableTensor;
+    fn get_tensor_mut(&mut self) -> &mut StableTensor;
 }
 
 impl<'a> TensorAccess for TenMut<'a> {
     fn get_tensor(&self) -> &StableTensor {
         &self.tensor
+    }
+    fn get_tensor_mut(&mut self) -> &mut StableTensor {
+        &mut self.tensor
     }
 }
 
@@ -104,9 +108,15 @@ impl<'a> TensorAccess for Ten<'a> {
     fn get_tensor(&self) -> &StableTensor {
         &self.tensor
     }
+    fn get_tensor_mut(&mut self) -> &mut StableTensor {
+        &mut self.tensor
+    }
 }
 impl TensorAccess for Tensor {
     fn get_tensor(&self) -> &StableTensor {
         &self.tensor
+    }
+    fn get_tensor_mut(&mut self) -> &mut StableTensor {
+        &mut self.tensor
     }
 }

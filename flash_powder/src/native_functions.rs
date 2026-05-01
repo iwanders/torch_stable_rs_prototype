@@ -120,7 +120,8 @@ pub trait NativeFunctionsMut: TensorAccess {
         ];
         // https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L4489
         unsafe_call_dispatch_bail!("aten::narrow", "", stack.as_mut_slice());
-        Ok(TenMut::new(&self.get_tensor(), stack[0].try_into()?))
+
+        Ok(TenMut::new(self.get_tensor_mut(), stack[0].try_into()?))
     }
 
     // https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L2730
