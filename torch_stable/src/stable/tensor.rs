@@ -29,7 +29,7 @@ pub struct Tensor {
 }
 impl Tensor {
     /// Creates a new uninitialised tensor
-    /// https://github.com/pytorch/pytorch/blob/f2b47323ac2c438722c2db58aa31d9222676509d/torch/csrc/stable/tensor_struct.h#L55
+    /// <https://github.com/pytorch/pytorch/blob/f2b47323ac2c438722c2db58aa31d9222676509d/torch/csrc/stable/tensor_struct.h#L55>
     pub fn new() -> StableTorchResult<Self> {
         let mut handle_res: AtenTensorHandle = std::ptr::null_mut();
         unsafe_call_bail!(aoti_torch_new_uninitialized_tensor(&mut handle_res));
@@ -44,9 +44,9 @@ impl Tensor {
     // https://github.com/pytorch/pytorch/blob/f2b47323ac2c438722c2db58aa31d9222676509d/torch/csrc/stable/tensor_struct.h#L126
     // Do we need all these pointers? Lets try without it for now.
 
-    // Tensor itself has this as i64 :/
+    /// Tensor itself has this as i64 :/
     /// Returns the number of dimensions of the tensor.
-    /// https://github.com/pytorch/pytorch/blob/f2b47323ac2c438722c2db58aa31d9222676509d/torch/csrc/stable/tensor_struct.h#L204
+    /// <https://github.com/pytorch/pytorch/blob/f2b47323ac2c438722c2db58aa31d9222676509d/torch/csrc/stable/tensor_struct.h#L204>
     pub fn dim(&self) -> usize {
         let mut dim: i64 = 0;
         unsafe_call_panic!(aoti_torch_get_dim(self.get(), &mut dim));

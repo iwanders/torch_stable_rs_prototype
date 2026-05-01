@@ -4,8 +4,8 @@ use zerocopy::{Immutable, IntoBytes, TryFromBytes};
 use crate::tensor::{Ten, TenMut, Tensor, TensorAccess};
 use torch_stable::StableTorchResult;
 
-pub trait DataAccess: TensorAccess {
-    fn data_ref(&self) -> StableTorchResult<&[u8]> {
+pub trait DataRef: TensorAccess {
+    fn u8_ref(&self) -> StableTorchResult<&[u8]> {
         let z = self.get_tensor();
         let element_size = z.element_size();
         let elements = z.numel();
@@ -17,27 +17,27 @@ pub trait DataAccess: TensorAccess {
         }
     }
     fn f32_ref(&self) -> StableTorchResult<&[f32]> {
-        let byte_ref = self.data_ref()?;
+        let byte_ref = self.u8_ref()?;
         use zerocopy::TryFromBytes;
         match <[f32]>::try_ref_from_bytes(byte_ref) {
             Ok(e) => Ok(e),
             Err(z) => bail!("failed slice conversion: {z:?}"),
         }
     }
-    fn t_ref<T: IntoBytes + TryFromBytes + Immutable>(&self) -> StableTorchResult<&[T]> {
-        let byte_ref = self.data_ref()?;
+    fn d_ref<T: IntoBytes + TryFromBytes + Immutable>(&self) -> StableTorchResult<&[T]> {
+        let byte_ref = self.u8_ref()?;
         match <[T]>::try_ref_from_bytes(byte_ref) {
             Ok(e) => Ok(e),
             Err(z) => bail!("failed slice conversion: {z:?}"),
         }
     }
 }
-impl DataAccess for Tensor {}
-impl<'a> DataAccess for Ten<'a> {}
-impl<'a> DataAccess for TenMut<'a> {}
+impl DataRef for Tensor {}
+impl<'a> DataRef for Ten<'a> {}
+impl<'a> DataRef for TenMut<'a> {}
 
-pub trait DataManipulationMut: TensorAccess {
-    fn data_mut(&mut self) -> StableTorchResult<&mut [u8]> {
+pub trait DataMut: TensorAccess {
+    fn u8_mut(&mut self) -> StableTorchResult<&mut [u8]> {
         let z = self.get_tensor_mut();
         let element_size = z.element_size();
         let elements = z.numel();
@@ -50,20 +50,20 @@ pub trait DataManipulationMut: TensorAccess {
     }
 
     fn f32_mut(&mut self) -> StableTorchResult<&mut [f32]> {
-        let byte_ref = self.data_mut()?;
+        let byte_ref = self.u8_mut()?;
         match <[f32]>::try_mut_from_bytes(byte_ref) {
             Ok(e) => Ok(e),
             Err(z) => bail!("failed slice conversion: {z:?}"),
         }
     }
-    fn t_mut<T: IntoBytes + TryFromBytes + Immutable>(&mut self) -> StableTorchResult<&mut [T]> {
-        let byte_ref = self.data_mut()?;
+    fn d_mut<T: IntoBytes + TryFromBytes + Immutable>(&mut self) -> StableTorchResult<&mut [T]> {
+        let byte_ref = self.u8_mut()?;
         match <[T]>::try_mut_from_bytes(byte_ref) {
             Ok(e) => Ok(e),
             Err(z) => bail!("failed slice conversion: {z:?}"),
         }
     }
 }
-impl DataManipulationMut for Tensor {}
+impl DataMut for Tensor {}
 //impl<'a> DataManipulationMut for Ten<'a> {}
-impl<'a> DataManipulationMut for TenMut<'a> {}
+impl<'a> DataMut for TenMut<'a> {}

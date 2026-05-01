@@ -1,31 +1,47 @@
-// What is closest to a torch that works through oxidization? It's magnesium flash powder.
-
-// Strictly follow Rusts' semantics.
-// Since it is; String / str
-// It will be: Tensor / Ten
-//
-// We don't put the scalartype in the type, because we can multiply one type to another and have torch handle that.
-// We don't put the device type in the type, because that can also be toggled with a global switch easily.
+//!
+//! Main building blocks:
+//!
+//! - [`Tensor`]; Owning tensor, this owns the data, created with [`NativeFunctionsOwned`][native_functions::NativeFunctionsOwned]. (think `Vec<u8>`)
+//! - [`Ten<'_>`]; Const borrow of Tensor, this has a parent, its lifetime cannot exceed the parent. (think `&[u8]`)
+//! - [`TenMut<'_>`]; Mutable borrow of Tensor, this has a mutable parent, its lifetime cannot exceed the parent. (think `&mut [u8]`)
+//!
+//! All of these provide [`TensorAccess`] and all functions and methods are implemented on that trait.
+//!
+//! - [`methods::TensorMethods`]: Methods to retrieve tensor properties like dimension and size.
+//! - [`data`]`::{`[`DataRef`][`data::DataRef`], [`DataMut`][`data::DataMut`]`}`: Traits to access the tensor's data as bytes or other types.
+//! - [`native_functions`]`::`[`NativeFunctions`][`native_functions::NativeFunctions`]: Methods / Functions on [`TensorAccess`] that require const access.
+//! - [`native_functions`]`::`[`NativeFunctionsMut`][`native_functions::NativeFunctionsMut`]: Methods / Functions on [`TensorAccess`] that require mutable access.
+//!
+//!
+//! Other principles;
+//! - No unsafe in the public interface, safe behaviour as you'd expect.
+//! - No interior mutability, all methods are const correct.
+//! - Modifying one tensor will not modify another, unless it has a mutable borrow.
+//! - Rust style lifetimes on tensors, either tied together with an explicit lifetime, or completely separate.
 
 pub mod data;
 pub mod methods;
 pub mod native_functions;
 pub mod tensor;
-pub use tensor::{Ten, TenMut, Tensor, TensorAccess};
+use tensor::{Ten, TenMut, Tensor, TensorAccess};
 pub use torch_stable::StableTorchResult;
-
 pub mod prelude {
     use super::*;
-    pub use data::{DataAccess, DataManipulationMut};
+    #[doc(inline)]
+    pub use data::{DataMut, DataRef};
+    #[doc(inline)]
     pub use methods::TensorMethods;
-    pub use native_functions::{NativeFunctions, NativeFunctionsMut};
+    #[doc(inline)]
+    pub use native_functions::{NativeFunctions, NativeFunctionsMut, NativeFunctionsOwned};
+    #[doc(inline)]
     pub use tensor::{Ten, TenMut, Tensor, TensorAccess};
 }
-
 #[cfg(test)]
 mod test {
     use super::*;
     use native_functions::NativeFunctionsOwned;
+    use tensor::Tensor;
+    pub use torch_stable::StableTorchResult;
 
     #[test]
     fn test_flash_powder_create_error() -> StableTorchResult<()> {

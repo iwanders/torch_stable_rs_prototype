@@ -1,3 +1,8 @@
+//! This holds functions and methods from the pytorch `native_functions.yaml` file.
+//!
+//! See [native_functions.yaml@v2.12.0-rc7](https://github.com/pytorch/pytorch/blob/v2.12.0-rc7/aten/src/ATen/native/native_functions.yaml)
+//! and its [readme](https://github.com/pytorch/pytorch/blob/v2.12.0-rc7/aten/src/ATen/native/README.md).
+
 use torch_stable::aoti_torch::*;
 use torch_stable::headeronly::core::{Layout, ScalarType};
 use torch_stable::stable::device::Device;
@@ -15,6 +20,7 @@ use torch_stable::{
 //
 // These are strictly from the native functions yaml.
 
+/// Options to create zero tensors.
 #[derive(Copy, Clone, Debug, Default)]
 pub struct ZeroOptions {
     pub dtype: Option<ScalarType>,
@@ -23,6 +29,7 @@ pub struct ZeroOptions {
     pub pin_memory: Option<bool>,
 }
 
+/// Options for conv2d.
 #[derive(Copy, Clone, Debug)]
 pub struct Conv2DOptions {
     pub stride: (i64, i64),
@@ -42,6 +49,10 @@ impl Default for Conv2DOptions {
 }
 
 use crate::{StableTorchResult, Ten, TenMut, Tensor, TensorAccess};
+
+/// Native functions that require const access.
+///
+/// See the [`native_functions`][crate::native_functions] module for description of this trait's functionality.
 pub trait NativeFunctions: TensorAccess {
     fn narrow(&self, dim: usize, start: usize, end: usize) -> StableTorchResult<Ten<'_>> {
         // https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L4489
@@ -73,8 +84,10 @@ pub trait NativeFunctions: TensorAccess {
 
         Ok(Tensor::new(r))
     }
-    // https://github.com/pytorch/pytorch/blob/v2.11.0/aten/src/ATen/native/native_functions.yaml#L1757
-    // https://docs.pytorch.org/docs/2.11/generated/torch.ao.nn.quantized.functional.conv2d.html#conv2d
+    /// A 2d convolution.
+    ///
+    /// - [native_functions.yaml](https://github.com/pytorch/pytorch/blob/v2.11.0/aten/src/ATen/native/native_functions.yaml#L1757)
+    /// - [pytorch equivalent](https://docs.pytorch.org/docs/2.11/generated/torch.ao.nn.quantized.functional.conv2d.html#conv2d)
     fn conv2d<T: TensorAccess>(
         &self, // input
         weight: &T,
@@ -101,6 +114,9 @@ impl NativeFunctions for Tensor {}
 impl<'a> NativeFunctions for Ten<'a> {}
 impl<'a> NativeFunctions for TenMut<'a> {}
 
+/// Native functions that require mutable access.
+///
+/// See the [`native_functions`][crate::native_functions] module for description of this trait's functionality.
 pub trait NativeFunctionsMut: TensorAccess {
     fn narrow_mut(
         &mut self,
@@ -138,6 +154,9 @@ impl NativeFunctionsMut for Tensor {}
 impl<'a> NativeFunctionsMut for Ten<'a> {}
 impl<'a> NativeFunctionsMut for TenMut<'a> {}
 
+/// Native functions that produce owned tensors.
+///
+/// See the [`native_functions`][crate::native_functions] module for description of this trait's functionality.
 pub trait NativeFunctionsOwned: TensorAccess {
     fn empty(dimensions: &[usize], options: &EmtpyOptions) -> StableTorchResult<Tensor> {
         let mut stack: [StableIValue; 6] = [
@@ -169,6 +188,14 @@ pub trait NativeFunctionsOwned: TensorAccess {
         let r: StableTensor = stack[0].try_into()?;
 
         Ok(Tensor::new(r))
+    }
+
+    fn from_f32(value: f32) -> StableTorchResult<Tensor> {
+        let mut handle_res: AtenTensorHandle = std::ptr::null_mut();
+        unsafe_call_bail!(
+            torch_stable::aoti_torch::aoti_torch_scalar_to_tensor_float32(value, &mut handle_res)
+        );
+        Ok(Tensor::new(StableTensor::from_handle(handle_res)))
     }
 }
 impl NativeFunctionsOwned for Tensor {}
@@ -259,7 +286,7 @@ mod test {
         );
 
         let mut w = Tensor::zeros(&[1, 1, 2, 2], &Default::default())?;
-        for (i, v) in w.t_mut::<f32>()?.iter_mut().enumerate() {
+        for (i, v) in w.d_mut::<f32>()?.iter_mut().enumerate() {
             *v = (i + 1) as f32
         }
         assert_eq!(w.sizes(), &[1, 1, 2, 2]);

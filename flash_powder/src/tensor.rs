@@ -1,14 +1,26 @@
 use torch_stable::unsafe_call_dispatch_panic;
-use torch_stable::{
-    StableTorchResult,
-    aoti_torch::{AtenTensorHandle, StableIValue},
-    stable::tensor::Tensor as StableTensor,
-    unsafe_call_bail,
-};
+use torch_stable::{aoti_torch::StableIValue, stable::tensor::Tensor as StableTensor};
+
+/// A tensor, this owns its data.
+///
+/// Interact with it through any of the traits that are implemented for [`TensorAccess`].
+///
+/// Usually you don't create this directly, but create tensors through [`crate::native_functions::NativeFunctionsOwned`].
 pub struct Tensor {
     tensor: StableTensor,
 }
 impl Clone for Tensor {
+    /// This is a full owning clone, but lazy.
+    ///
+    /// Under the hood this calls <https://github.com/pytorch/pytorch/blob/v2.11.0/aten/src/ATen/native/native_functions.yaml#L1278>, so the `_lazy_clone` kernel.
+    ///
+    /// The docs for that function state:
+    ///
+    /// > Like clone, but the copy takes place lazily, only if either the input or the output are written.
+    ///
+    /// Since clone can't fail in rust, I chose this because a lazy clone is unlikely to cause an out of memory error.
+    ///
+    /// It does mean that memory allocation errors are deffered to later in the program, but hopefully they can be handled there.
     fn clone(&self) -> Self {
         // Clone cannot throw... so we use a lazy clone; https://github.com/pytorch/pytorch/blob/v2.11.0/aten/src/ATen/native/native_functions.yaml#L1278
         let mut stack: [StableIValue; 1] = [(&self.tensor).into()];
@@ -20,21 +32,15 @@ impl Clone for Tensor {
 }
 
 impl Tensor {
+    /// Create a new tensor backed by the provided StableTensor.
+    ///
+    /// The provided tensor should be detached from anything else and exclusive ownership should be passed.
     pub fn new(tensor: StableTensor) -> Self {
         Self { tensor }
     }
-
-    pub fn from_f32(value: f32) -> StableTorchResult<Self> {
-        let mut handle_res: AtenTensorHandle = std::ptr::null_mut();
-        unsafe_call_bail!(
-            torch_stable::aoti_torch::aoti_torch_scalar_to_tensor_float32(value, &mut handle_res)
-        );
-        Ok(Self {
-            tensor: StableTensor::from_handle(handle_res),
-        })
-    }
 }
 
+/// A borrow on another Tensor, like a view into one.
 pub struct Ten<'a> {
     // This is the backing tensor that shares data with the 'parent'.
     tensor: StableTensor,
@@ -48,6 +54,8 @@ impl<'a> Ten<'a> {
         }
     }
 }
+
+/// A mutable borrow on another Tensor, like mutably borrowed slice into one.
 pub struct TenMut<'a> {
     // This is the backing tensor that shares data with the 'parent'.
     tensor: StableTensor,
@@ -62,34 +70,6 @@ impl<'a> TenMut<'a> {
     }
 }
 
-/*
-
-use crate::{StableTorchResult, Ten, TenMut, Tensor, TensorAccess};
-pub trait NativeFunctions: TensorAccess
-where
-    for<'a> &'a Self: Into<StableIValue>,
-{
-// followed by
-fn conv2d<T: TensorAccess>(
-    &self,
-    weight: &T,
-    options: &ConvOptions<T>,
-) -> StableTorchResult<Tensor>
-where
-    for<'a> &'a T: Into<StableIValue>,
-{
-let mut stack: [StableIValue; 7] = [
-    self.into(),
-    weight.into(),
-    (&options.bias).into(),
-    (&options.stride).into(),
-    (&options.padding).into(),
-    (&options.dilation).into(),
-    (&options.groups).into(),
-];
-unsafe_call_dispatch_bail!("aten::to", "dtype_layout", stack.as_mut_slice());
-let r: StableTensor = stack[0].try_into()?;
-*/
 pub trait TensorAccess {
     fn get_tensor(&self) -> &StableTensor;
     fn get_tensor_mut(&mut self) -> &mut StableTensor;

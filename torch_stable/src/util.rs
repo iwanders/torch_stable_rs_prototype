@@ -3,6 +3,9 @@
 // The c++ backtrace in the terminal seems hardcoded;
 // https://github.com/pytorch/pytorch/blob/c62f72647d6f1bf86025b5e6dbdbd40e6721daf3/torch/csrc/inductor/aoti_torch/utils.h#L14
 
+/// The result of any Stable Torch call, string holds the error message from LibTorch.
+///
+/// And that requires a branch atm; <https://github.com/pytorch/pytorch/pull/180135>
 pub type StableTorchResult<T> = anyhow::Result<T>;
 
 #[cfg(feature = "use_torch_devel")]
