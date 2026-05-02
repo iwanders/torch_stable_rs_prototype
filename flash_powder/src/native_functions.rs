@@ -256,21 +256,20 @@ mod test {
     #[test]
     fn test_flash_power_conv2d() -> StableTorchResult<()> {
         /*
+         |PYTHON
+           INPUT_TENSOR = torch.tensor(list(range(1,17))).reshape([1,4,4])
            d = torch.tensor([[[1,2,3,4],[5,6,7,8], [9,10,11,12], [13,14,15,16]]])
-           print(d.shape)
            w = torch.tensor([[[1,2],[3,4]]]).unsqueeze(0)
-           print(w.shape)
            r = torch.nn.functional.conv2d(d, w)
-           print(r)
-           """
-     torch.Size([1, 4, 4])
-     torch.Size([1, 1, 2, 2])
-     tensor([[[ 44,  54,  64],
-              [ 84,  94, 104],
-              [124, 134, 144]]])
-
-     """
         */
+
+        // """
+        // torch.Size([1, 4, 4])
+        // torch.Size([1, 1, 2, 2])
+        // tensor([[[ 44,  54,  64],
+        //     [ 84,  94, 104],
+        //     [124, 134, 144]]])
+
         // let mut d = Tensor::empty(&[1, 4, 4], &Default::default())?;
         let mut d = Tensor::zeros(&[1, 4, 4], &Default::default())?;
         for (i, v) in d.f32_mut()?.iter_mut().enumerate() {
