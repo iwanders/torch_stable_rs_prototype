@@ -77,10 +77,21 @@ class RustConstant:
 
 
 @dataclass
+class InlinePython:
+    python_statement: str
+    lines: list[Line]
+
+
+@dataclass
 class RustBlock:
     lines: list[Line]
 
     def find_constants(self) -> list[RustConstant]:
+        """
+        const INPUT_DATA_PY: &[f32] = &[
+            3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0,
+        ];
+        """
         constants = []
         index = 0
         current_constant = None
@@ -99,6 +110,40 @@ class RustBlock:
                     current_constant = None
             index += 1
         return constants
+
+    def find_inline_python(self) -> list[InlinePython]:
+        """
+        assert_eq!(
+            d.f32_ref()?,
+            &[
+                1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0,
+                16.0
+            ]
+        ); // #PYTHON list(d.view(-1).tolist())
+        """
+
+        def get_whole_statement(start_index) -> list[Line]:
+            index = start_index - 1
+            while index != 0:
+                line = self.lines[index]
+                if ";" in line.line:
+                    return self.lines[index + 1 : start_index + 1]
+                index -= 1
+            return None
+
+        entries = []
+        # Easiest to parse backwards from encountering the `#PYTHON` part.
+        MAGIC = "#PYTHON"
+        for li, line in enumerate(self.lines):
+            if MAGIC in line:
+                python_statement = line.line[line.line.find(MAGIC) + len(MAGIC) + 1 :]
+                rust_statement = get_whole_statement(li)
+                entries.append(
+                    InlinePython(
+                        python_statement=python_statement, lines=rust_statement
+                    )
+                )
+        return entries
 
 
 class RustTestReader:
@@ -213,6 +258,10 @@ def run_main(args):
                 # Find identifiers for constants.
                 constants = b.find_constants()
                 print(constants)
+
+                inline_subs = b.find_inline_python()
+                for s in inline_subs:
+                    print(s)
 
 
 if __name__ == "__main__":
