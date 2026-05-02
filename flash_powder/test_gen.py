@@ -11,6 +11,16 @@ from typing import Any
 import torch
 
 
+class Color:
+    BLUE = "\033[94m"
+    CYAN = "\033[96m"
+    GREEN = "\033[92m"
+    ORANGE = "\033[93m"
+    RESET = "\033[0m"
+    RED = "\033[91m"
+    WHITE = "\033[97m"
+
+
 @dataclass
 class Line:
     index: int
@@ -58,10 +68,17 @@ class PythonBlock:
     lines: list[Line]
     results: dict[str, Any]
 
+@dataclass
+class RustConstant:
+    ident: str
+    type: str
+    lines: list[Line]
 
 @dataclass
 class RustBlock:
     lines: list[Line]
+
+    def find_constants(self) -> list[RustConstant]
 
 
 class RustTestReader:
@@ -147,7 +164,7 @@ class RustTestReader:
                 raise ValueError(f"Unknown block type {type(b)}")
 
 
-def run_extract(args):
+def run_main(args):
 
     reader = RustTestReader(Path(args.input))
     function_lines = reader.get_function_lines(args.test_case)
@@ -160,16 +177,21 @@ def run_extract(args):
                 print(our_block)
         sys.exit(0)
 
+    reader.run_blocks(blocks)
     if args.command == "execute":
-        reader.run_blocks(blocks)
         for b in blocks:
             if isinstance(b, PythonBlock):
                 our_block = dedent("\n".join(a.line for a in b.lines))
-                print(our_block)
+                print(Color.BLUE + our_block + Color.RESET)
                 print("--")
                 for k, v in b.results.items():
                     print(f"{k} = {v}")
                 print("====")
+    if args.command == "substitute":
+        for i, b in enumerate(blocks):
+            if isinstance(b, RustBlock):
+                # Find identifiers for constants.
+                constants = re.findall
 
 
 if __name__ == "__main__":
@@ -188,11 +210,15 @@ if __name__ == "__main__":
 
     extract_parser = subparsers.add_parser("extract")
     add_common_args(extract_parser)
-    extract_parser.set_defaults(func=run_extract)
+    extract_parser.set_defaults(func=run_main)
 
     execute_parser = subparsers.add_parser("execute")
     add_common_args(execute_parser)
-    execute_parser.set_defaults(func=run_extract)
+    execute_parser.set_defaults(func=run_main)
+
+    substitute_parser = subparsers.add_parser("substitute")
+    add_common_args(substitute_parser)
+    substitute_parser.set_defaults(func=run_main)
 
     args = parser.parse_args()
 

@@ -300,14 +300,14 @@ mod test {
         for (i, v) in d.f32_mut()?.iter_mut().enumerate() {
             *v = (i + 1) as f32
         }
-        assert_eq!(d.sizes(), &[1, 4, 4]);
+        assert_eq!(d.sizes(), &[1, 4, 4]); // #PYTHON list(d.shape))
         assert_eq!(
             d.f32_ref()?,
             &[
                 1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0,
                 16.0
             ]
-        );
+        ); // #PYTHON list(d.view(-1).tolist())
 
         /*
             #|PYTHON
