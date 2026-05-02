@@ -2,6 +2,7 @@
 import argparse
 import copy
 import re
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from textwrap import dedent
@@ -142,35 +143,56 @@ class RustTestReader:
             elif isinstance(b, PythonBlock):
                 res = evaluate_blocks(b.lines, locals)
                 b.results = res
-                print(res)
             else:
                 raise ValueError(f"Unknown block type {type(b)}")
 
 
 def run_extract(args):
+
     reader = RustTestReader(Path(args.input))
     function_lines = reader.get_function_lines(args.test_case)
 
     blocks = reader.extract_blocks(function_lines)
-    for b in blocks:
-        print(b)
-    reader.run_blocks(blocks)
+    if args.command == "extract":
+        for b in blocks:
+            if isinstance(b, PythonBlock):
+                our_block = dedent("\n".join(a.line for a in b.lines))
+                print(our_block)
+        sys.exit(0)
+
+    if args.command == "execute":
+        reader.run_blocks(blocks)
+        for b in blocks:
+            if isinstance(b, PythonBlock):
+                our_block = dedent("\n".join(a.line for a in b.lines))
+                print(our_block)
+                print("--")
+                for k, v in b.results.items():
+                    print(f"{k} = {v}")
+                print("====")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(dest="command")
 
+    def add_common_args(parser):
+        parser.add_argument(
+            "input",
+            help="The suppression file to operate on",
+        )
+        parser.add_argument(
+            "test_case",
+            help="The test case to operate on",
+        )
+
     extract_parser = subparsers.add_parser("extract")
-    extract_parser.add_argument(
-        "input",
-        help="The suppression file to operate on",
-    )
-    extract_parser.add_argument(
-        "test_case",
-        help="The test case to operate on",
-    )
+    add_common_args(extract_parser)
     extract_parser.set_defaults(func=run_extract)
+
+    execute_parser = subparsers.add_parser("execute")
+    add_common_args(execute_parser)
+    execute_parser.set_defaults(func=run_extract)
 
     args = parser.parse_args()
 
