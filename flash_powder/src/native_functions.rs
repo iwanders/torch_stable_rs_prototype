@@ -300,6 +300,9 @@ mod test {
         for (i, v) in d.f32_mut()?.iter_mut().enumerate() {
             *v = (i + 1) as f32
         }
+        const INPUT_DATA_PY: &[f32] = &[
+            3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0,
+        ];
         assert_eq!(d.sizes(), &[1, 4, 4]); // #PYTHON list(d.shape))
         assert_eq!(
             d.f32_ref()?,
@@ -312,9 +315,10 @@ mod test {
         /*
             #|PYTHON
 
-            r = 5
+            R = 5
         */
 
+        const R: u32 = 5;
         let mut w = Tensor::zeros(&[1, 1, 2, 2], &Default::default())?;
         for (i, v) in w.d_mut::<f32>()?.iter_mut().enumerate() {
             *v = (i + 1) as f32

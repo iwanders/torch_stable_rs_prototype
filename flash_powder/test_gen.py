@@ -68,17 +68,37 @@ class PythonBlock:
     lines: list[Line]
     results: dict[str, Any]
 
+
 @dataclass
 class RustConstant:
     ident: str
     type: str
     lines: list[Line]
 
+
 @dataclass
 class RustBlock:
     lines: list[Line]
 
-    def find_constants(self) -> list[RustConstant]
+    def find_constants(self) -> list[RustConstant]:
+        constants = []
+        index = 0
+        current_constant = None
+        while index < len(self.lines):
+            line = self.lines[index]
+            res = re.findall("\\s*const ([^ ]+): ?([^ ]+)", line.line)
+            if res:
+                current_constant = RustConstant(
+                    ident=res[0][0], type=res[0][1], lines=[]
+                )
+            if current_constant is not None:
+                current_constant.lines.append(line)
+            if line.line.endswith(";"):
+                if current_constant is not None:
+                    constants.append(current_constant)
+                    current_constant = None
+            index += 1
+        return constants
 
 
 class RustTestReader:
@@ -191,7 +211,8 @@ def run_main(args):
         for i, b in enumerate(blocks):
             if isinstance(b, RustBlock):
                 # Find identifiers for constants.
-                constants = re.findall
+                constants = b.find_constants()
+                print(constants)
 
 
 if __name__ == "__main__":
