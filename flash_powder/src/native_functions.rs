@@ -149,6 +149,13 @@ pub trait NativeFunctionsMut: TensorAccess {
         unsafe_call_bail!(aoti_torch_aten_fill__Scalar(self.get_tensor().get(), value));
         Ok(())
     }
+
+    fn reshape(&mut self, shape: &[usize]) -> StableTorchResult<TenMut<'_>> {
+        let mut stack: [StableIValue; 2] = [(self.get_tensor()).into(), (shape).into()];
+        unsafe_call_dispatch_bail!("aten::reshape", "", stack.as_mut_slice());
+        let r: StableTensor = stack[0].try_into()?;
+        Ok(TenMut::new(self.get_tensor_mut(), r))
+    }
 }
 impl NativeFunctionsMut for Tensor {}
 impl<'a> NativeFunctionsMut for Ten<'a> {}
@@ -318,6 +325,31 @@ mod test {
         )?;
         assert_eq!(r.sizes(), &[1, 3, 2]);
         assert_eq!(r.f32_ref()?, &[44.0f32, 64.0, 84.0, 104.0, 124.0, 144.0]);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_flash_power_reshape() -> StableTorchResult<()> {
+        let mut d = Tensor::zeros(&[16], &Default::default())?;
+        for (i, v) in d.f32_mut()?.iter_mut().enumerate() {
+            *v = (i + 1) as f32
+        }
+
+        let mut a = d.reshape(&[4, 4])?;
+
+        assert_eq!(a.sizes(), &[4, 4]);
+        assert_eq!(
+            a.f32_ref()?,
+            &[
+                1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0,
+                16.0
+            ]
+        );
+        a.f32_mut()?[0] = 50.0;
+        assert_eq!(a.f32_mut()?[0], 50.0);
+        assert_eq!(a.f32_ref()?[0], 50.0);
+        assert_eq!(d.f32_mut()?[0], 50.0);
 
         Ok(())
     }
