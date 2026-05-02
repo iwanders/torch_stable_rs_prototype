@@ -3,6 +3,8 @@
 //! See [native_functions.yaml@v2.12.0-rc7](https://github.com/pytorch/pytorch/blob/v2.12.0-rc7/aten/src/ATen/native/native_functions.yaml)
 //! and its [readme](https://github.com/pytorch/pytorch/blob/v2.12.0-rc7/aten/src/ATen/native/README.md).
 
+use crate::methods::TensorMethods;
+use anyhow::bail;
 use torch_stable::aoti_torch::*;
 use torch_stable::headeronly::core::{Layout, ScalarType};
 use torch_stable::stable::device::Device;
@@ -53,7 +55,7 @@ use crate::{StableTorchResult, Ten, TenMut, Tensor, TensorAccess};
 /// Native functions that require const access.
 ///
 /// See the [`native_functions`][crate::native_functions] module for description of this trait's functionality.
-pub trait NativeFunctions: TensorAccess {
+pub trait NativeFunctions: TensorAccess + TensorMethods {
     fn narrow(&self, dim: usize, start: usize, end: usize) -> StableTorchResult<Ten<'_>> {
         // https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L4489
         let mut stack: [StableIValue; 4] = [
@@ -109,6 +111,23 @@ pub trait NativeFunctions: TensorAccess {
 
         Ok(Tensor::new(r))
     }
+
+    /// Reshape a tensor
+    ///
+    /// - [native_functions.yaml](https://github.com/pytorch/pytorch/blob/v2.11.0/aten/src/ATen/native/native_functions.yaml#L5103)
+    /// - [pytorch equivalent](https://docs.pytorch.org/docs/2.11/generated/torch.reshape.html)
+    ///
+    /// >  Contiguous inputs and inputs with compatible strides can be reshaped without copying, but you should not depend on the copying vs. viewing behavior.
+    /// Lets be super restrictive.
+    fn reshape(&mut self, shape: &[usize]) -> StableTorchResult<Ten<'_>> {
+        if !self.is_contiguous() {
+            bail!("cannot reshape non contiguous tensor");
+        }
+        let mut stack: [StableIValue; 2] = [(self.get_tensor()).into(), (shape).into()];
+        unsafe_call_dispatch_bail!("aten::reshape", "", stack.as_mut_slice());
+        let r: StableTensor = stack[0].try_into()?;
+        Ok(Ten::new(self.get_tensor(), r))
+    }
 }
 impl NativeFunctions for Tensor {}
 impl<'a> NativeFunctions for Ten<'a> {}
@@ -117,7 +136,7 @@ impl<'a> NativeFunctions for TenMut<'a> {}
 /// Native functions that require mutable access.
 ///
 /// See the [`native_functions`][crate::native_functions] module for description of this trait's functionality.
-pub trait NativeFunctionsMut: TensorAccess {
+pub trait NativeFunctionsMut: TensorAccess + TensorMethods {
     fn narrow_mut(
         &mut self,
         dim: usize,
@@ -150,7 +169,17 @@ pub trait NativeFunctionsMut: TensorAccess {
         Ok(())
     }
 
-    fn reshape(&mut self, shape: &[usize]) -> StableTorchResult<TenMut<'_>> {
+    /// Reshape a tensor
+    ///
+    /// - [native_functions.yaml](https://github.com/pytorch/pytorch/blob/v2.11.0/aten/src/ATen/native/native_functions.yaml#L5103)
+    /// - [pytorch equivalent](https://docs.pytorch.org/docs/2.11/generated/torch.reshape.html)
+    ///
+    /// >  Contiguous inputs and inputs with compatible strides can be reshaped without copying, but you should not depend on the copying vs. viewing behavior.
+    /// This current implementation looks fragile...
+    fn reshape_mut(&mut self, shape: &[usize]) -> StableTorchResult<TenMut<'_>> {
+        if !self.is_contiguous() {
+            bail!("cannot reshape non contiguous tensor");
+        }
         let mut stack: [StableIValue; 2] = [(self.get_tensor()).into(), (shape).into()];
         unsafe_call_dispatch_bail!("aten::reshape", "", stack.as_mut_slice());
         let r: StableTensor = stack[0].try_into()?;
@@ -164,7 +193,7 @@ impl<'a> NativeFunctionsMut for TenMut<'a> {}
 /// Native functions that produce owned tensors.
 ///
 /// See the [`native_functions`][crate::native_functions] module for description of this trait's functionality.
-pub trait NativeFunctionsOwned: TensorAccess {
+pub trait NativeFunctionsOwned: TensorAccess + TensorMethods {
     fn empty(dimensions: &[usize], options: &EmtpyOptions) -> StableTorchResult<Tensor> {
         let mut stack: [StableIValue; 6] = [
             (dimensions).into(),
@@ -336,7 +365,7 @@ mod test {
             *v = (i + 1) as f32
         }
 
-        let mut a = d.reshape(&[4, 4])?;
+        let mut a = d.reshape_mut(&[4, 4])?;
 
         assert_eq!(a.sizes(), &[4, 4]);
         assert_eq!(
@@ -347,9 +376,34 @@ mod test {
             ]
         );
         a.f32_mut()?[0] = 50.0;
+
         assert_eq!(a.f32_mut()?[0], 50.0);
         assert_eq!(a.f32_ref()?[0], 50.0);
+
+        let mut n = a.to_owned()?;
+        // Currently lazy copy
+        let old_n_ptr = n.const_data_ptr();
+        assert_eq!(n.const_data_ptr(), a.const_data_ptr());
+
+        // Verify n holds same data
+        assert_eq!(n.f32_ref()?[0], 50.0);
+        // Modify n, this performs the copy.
+        n.f32_mut()?[0] = 20.0;
+
+        // data pointer shouldn't be the same now.
+        assert_ne!(n.const_data_ptr(), old_n_ptr);
+
         assert_eq!(d.f32_mut()?[0], 50.0);
+
+        // Try a non owning reshape
+        let v = d.reshape(&[16])?;
+        let mut cv = v.to_owned()?;
+        cv.f32_mut()?[0] = 10.0;
+        assert_eq!(cv.f32_ref()?[0], 10.0);
+        assert_eq!(v.f32_ref()?[0], 50.0);
+
+        // Reshape to incorrect size.
+        assert!(d.reshape(&[12]).is_err());
 
         Ok(())
     }
