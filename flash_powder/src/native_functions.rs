@@ -3,6 +3,9 @@
 //! See [native_functions.yaml@v2.12.0-rc7](https://github.com/pytorch/pytorch/blob/v2.12.0-rc7/aten/src/ATen/native/native_functions.yaml)
 //! and its [readme](https://github.com/pytorch/pytorch/blob/v2.12.0-rc7/aten/src/ATen/native/README.md).
 
+// https://docs.pytorch.org/docs/2.11/tensor_view.html
+// has a nice overview of what operators return views.
+
 use crate::methods::TensorMethods;
 use anyhow::bail;
 use torch_stable::aoti_torch::*;
@@ -83,6 +86,7 @@ pub trait NativeFunctions: TensorAccess + TensorMethods {
         ];
         unsafe_call_dispatch_bail!("aten::to", "dtype_layout", stack.as_mut_slice());
         let r: StableTensor = stack[0].try_into()?;
+        assert_ne!(self.data_ptr(), r.data_ptr());
 
         Ok(Tensor::new(r))
     }
@@ -112,20 +116,16 @@ pub trait NativeFunctions: TensorAccess + TensorMethods {
         Ok(Tensor::new(r))
     }
 
-    /// Reshape a tensor
+    /// View into a tensor
     ///
-    /// - [native_functions.yaml](https://github.com/pytorch/pytorch/blob/v2.11.0/aten/src/ATen/native/native_functions.yaml#L5103)
-    /// - [pytorch equivalent](https://docs.pytorch.org/docs/2.11/generated/torch.reshape.html)
+    /// - [native_functions.yaml](https://github.com/pytorch/pytorch/blob/v2.11.0/aten/src/ATen/native/native_functions.yaml#L8362)
+    /// - [pytorch equivalent](https://docs.pytorch.org/docs/2.11/generated/torch.Tensor.view.html)
     ///
-    /// >  Contiguous inputs and inputs with compatible strides can be reshaped without copying, but you should not depend on the copying vs. viewing behavior.
-    /// Lets be super restrictive.
-    fn reshape(&mut self, shape: &[usize]) -> StableTorchResult<Ten<'_>> {
-        if !self.is_contiguous() {
-            bail!("cannot reshape non contiguous tensor");
-        }
+    fn view(&mut self, shape: &[usize]) -> StableTorchResult<Ten<'_>> {
         let mut stack: [StableIValue; 2] = [(self.get_tensor()).into(), (shape).into()];
-        unsafe_call_dispatch_bail!("aten::reshape", "", stack.as_mut_slice());
+        unsafe_call_dispatch_bail!("aten::view", "", stack.as_mut_slice());
         let r: StableTensor = stack[0].try_into()?;
+        assert_eq!(self.data_ptr(), r.data_ptr());
         Ok(Ten::new(self.get_tensor(), r))
     }
 }
@@ -169,20 +169,17 @@ pub trait NativeFunctionsMut: TensorAccess + TensorMethods {
         Ok(())
     }
 
-    /// Reshape a tensor
+    /// View into a tensor
     ///
-    /// - [native_functions.yaml](https://github.com/pytorch/pytorch/blob/v2.11.0/aten/src/ATen/native/native_functions.yaml#L5103)
-    /// - [pytorch equivalent](https://docs.pytorch.org/docs/2.11/generated/torch.reshape.html)
     ///
-    /// >  Contiguous inputs and inputs with compatible strides can be reshaped without copying, but you should not depend on the copying vs. viewing behavior.
-    /// This current implementation looks fragile...
-    fn reshape_mut(&mut self, shape: &[usize]) -> StableTorchResult<TenMut<'_>> {
-        if !self.is_contiguous() {
-            bail!("cannot reshape non contiguous tensor");
-        }
+    /// - [native_functions.yaml](https://github.com/pytorch/pytorch/blob/v2.11.0/aten/src/ATen/native/native_functions.yaml#L8362)
+    /// - [pytorch equivalent](https://docs.pytorch.org/docs/2.11/generated/torch.Tensor.view.html)
+    ///
+    fn view_mut(&mut self, shape: &[usize]) -> StableTorchResult<TenMut<'_>> {
         let mut stack: [StableIValue; 2] = [(self.get_tensor()).into(), (shape).into()];
-        unsafe_call_dispatch_bail!("aten::reshape", "", stack.as_mut_slice());
+        unsafe_call_dispatch_bail!("aten::view", "", stack.as_mut_slice());
         let r: StableTensor = stack[0].try_into()?;
+        assert_eq!(self.data_ptr(), r.data_ptr());
         Ok(TenMut::new(self.get_tensor_mut(), r))
     }
 }
@@ -359,13 +356,13 @@ mod test {
     }
 
     #[test]
-    fn test_flash_power_reshape() -> StableTorchResult<()> {
+    fn test_flash_power_view() -> StableTorchResult<()> {
         let mut d = Tensor::zeros(&[16], &Default::default())?;
         for (i, v) in d.f32_mut()?.iter_mut().enumerate() {
             *v = (i + 1) as f32
         }
 
-        let mut a = d.reshape_mut(&[4, 4])?;
+        let mut a = d.view_mut(&[4, 4])?;
 
         assert_eq!(a.sizes(), &[4, 4]);
         assert_eq!(
@@ -395,15 +392,15 @@ mod test {
 
         assert_eq!(d.f32_mut()?[0], 50.0);
 
-        // Try a non owning reshape
-        let v = d.reshape(&[16])?;
+        // Try a non owning view
+        let v = d.view(&[16])?;
         let mut cv = v.to_owned()?;
         cv.f32_mut()?[0] = 10.0;
         assert_eq!(cv.f32_ref()?[0], 10.0);
         assert_eq!(v.f32_ref()?[0], 50.0);
 
         // Reshape to incorrect size.
-        assert!(d.reshape(&[12]).is_err());
+        assert!(d.view(&[12]).is_err());
 
         Ok(())
     }
