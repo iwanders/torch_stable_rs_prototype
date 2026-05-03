@@ -620,6 +620,10 @@ def run_main(args):
                     print(f"{k} = {v}")
                 print("====")
 
+    if args.command == "update":
+        args.output = args.input
+        args.command = "substitute"
+
     if args.command == "substitute":
         substituted_entries = []
         for i, b in enumerate(blocks):
@@ -648,22 +652,24 @@ if __name__ == "__main__":
     def add_common_args(parser):
         parser.add_argument(
             "input",
-            help="The suppression file to operate on",
+            help="The file to operate on.",
         )
         parser.add_argument(
             "test_case",
-            help="The test case to operate on",
+            help="The test case to operate on.",
         )
 
-    extract_parser = subparsers.add_parser("extract")
+    extract_parser = subparsers.add_parser("extract", help="Extract the python block")
     add_common_args(extract_parser)
     extract_parser.set_defaults(func=run_main)
 
-    execute_parser = subparsers.add_parser("execute")
+    execute_parser = subparsers.add_parser("execute", help="Run the python blocks")
     add_common_args(execute_parser)
     execute_parser.set_defaults(func=run_main)
 
-    substitute_parser = subparsers.add_parser("substitute")
+    substitute_parser = subparsers.add_parser(
+        "substitute", help="Substitute into the input file and write somewhere."
+    )
     substitute_parser.add_argument(
         "--dry-run", "-n", default=False, action="store_true", help="Do a dry run"
     )
@@ -672,6 +678,15 @@ if __name__ == "__main__":
     )
     add_common_args(substitute_parser)
     substitute_parser.set_defaults(func=run_main)
+
+    update_parser = subparsers.add_parser(
+        "update", help="Update the input file directly"
+    )
+    update_parser.add_argument(
+        "--dry-run", "-n", default=False, action="store_true", help="Do a dry run"
+    )
+    add_common_args(update_parser)
+    update_parser.set_defaults(func=run_main)
 
     args = parser.parse_args()
 

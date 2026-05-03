@@ -291,7 +291,6 @@ mod test {
         /*
             #|PYTHON
             d = torch.tensor(list(range(1,17)), dtype=torch.float).reshape([1,4,4])
-            INPUT_DATA_PY = list(d.view(-1).tolist())
             w = torch.tensor([[[1.0, 2.0],[3.0, 4.0]]]).unsqueeze(0)
             r = torch.nn.functional.conv2d(d, w)
         */
@@ -301,8 +300,9 @@ mod test {
             *v = (i + 1) as f32
         }
         const INPUT_DATA_PY: &[f32] = &[
-            3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0,
-        ]; // #PYTHON list(d.view(-1).tolist())
+            2.0f32, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0,
+            17.0,
+        ]; // #PYTHON [a + 1 for a in list(d.view(-1).tolist())]
         assert_eq!(d.sizes(), &[1, 4, 4]); // #PYTHON list(d.shape)
         assert_eq!(
             d.f32_ref()?,
