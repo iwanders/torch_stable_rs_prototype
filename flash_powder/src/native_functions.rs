@@ -13,7 +13,7 @@ use torch_stable::headeronly::core::{Layout, ScalarType};
 use torch_stable::stable::device::Device;
 use torch_stable::stable::ops::{EmtpyOptions, ToOptions};
 use torch_stable::{
-    aoti_torch::{aoti_torch_zero_, StableIValue},
+    aoti_torch::{StableIValue, aoti_torch_zero_},
     stable::tensor::Tensor as StableTensor,
     unsafe_call_bail, unsafe_call_dispatch_bail,
 };

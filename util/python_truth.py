@@ -34,6 +34,8 @@ RUST_INTS = [
     "i64",
     "u128",
     "i128",
+    "usize",
+    "isize",
 ]
 RUST_FLOATS = ["f32", "f64"]
 RUST_SCALAR_TYPES = RUST_INTS + RUST_FLOATS
