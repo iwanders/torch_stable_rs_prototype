@@ -128,7 +128,8 @@ class InlinePython:
         # Okay, so this is the hardest part in all of this...
         # assert_eq!(..., &[[a,b], [c,d]]); // #PYTHON
         # CONST foo: &[f32] = &[1.0, 1.2]; // #PYTHON
-
+        filename = self.lines[0].filename
+        index = self.lines[0].index
         # Next, we need to actually parse this to determine where our payload is. Our payload is the right part of the
         # const, or the second argument of the foo(a,b) type call.
         if "const" in reconstituted:
@@ -147,18 +148,13 @@ class InlinePython:
             name = z[0][1]
             found_type = z[0][2]
             res = InlinePython.create_const(name, found_type, indent, payload)
-            res.filename = self.lines[0].filename
-            res.index = self.lines[0].index
+            res.filename = filename
+            res.index = index
             suffix = z[0][3]
             res.line += " " + suffix
             self.lines = [res]
         else:
-            raise NotImplementedError("SLKDJFS")
-            # Start parsing...
-            stack = []
-            for t in tokenized:
-                print(t)
-        lkjsdlfkjsd
+            self.lines = [Line(index=index, line=reconstituted, filename=filename)]
 
     def substituted(self, locals) -> "InlinePython":
         res = InlinePython(
@@ -265,6 +261,11 @@ class RustTestReader:
         self._lines = self._content.split("\n")
         self._filename = filename.name
 
+    def write_to(self, path: str | Path):
+        path = Path(path)
+        with open(path, "w") as f:
+            f.write("\n".join(self._lines))
+
     def get_function_lines(self, function_name) -> list[Line]:
         # Assume perfectly formatted code.
         # fn test_flash_power_conv2d(
@@ -329,6 +330,15 @@ class RustTestReader:
             else:
                 raise ValueError(f"Unknown block type {type(b)}")
 
+    def replace_inline(self, replacements: list[tuple[InlinePython, InlinePython]]):
+        # We don't want the indices to change on us, so we do it from the bottom up.
+        for orig, replacement in sorted(
+            replacements, key=lambda x: x[0].lines[0].index, reverse=True
+        ):
+            self._lines[orig.lines[0].index : orig.lines[-1].index] = [
+                a.line for a in replacement.lines
+            ]
+
 
 def run_main(args):
 
@@ -365,9 +375,14 @@ def run_main(args):
                 inline_subs = b.find_inline_python()
                 for s in inline_subs:
                     print(s)
-                    substituted_entries.append(s.substituted(blocks[i - 1].results))
+                    substituted_entries.append(
+                        (s, s.substituted(blocks[i - 1].results))
+                    )
+
+        reader.replace_inline(substituted_entries)
         if not args.dry_run:
-            print("substituting")
+            if args.output:
+                reader.write_to(args.output)
 
 
 if __name__ == "__main__":
@@ -395,6 +410,9 @@ if __name__ == "__main__":
     substitute_parser = subparsers.add_parser("substitute")
     substitute_parser.add_argument(
         "--dry-run", "-n", default=False, action="store_true", help="Do a dry run"
+    )
+    substitute_parser.add_argument(
+        "--output", "-o", default=None, help="Write to this output file"
     )
     add_common_args(substitute_parser)
     substitute_parser.set_defaults(func=run_main)
