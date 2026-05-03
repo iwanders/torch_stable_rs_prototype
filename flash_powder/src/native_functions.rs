@@ -7,13 +7,12 @@
 // has a nice overview of what operators return views.
 
 use crate::methods::TensorMethods;
-use anyhow::bail;
 use torch_stable::aoti_torch::*;
 use torch_stable::headeronly::core::{Layout, ScalarType};
 use torch_stable::stable::device::Device;
-use torch_stable::stable::ops::{EmtpyOptions, ToOptions};
+pub use torch_stable::stable::ops::{EmtpyOptions, ToOptions};
 use torch_stable::{
-    aoti_torch::{StableIValue, aoti_torch_zero_},
+    aoti_torch::{aoti_torch_zero_, StableIValue},
     stable::tensor::Tensor as StableTensor,
     unsafe_call_bail, unsafe_call_dispatch_bail,
 };

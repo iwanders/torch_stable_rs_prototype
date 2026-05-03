@@ -19,6 +19,7 @@
 //! - Modifying one tensor will not modify another, unless it has a mutable borrow.
 //! - Rust style lifetimes on tensors, either tied together with an explicit lifetime, or completely separate.
 
+pub mod conversion;
 pub mod data;
 pub mod methods;
 pub mod native_functions;

@@ -1,4 +1,6 @@
 use crate::StableTorchResult;
+use anyhow;
+use torch_stable::stable::device::Device;
 use torch_stable::unsafe_call_dispatch_panic;
 use torch_stable::{aoti_torch::StableIValue, stable::tensor::Tensor as StableTensor};
 
@@ -38,6 +40,22 @@ impl Tensor {
     /// The provided tensor should be detached from anything else and exclusive ownership should be passed.
     pub fn new(tensor: StableTensor) -> Self {
         Self { tensor }
+    }
+
+    /// Equivalent to torch.tensor(data)
+    ///
+    /// Always allocates in the provided data type, on the cpu.
+    ///
+    /// https://docs.pytorch.org/docs/2.11/generated/torch.tensor.html#torch.tensor
+    ///
+    /// Is actually implemented via TryInto
+    pub fn from<T>(data: T) -> StableTorchResult<Tensor>
+    where
+        T: TryInto<Tensor>,
+        T::Error: Into<anyhow::Error>,
+    {
+        let b: StableTorchResult<Tensor> = data.try_into().map_err(|e| e.into());
+        b
     }
 }
 

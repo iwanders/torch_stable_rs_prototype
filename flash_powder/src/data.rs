@@ -65,5 +65,4 @@ pub trait DataMut: TensorAccess {
     }
 }
 impl DataMut for Tensor {}
-//impl<'a> DataManipulationMut for Ten<'a> {}
 impl<'a> DataMut for TenMut<'a> {}
