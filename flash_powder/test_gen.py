@@ -31,12 +31,13 @@ class Line:
         return item in self.line
 
 
-def evaluate_blocks(lines: list[Line], locals) -> dict[str, Any]:
+def exec_lines(lines: list[Line], locals) -> dict[str, Any]:
     # raise SyntaxError("custom error message", ("myfile.py", 100, 1, "invalid code here"))
     our_block = dedent("\n".join(a.line for a in lines))
     locals = copy.deepcopy(locals)
     try:
-        exec(our_block, locals=locals, globals={"torch": torch})
+        z = exec(our_block, locals=locals, globals={"torch": torch})
+        print("\n\n\n", z, "\n\n\n")
     except IndentationError as e:
         e.lineno += lines[0].index
         e.filename = lines[0].filename
@@ -45,6 +46,22 @@ def evaluate_blocks(lines: list[Line], locals) -> dict[str, Any]:
         e.lineno += lines[0].index
         e.filename = lines[0].filename
         raise e
+    except RuntimeError as e:
+        raise e
+
+    return locals
+
+
+def eval_statement(line: Line, locals) -> Any:
+    try:
+        return eval(line.line, locals=locals, globals={"torch": torch})
+    except IndentationError as e:
+        e.lineno += lines[0].index
+        e.filename = lines[0].filename
+        raise e
+    except SyntaxError as e:
+        e.lineno += lines[0].index
+        e.filename = lines[0].filename
         raise e
     except RuntimeError as e:
         raise e
@@ -76,10 +93,88 @@ class RustConstant:
     lines: list[Line]
 
 
+# This pertains to a #PYTHON 'python statement' comment behind a rust statement.
 @dataclass
 class InlinePython:
     python_statement: str
+    index: int
     lines: list[Line]
+
+    @staticmethod
+    def create_const(name, found_type, indent, payload) -> Line:
+        indent_count = len(indent)
+        starts_ref = found_type.startswith("&")
+        starts_ref_str = "&" if starts_ref else ""
+        # lets only handle array and slice for now.
+        inner_type = re.findall("\\[(.+?)\\]", found_type)
+        inner_type = inner_type[0] if inner_type else None
+        # TODO: handle more types.
+        if not inner_type:
+            raise NotImplementedError(f"Unsupported type {found_type}")
+
+        # convert payload to rust payload.
+        if isinstance(payload, list):
+            payload = ", ".join(str(a) for a in payload)
+
+        return Line(
+            0,
+            indent + f"const {name}: &[{inner_type}] = {starts_ref_str}[{payload}];",
+            None,
+        )
+
+    def substitute_with(self, payload):
+        reconstituted = "\n".join([a.line for a in self.lines])
+        print(reconstituted)
+        # Okay, so this is the hardest part in all of this...
+        # assert_eq!(..., &[[a,b], [c,d]]); // #PYTHON
+        # CONST foo: &[f32] = &[1.0, 1.2]; // #PYTHON
+
+        # Next, we need to actually parse this to determine where our payload is. Our payload is the right part of the
+        # const, or the second argument of the foo(a,b) type call.
+        if "const" in reconstituted:
+            # We can just do a regex here since we know const is very strictly defined.
+            z = re.findall(
+                "(\\s*)const ([^:]+): ?([^ ]+) ?=[^;]+; ?(// #PYTHON.*)",
+                reconstituted,
+                flags=re.DOTALL,
+            )
+            if not z:
+                raise NotImplementedError(
+                    f"something very wront with this substitution: {reconstituted}"
+                )
+
+            indent = z[0][0]
+            name = z[0][1]
+            found_type = z[0][2]
+            res = InlinePython.create_const(name, found_type, indent, payload)
+            res.filename = self.lines[0].filename
+            res.index = self.lines[0].index
+            suffix = z[0][3]
+            res.line += " " + suffix
+            self.lines = [res]
+        else:
+            raise NotImplementedError("SLKDJFS")
+            # Start parsing...
+            stack = []
+            for t in tokenized:
+                print(t)
+        lkjsdlfkjsd
+
+    def substituted(self, locals) -> "InlinePython":
+        res = InlinePython(
+            python_statement=self.python_statement,
+            lines=self.lines,
+            index=self.index,
+        )
+        python_line = Line(
+            line=self.python_statement,
+            index=self.index,
+            filename=self.lines[0].filename,
+        )
+        data = eval_statement(python_line, locals)
+        res.substitute_with(data)
+
+        return res
 
 
 @dataclass
@@ -126,7 +221,11 @@ class RustBlock:
             index = start_index - 1
             while index != 0:
                 line = self.lines[index]
-                if ";" in line.line:
+                if (
+                    ";" in line.line
+                    or line.line.endswith("*/")
+                    or line.line.endswith("}")
+                ):
                     return self.lines[index + 1 : start_index + 1]
                 index -= 1
             return None
@@ -140,7 +239,9 @@ class RustBlock:
                 rust_statement = get_whole_statement(li)
                 entries.append(
                     InlinePython(
-                        python_statement=python_statement, lines=rust_statement
+                        python_statement=python_statement,
+                        lines=rust_statement,
+                        index=li,
                     )
                 )
         return entries
@@ -223,7 +324,7 @@ class RustTestReader:
             if isinstance(b, RustBlock):
                 pass
             elif isinstance(b, PythonBlock):
-                res = evaluate_blocks(b.lines, locals)
+                res = exec_lines(b.lines, locals)
                 b.results = res
             else:
                 raise ValueError(f"Unknown block type {type(b)}")
@@ -252,16 +353,21 @@ def run_main(args):
                 for k, v in b.results.items():
                     print(f"{k} = {v}")
                 print("====")
+
     if args.command == "substitute":
+        substituted_entries = []
         for i, b in enumerate(blocks):
             if isinstance(b, RustBlock):
                 # Find identifiers for constants.
-                constants = b.find_constants()
-                print(constants)
+                # constants = b.find_constants()
+                # print(constants)
 
                 inline_subs = b.find_inline_python()
                 for s in inline_subs:
                     print(s)
+                    substituted_entries.append(s.substituted(blocks[i - 1].results))
+        if not args.dry_run:
+            print("substituting")
 
 
 if __name__ == "__main__":
@@ -287,6 +393,9 @@ if __name__ == "__main__":
     execute_parser.set_defaults(func=run_main)
 
     substitute_parser = subparsers.add_parser("substitute")
+    substitute_parser.add_argument(
+        "--dry-run", "-n", default=False, action="store_true", help="Do a dry run"
+    )
     add_common_args(substitute_parser)
     substitute_parser.set_defaults(func=run_main)
 
