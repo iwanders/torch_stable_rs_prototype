@@ -21,6 +21,22 @@ class Color:
     WHITE = "\033[97m"
 
 
+RUST_INTS = [
+    "u8",
+    "i8",
+    "u16",
+    "i16",
+    "u32",
+    "i32",
+    "u64",
+    "i64",
+    "u128",
+    "i128",
+]
+RUST_FLOATS = ["f32", "f64"]
+RUST_SCALAR_TYPES = RUST_INTS + RUST_FLOATS
+
+
 @dataclass
 class Line:
     index: int
@@ -93,6 +109,251 @@ class RustConstant:
     lines: list[Line]
 
 
+@dataclass
+class RustNode:
+    children: list["RustNode | str"]
+
+    def pretty_print(self, indent=0):
+        for ci, c in enumerate(self.children):
+            if isinstance(c, str):
+                print(" " * indent, ci, "" + dedent(repr(c)) + "")
+            if isinstance(c, RustNode):
+                print(
+                    " " * indent,
+                    ci,
+                    f" node with {len(c.children)} children: ",
+                )
+                c.pretty_print(indent + 4)
+
+    def group_between_commas(self) -> "RustNode":
+        segments = self._split_by_comma_indices()
+        res = []
+        for si, span in enumerate(segments):
+            span_node = RustNode(children=[self.children[x] for x in span])
+            res.append(span_node)
+            if si + 1 != len(segments):
+                res.append(",")
+        return RustNode(children=res)
+
+    def _split_by_comma_indices(self) -> list[list[int]]:
+        ranges = []
+        this_range = []
+        for i, v in enumerate(self.children):
+            if v == ",":
+                if this_range:
+                    ranges.append(this_range)
+                    this_range = []
+                continue
+            this_range.append(i)
+        if this_range:
+            ranges.append(this_range)
+        return ranges
+
+    def assemble(self) -> str:
+        res = ""
+
+        def recurser(n: RustNode):
+            nonlocal res
+            for c in n.children:
+                if isinstance(c, str):
+                    res += c
+                elif isinstance(c, RustNode):
+                    recurser(c)
+
+        recurser(self)
+        return res
+
+    def determine_type(self) -> str:
+        is_ref = False
+        is_array_esque = False
+        rust_type = ""
+        for i, z in enumerate(self.children):
+            if isinstance(z, str):
+                if i == 0 and z.strip() == "&":
+                    is_ref = True
+                if z.strip() == "[":
+                    is_array_esque = True
+            if isinstance(z, RustNode):
+                # iterate one level deep to see if we can find a type there...
+                for c in z.children:
+                    if rust_type:
+                        break
+                    if isinstance(c, str):
+                        for t in RUST_SCALAR_TYPES:
+                            if t in c:
+                                rust_type = t
+                                break
+        is_ref_str = "&" if is_ref else ""
+        if is_array_esque:
+            return f"{is_ref_str}[{rust_type}]"
+        else:
+            return f"{is_ref_str}{rust_type}"
+
+
+"""
+        starts_ref = found_type.startswith("&")
+        starts_ref_str = "&" if starts_ref else ""
+        # lets only handle array and slice for now.
+        inner_type = re.findall("\\[(.+?)\\]", found_type)
+        inner_type = inner_type[0] if inner_type else None
+
+        if not inner_type:
+            raise NotImplementedError(f"Unsupported type {found_type}")
+"""
+
+
+def format_payload_as_rust(payload, rust_type=None):
+    if rust_type is not None:
+        is_ref = rust_type.startswith("&")
+        rust_type = rust_type.lstrip("&")
+        is_array_esque = False
+        if rust_type.startswith("[") and rust_type.endswith("]"):
+            is_array_esque = True
+            rust_type = rust_type[1:-1]
+    else:
+        is_ref = False
+        rust_type = ""
+        is_array_esque = isinstance(payload, list)
+
+    print(
+        f"FOrmatting, is_ref: {is_ref}, is_array_esque: {is_array_esque}, type: {rust_type}"
+    )
+
+    ref_str = "&" if is_ref else ""
+    type_str = rust_type
+
+    arr_start_str = "[" if is_array_esque else ""
+    arr_end_str = "]" if is_array_esque else ""
+    if isinstance(payload, int):
+        if rust_type and rust_type not in RUST_INTS:
+            raise ValueError(f"Trying to convert {payload} to {rust_type}")
+        payload_str = str(payload)
+        return f"{ref_str}{arr_start_str}{payload_str}{type_str}{arr_end_str}"
+
+    elif isinstance(payload, float):
+        if rust_type and rust_type not in RUST_FLOATS:
+            raise ValueError(f"Trying to convert {payload} to {rust_type}")
+        payload_str = str(payload)
+        return f"{ref_str}{arr_start_str}{payload_str}{type_str}{arr_end_str}"
+
+    elif isinstance(payload, list):
+        if isinstance(payload[0], int):
+            if rust_type and rust_type not in RUST_INTS:
+                raise ValueError(f"Trying to convert {payload} to {rust_type}")
+        if isinstance(payload[0], float):
+            if rust_type and rust_type not in RUST_FLOATS:
+                raise ValueError(f"Trying to convert {payload} to {rust_type}")
+        payload_str = [str(p) for p in payload]
+
+        payload_str[0] += type_str
+        payload_str = ", ".join(payload_str)
+        return f"{ref_str}[{payload_str}]"
+    else:
+        raise NotImplementedError(
+            f"not implemented payload type: {type(payload)}, for {rust_type}"
+        )
+
+
+def test_rust_format_payload():
+    assert format_payload_as_rust(3, rust_type=None) == "3"
+    assert format_payload_as_rust(3.3, rust_type=None) == "3.3"
+    assert format_payload_as_rust(3.3, rust_type="f32") == "3.3f32"
+    assert format_payload_as_rust(3.3, rust_type="f32") == "3.3f32"
+    assert format_payload_as_rust(3.3, rust_type="&f32") == "&3.3f32"
+    assert format_payload_as_rust(3.3, rust_type="&[f32]") == "&[3.3f32]"
+    assert format_payload_as_rust(3.3, rust_type="[f32]") == "[3.3f32]"
+    assert format_payload_as_rust([3.3, 5.5], rust_type="[f32]") == "[3.3f32, 5.5]"
+    assert format_payload_as_rust([3.3, 5.5], rust_type="[]") == "[3.3, 5.5]"
+    assert format_payload_as_rust([3, 5], rust_type="[]") == "[3, 5]"
+    assert format_payload_as_rust([3, 5], rust_type="&") == "&[3, 5]"
+    sys.exit(0)
+
+
+# test_rust_format_payload()
+
+
+class RustWrangler:
+    """
+    A half-baked AST lol.
+    """
+
+    def __init__(self, rust_code):
+        self._code = rust_code
+        self._root = RustWrangler.parse(rust_code)
+        assert self._code == self._root.assemble()
+
+    def pretty_print(self):
+        self._root.pretty_print()
+
+    def substitute_second_argument(self, payload):
+        # First, find the actual function call in the root.
+        if not (self._root.children[1] == "(" and self._root.children[3] == ")"):
+            raise ValueError(
+                "Cannot parse this section of rust code, doesn't look like a function call"
+            )
+        if not isinstance(self._root.children[2], RustNode):
+            raise ValueError(
+                "Cannot parse this section of rust code, doesn't look like a function call"
+            )
+        self._root.children[2] = self._root.children[2].group_between_commas()
+        assert self._code == self._root.assemble()
+
+        # Next, the arguments are each in their own node.
+        # node, ",", node, "," etc.
+        last_argument = self._root.children[2].children[-1]
+
+        found_type = last_argument.determine_type()
+        payload = format_payload_as_rust(payload, found_type)
+        last_argument.children = [payload]
+
+    def assemble(self) -> str:
+        return self._root.assemble()
+
+    @staticmethod
+    def parse(rust_code):
+
+        root = RustNode(children=[])
+        current: RustNode = root
+        stack = []
+        pairs = [("(", ")"), ("[", "]")]
+        accumulated = ""
+        open_lookup = {v: k for k, v in pairs}
+        for i, t in enumerate(rust_code):
+            if t in [",", ";"]:
+                current.children.append(accumulated)
+                current.children.append(t)
+                accumulated = ""
+                continue
+            if t in [a[0] for a in pairs]:
+                if t == "(" and rust_code[i + 1] == ")":
+                    # treat as string:
+                    pass
+                else:
+                    stack.append((t, current))
+                    current.children.append(accumulated)
+                    current.children.append(t)
+                    accumulated = ""
+                    new_node = RustNode(children=[])
+                    current.children.append(new_node)
+                    current = new_node
+                    continue
+            if t in [a[1] for a in pairs]:
+                if t == ")" and rust_code[i - 1] == "(":
+                    # treat () as string.
+                    pass
+                else:
+                    current.children.append(accumulated)
+                    if stack[-1][0] != open_lookup[t]:
+                        raise ValueError("Unbalanced parenthesis?")
+                    token, new_current = stack.pop()
+                    current = new_current
+                    current.children.append(t)
+                    accumulated = ""
+                    continue
+            accumulated += t
+        return root
+
+
 # This pertains to a #PYTHON 'python statement' comment behind a rust statement.
 @dataclass
 class InlinePython:
@@ -102,23 +363,11 @@ class InlinePython:
 
     @staticmethod
     def create_const(name, found_type, indent, payload) -> Line:
-        indent_count = len(indent)
-        starts_ref = found_type.startswith("&")
-        starts_ref_str = "&" if starts_ref else ""
-        # lets only handle array and slice for now.
-        inner_type = re.findall("\\[(.+?)\\]", found_type)
-        inner_type = inner_type[0] if inner_type else None
-        # TODO: handle more types.
-        if not inner_type:
-            raise NotImplementedError(f"Unsupported type {found_type}")
 
-        # convert payload to rust payload.
-        if isinstance(payload, list):
-            payload = ", ".join(str(a) for a in payload)
-
+        payload = format_payload_as_rust(payload, found_type)
         return Line(
             0,
-            indent + f"const {name}: &[{inner_type}] = {starts_ref_str}[{payload}];",
+            indent + f"const {name}: {found_type} = {payload} ;",
             None,
         )
 
@@ -154,7 +403,14 @@ class InlinePython:
             res.line += " " + suffix
             self.lines = [res]
         else:
-            self.lines = [Line(index=index, line=reconstituted, filename=filename)]
+            # Here we have some function call... usually assert, we need to actually parse.
+            wrangler = RustWrangler(reconstituted)
+            wrangler.pretty_print()
+            wrangler.substitute_second_argument(payload)
+            wrangler.pretty_print()
+            self.lines = [
+                Line(index=index, filename=filename, line=wrangler.assemble())
+            ]
 
     def substituted(self, locals) -> "InlinePython":
         res = InlinePython(
@@ -335,7 +591,7 @@ class RustTestReader:
         for orig, replacement in sorted(
             replacements, key=lambda x: x[0].lines[0].index, reverse=True
         ):
-            self._lines[orig.lines[0].index : orig.lines[-1].index] = [
+            self._lines[orig.lines[0].index : orig.lines[-1].index + 1] = [
                 a.line for a in replacement.lines
             ]
 
