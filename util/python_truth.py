@@ -3,6 +3,7 @@ import argparse
 import copy
 import fnmatch
 import re
+import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -54,7 +55,6 @@ def exec_lines(lines: list[Line], locals) -> dict[str, Any]:
     locals = copy.deepcopy(locals)
     try:
         z = exec(our_block, locals=locals, globals={"torch": torch})
-        print("\n\n\n", z, "\n\n\n")
     except IndentationError as e:
         e.lineno += lines[0].index
         e.filename = lines[0].filename
@@ -216,10 +216,6 @@ def format_payload_as_rust(payload, rust_type=None):
         rust_type = ""
         is_array_esque = isinstance(payload, list)
 
-    print(
-        f"FOrmatting, is_ref: {is_ref}, is_array_esque: {is_array_esque}, type: {rust_type}"
-    )
-
     ref_str = "&" if is_ref else ""
     type_str = rust_type
 
@@ -374,7 +370,6 @@ class InlinePython:
 
     def substitute_with(self, payload):
         reconstituted = "\n".join([a.line for a in self.lines])
-        print(reconstituted)
         # Okay, so this is the hardest part in all of this...
         # assert_eq!(..., &[[a,b], [c,d]]); // #PYTHON
         # CONST foo: &[f32] = &[1.0, 1.2]; // #PYTHON
@@ -406,9 +401,7 @@ class InlinePython:
         else:
             # Here we have some function call... usually assert, we need to actually parse.
             wrangler = RustWrangler(reconstituted)
-            wrangler.pretty_print()
             wrangler.substitute_second_argument(payload)
-            wrangler.pretty_print()
             self.lines = [
                 Line(index=index, filename=filename, line=wrangler.assemble())
             ]
@@ -598,6 +591,7 @@ class RustTestReader:
             elif isinstance(b, PythonBlock):
                 res = exec_lines(b.lines, locals)
                 b.results = res
+                locals = res
             else:
                 raise ValueError(f"Unknown block type {type(b)}")
 
@@ -685,7 +679,6 @@ def run_main(args):
 
                     inline_subs = b.find_inline_python()
                     for s in inline_subs:
-                        print(s)
                         substituted_entries.append(
                             (s, s.substituted(blocks[i - 1].results))
                         )
@@ -694,6 +687,8 @@ def run_main(args):
     if not args.dry_run:
         if args.output:
             reader.write_to(args.output)
+        if args.rustfmt:
+            subprocess.Popen(["rustfmt", args.output]).wait()
 
 
 if __name__ == "__main__":
@@ -734,6 +729,13 @@ if __name__ == "__main__":
     substitute_parser.add_argument(
         "--output", "-o", default=None, help="Write to this output file"
     )
+    substitute_parser.add_argument(
+        "--no-rustfmt",
+        default=True,
+        action="store_false",
+        dest="rustfmt",
+        help="Inhibit rustfmt run on output",
+    )
     add_common_args(substitute_parser)
     substitute_parser.set_defaults(func=run_main)
 
@@ -742,6 +744,13 @@ if __name__ == "__main__":
     )
     update_parser.add_argument(
         "--dry-run", "-n", default=False, action="store_true", help="Do a dry run"
+    )
+    update_parser.add_argument(
+        "--no-rustfmt",
+        default=True,
+        action="store_false",
+        dest="rustfmt",
+        help="Inhibit rustfmt run on output",
     )
     add_common_args(update_parser)
     update_parser.set_defaults(func=run_main)

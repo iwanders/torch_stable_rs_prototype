@@ -13,7 +13,7 @@ use torch_stable::headeronly::core::{Layout, ScalarType};
 use torch_stable::stable::device::Device;
 use torch_stable::stable::ops::{EmtpyOptions, ToOptions};
 use torch_stable::{
-    aoti_torch::{StableIValue, aoti_torch_zero_},
+    aoti_torch::{aoti_torch_zero_, StableIValue},
     stable::tensor::Tensor as StableTensor,
     unsafe_call_bail, unsafe_call_dispatch_bail,
 };
@@ -299,10 +299,7 @@ mod test {
         for (i, v) in d.f32_mut()?.iter_mut().enumerate() {
             *v = (i + 1) as f32
         }
-        const INPUT_DATA_PY: &[f32] = &[
-            2.0f32, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0,
-            17.0,
-        ]; // #PYTHON [a + 1 for a in list(d.view(-1).tolist())]
+
         assert_eq!(d.sizes(), &[1, 4, 4]); // #PYTHON list(d.shape)
         assert_eq!(
             d.f32_ref()?,
@@ -312,36 +309,24 @@ mod test {
             ]
         ); // #PYTHON list(d.view(-1).tolist())
 
-        /*
-            #|PYTHON
-
-            R = 5
-        */
-
-        const R: u32 = 5;
         let mut w = Tensor::zeros(&[1, 1, 2, 2], &Default::default())?;
         for (i, v) in w.d_mut::<f32>()?.iter_mut().enumerate() {
             *v = (i + 1) as f32
         }
         assert_eq!(w.sizes(), &[1, 1, 2, 2]);
+        assert_eq!(w.f32_ref()?, &[1.0f32, 2.0, 3.0, 4.0]); // #PYTHON list(w.view(-1).tolist())
 
         let r = d.conv2d(&w, None, &Default::default())?;
-        assert_eq!(r.sizes(), &[1, 3, 3,]);
+        assert_eq!(r.sizes(), &[1, 3, 3]); // #PYTHON list(r.shape)
 
         assert_eq!(
             r.f32_ref()?,
             &[44.0f32, 54.0, 64.0, 84.0, 94.0, 104.0, 124.0, 134.0, 144.0]
-        );
+        ); // #PYTHON list(r.view(-1).tolist())
 
         /*
-         *
-         r = torch.nn.functional.conv2d(d, w, stride=(1, 2))
-         print(r.shape)
-         print(r.reshape(-1))
-         """
-         torch.Size([1, 3, 2])
-         tensor([ 44,  64,  84, 104, 124, 144])
-         """
+            #|PYTHON
+            r = torch.nn.functional.conv2d(d, w, stride=(1, 2))
         */
         let r = d.conv2d(
             &w,
@@ -351,8 +336,45 @@ mod test {
                 ..Default::default()
             },
         )?;
-        assert_eq!(r.sizes(), &[1, 3, 2]);
-        assert_eq!(r.f32_ref()?, &[44.0f32, 64.0, 84.0, 104.0, 124.0, 144.0]);
+        assert_eq!(r.sizes(), &[1, 3, 2]); // #PYTHON list(r.shape)
+        assert_eq!(r.f32_ref()?, &[44.0f32, 64.0, 84.0, 104.0, 124.0, 144.0]); // #PYTHON list(r.view(-1).tolist())
+
+        /*
+            #|PYTHON
+            r = torch.nn.functional.conv2d(d, w, stride=(2, 2))
+        */
+        let r = d.conv2d(
+            &w,
+            None,
+            &Conv2DOptions {
+                stride: (2, 2),
+                ..Default::default()
+            },
+        )?;
+        assert_eq!(r.sizes(), &[1, 2, 2]); // #PYTHON list(r.shape)
+        assert_eq!(r.f32_ref()?, &[44.0f32, 64.0, 124.0, 144.0]); // #PYTHON list(r.view(-1).tolist())
+
+        /*
+            #|PYTHON
+            r = torch.nn.functional.conv2d(d, w, padding=(1, 2))
+        */
+        let r = d.conv2d(
+            &w,
+            None,
+            &Conv2DOptions {
+                padding: (1, 2),
+                ..Default::default()
+            },
+        )?;
+        assert_eq!(r.sizes(), &[1, 5, 7]); // #PYTHON list(r.shape)
+        assert_eq!(
+            r.f32_ref()?,
+            &[
+                0.0f32, 4.0, 11.0, 18.0, 25.0, 12.0, 0.0, 0.0, 22.0, 44.0, 54.0, 64.0, 28.0, 0.0,
+                0.0, 46.0, 84.0, 94.0, 104.0, 44.0, 0.0, 0.0, 70.0, 124.0, 134.0, 144.0, 60.0, 0.0,
+                0.0, 26.0, 41.0, 44.0, 47.0, 16.0, 0.0
+            ]
+        ); // #PYTHON list(r.view(-1).tolist())
 
         Ok(())
     }
