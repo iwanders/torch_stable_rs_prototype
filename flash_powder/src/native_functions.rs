@@ -247,19 +247,24 @@ mod test {
     fn test_flash_powder_fill() -> StableTorchResult<()> {
         /*
             #|PYTHON
-            t = torch.tensor(list(range(1,5)), dtype=torch.float).reshape([2,2])
+            t = torch.zeros([2,2])
             t.fill_(3.0)
-            v = torch.tensor(3.0)
+            v = torch.tensor(5.0)
         */
 
         let mut t = Tensor::zeros(&[2, 2], &Default::default())?;
         assert_eq!(t.sizes(), &[2, 2]); // #PYTHON list(t.shape)
 
-        let v = Tensor::from_f32(3.0)?;
-        assert_eq!(v.f32_ref()?, &[3.0f32]); // #PYTHON list(v.view(-1).tolist())
+        let v = Tensor::from_f32(5.0)?;
+        assert_eq!(v.f32_ref()?, &[5.0f32]); // #PYTHON list(v.view(-1).tolist())
+
+        /*
+            #|PYTHON
+            t.fill_(v)
+        */
 
         t.fill_tensor(&v)?;
-        assert_eq!(t.f32_ref()?, &[3.0f32, 3.0, 3.0, 3.0]); // #PYTHON list(t.view(-1).tolist())
+        assert_eq!(t.f32_ref()?, &[5.0f32, 5.0, 5.0, 5.0]); // #PYTHON list(t.view(-1).tolist())
 
         Ok(())
     }
