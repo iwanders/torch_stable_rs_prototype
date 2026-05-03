@@ -13,7 +13,7 @@ use torch_stable::headeronly::core::{Layout, ScalarType};
 use torch_stable::stable::device::Device;
 use torch_stable::stable::ops::{EmtpyOptions, ToOptions};
 use torch_stable::{
-    aoti_torch::{StableIValue, aoti_torch_zero_},
+    aoti_torch::{aoti_torch_zero_, StableIValue},
     stable::tensor::Tensor as StableTensor,
     unsafe_call_bail, unsafe_call_dispatch_bail,
 };
@@ -155,13 +155,18 @@ pub trait NativeFunctionsMut: TensorAccess + TensorMethods {
         Ok(TenMut::new(self.get_tensor_mut(), stack[0].try_into()?))
     }
 
-    // https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L2730
+    /// Fill a tensor with another tensor.
+    ///
+    ///
+    /// - [native_functions.yaml](https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L2730)
+    /// - [pytorch equivalent](https://docs.pytorch.org/docs/2.12/generated/torch.Tensor.fill_.html)
     fn fill_tensor<T: TensorAccess>(&mut self, value: &T) -> StableTorchResult<()> {
         let mut stack: [StableIValue; 2] =
             [(self.get_tensor()).into(), (value.get_tensor()).into()];
-        unsafe_call_dispatch_bail!("aten::fill", "Tensor", stack.as_mut_slice());
+        unsafe_call_dispatch_bail!("aten::fill_", "Tensor", stack.as_mut_slice());
         let r: StableTensor = stack[0].try_into()?;
-        let _ = Tensor::new(r);
+        let retrieve = Tensor::new(r);
+        assert_eq!(retrieve.data_ptr(), self.data_ptr());
         Ok(())
     }
     fn fill_f64(&mut self, value: f64) -> StableTorchResult<()> {
@@ -237,26 +242,56 @@ impl NativeFunctionsOwned for Tensor {}
 mod test {
     use super::*;
     use crate::prelude::*;
+
+    #[test]
+    fn test_flash_powder_fill() -> StableTorchResult<()> {
+        /*
+            #|PYTHON
+            t = torch.tensor(list(range(1,5)), dtype=torch.float).reshape([2,2])
+            t.fill_(3.0)
+            v = torch.tensor(3.0)
+        */
+
+        let mut t = Tensor::zeros(&[2, 2], &Default::default())?;
+        assert_eq!(t.sizes(), &[2, 2]); // #PYTHON list(t.shape)
+
+        let v = Tensor::from_f32(3.0)?;
+        assert_eq!(v.f32_ref()?, &[3.0f32]); // #PYTHON list(v.view(-1).tolist())
+
+        t.fill_tensor(&v)?;
+        assert_eq!(t.f32_ref()?, &[3.0f32, 3.0, 3.0, 3.0]); // #PYTHON list(t.view(-1).tolist())
+
+        Ok(())
+    }
+
     #[test]
     fn test_flash_powder_narrow() -> StableTorchResult<()> {
+        /*
+            #|PYTHON
+            t = torch.tensor(list(range(1,26)), dtype=torch.float).reshape([5,5])
+            v = t.narrow(0, 0, 3)
+            v.fill_(3.0)
+            nv = t.narrow(0, 0, 3)
+        */
+
         let mut t = Tensor::zeros(&[5, 5], &Default::default())?;
+        assert_eq!(t.sizes(), &[5, 5]); // #PYTHON list(t.shape)
 
         let mut view_mut = t.narrow_mut(0, 0, 3)?;
-        view_mut.fill_tensor(&Tensor::from_f32(3.3)?)?;
-        //view_mut.fill_f64(3.3)?;
-        println!("view_mut: {:?}", view_mut.f32_ref()?);
+        view_mut.fill_tensor(&Tensor::from_f32(3.0)?)?;
+        assert_eq!(view_mut.sizes(), &[3, 5]); // #PYTHON list(v.shape)
+        assert_eq!(
+            view_mut.f32_ref()?,
+            &[3.0f32, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0]
+        ); // #PYTHON list(v.view(-1).tolist())
 
-        view_mut.fill_f64(3.0)?;
-        println!("view_mut: {:?}", view_mut.f32_ref()?);
-        // println!("t: {:?}", t.f32_ref()?);
+        drop(view_mut);
+
         let view = t.narrow(0, 0, 3)?;
-        println!("view: {:?}", view.f32_ref()?);
-        println!("t: {:?}", t.f32_ref()?);
-
-        let mut z = t.clone();
-        z.fill_f64(5.5)?;
-        println!("t: {:?}", t.f32_ref()?);
-        println!("z: {:?}", z.f32_ref()?);
+        assert_eq!(
+            view.f32_ref()?,
+            &[3.0f32, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0]
+        ); // #PYTHON list(nv.view(-1).tolist())
 
         Ok(())
     }
