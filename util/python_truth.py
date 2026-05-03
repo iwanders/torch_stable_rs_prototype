@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import copy
+import fnmatch
 import re
 import sys
 from dataclasses import dataclass
@@ -522,6 +523,20 @@ class RustTestReader:
         with open(path, "w") as f:
             f.write("\n".join(self._lines))
 
+    def get_all_test_cases(self) -> list[str]:
+        """
+        #[test]
+        fn test_flash_power_conv2d()
+        """
+        test_cases = []
+        for li, l in enumerate(self._lines):
+            if l.strip() == "#[test]":
+                function_header = self._lines[li + 1]
+                function_name = re.search(r"fn (\w+)\(", function_header).group(1)
+                test_cases.append(function_name)
+
+        return test_cases
+
     def get_function_lines(self, function_name) -> list[Line]:
         # Assume perfectly formatted code.
         # fn test_flash_power_conv2d(
@@ -599,50 +614,86 @@ class RustTestReader:
 def run_main(args):
 
     reader = RustTestReader(Path(args.input))
-    function_lines = reader.get_function_lines(args.test_case)
 
-    blocks = reader.extract_blocks(function_lines)
-    if args.command == "extract":
-        for b in blocks:
-            if isinstance(b, PythonBlock):
-                our_block = dedent("\n".join(a.line for a in b.lines))
-                print(our_block)
-        sys.exit(0)
+    all_test_cases = reader.get_all_test_cases()
 
-    reader.run_blocks(blocks)
-    if args.command == "execute":
-        for b in blocks:
-            if isinstance(b, PythonBlock):
-                our_block = dedent("\n".join(a.line for a in b.lines))
-                print(Color.BLUE + our_block + Color.RESET)
-                print("--")
-                for k, v in b.results.items():
-                    print(f"{k} = {v}")
-                print("====")
+    to_process = []
+    for test_name in all_test_cases:
+        if fnmatch.fnmatch(test_name, "*" if not args.test_case else args.test_case):
+            to_process.append(test_name)
 
-    if args.command == "update":
-        args.output = args.input
-        args.command = "substitute"
+    substituted_entries = []
+    for test_case_name in to_process:
+        function_lines = reader.get_function_lines(test_case_name)
 
-    if args.command == "substitute":
-        substituted_entries = []
-        for i, b in enumerate(blocks):
-            if isinstance(b, RustBlock):
-                # Find identifiers for constants.
-                # constants = b.find_constants()
-                # print(constants)
+        blocks = reader.extract_blocks(function_lines)
+        if args.command in ["execute", "extract"]:
+            print(Color.RED + f"# Test case {test_case_name}" + Color.RESET)
+        if args.command == "extract":
+            for b in blocks:
+                if isinstance(b, PythonBlock):
+                    our_block = dedent("\n".join(a.line for a in b.lines))
+                    print(our_block)
+                elif isinstance(b, RustBlock):
+                    inline_subs = b.find_inline_python()
+                    for s in inline_subs:
+                        print(f"# at {s.lines[-1].index + 1}:{s.lines[-1].filename}")
+                        print(s.python_statement)
 
-                inline_subs = b.find_inline_python()
-                for s in inline_subs:
-                    print(s)
-                    substituted_entries.append(
-                        (s, s.substituted(blocks[i - 1].results))
-                    )
+            continue
 
-        reader.replace_inline(substituted_entries)
-        if not args.dry_run:
-            if args.output:
-                reader.write_to(args.output)
+        reader.run_blocks(blocks)
+        if args.command == "execute":
+            most_recent = {}
+            for b in blocks:
+                if isinstance(b, PythonBlock):
+                    our_block = dedent("\n".join(a.line for a in b.lines))
+                    print(Color.BLUE + our_block + Color.RESET)
+                    print("--")
+                    for k, v in b.results.items():
+                        print(f"{k} = {v}")
+                    print("====")
+                    most_recent = b.results
+                elif isinstance(b, RustBlock):
+                    inline_subs = b.find_inline_python()
+                    for s in inline_subs:
+                        print(
+                            Color.BLUE
+                            + f"# at {s.lines[-1].index + 1}:{s.lines[-1].filename}; {s.python_statement}"
+                            + Color.RESET
+                        )
+                        res = eval_statement(
+                            Line(
+                                index=s.lines[-1].index,
+                                line=s.python_statement,
+                                filename=s.lines[-1].filename,
+                            ),
+                            most_recent,
+                        )
+                        print(res)
+
+        if args.command == "update":
+            args.output = args.input
+            args.command = "substitute"
+
+        if args.command == "substitute":
+            for i, b in enumerate(blocks):
+                if isinstance(b, RustBlock):
+                    # Find identifiers for constants.
+                    # constants = b.find_constants()
+                    # print(constants)
+
+                    inline_subs = b.find_inline_python()
+                    for s in inline_subs:
+                        print(s)
+                        substituted_entries.append(
+                            (s, s.substituted(blocks[i - 1].results))
+                        )
+
+    reader.replace_inline(substituted_entries)
+    if not args.dry_run:
+        if args.output:
+            reader.write_to(args.output)
 
 
 if __name__ == "__main__":
@@ -655,16 +706,23 @@ if __name__ == "__main__":
             help="The file to operate on.",
         )
         parser.add_argument(
-            "test_case",
-            help="The test case to operate on.",
+            "--test-case",
+            help="The glob filter for the test cases.",
         )
 
     extract_parser = subparsers.add_parser("extract", help="Extract the python block")
     add_common_args(extract_parser)
+    extract_parser.add_argument(
+        "--dry-run", action="store_const", const=True, default=True
+    )
+
     extract_parser.set_defaults(func=run_main)
 
     execute_parser = subparsers.add_parser("execute", help="Run the python blocks")
     add_common_args(execute_parser)
+    execute_parser.add_argument(
+        "--dry-run", action="store_const", const=True, default=True
+    )
     execute_parser.set_defaults(func=run_main)
 
     substitute_parser = subparsers.add_parser(

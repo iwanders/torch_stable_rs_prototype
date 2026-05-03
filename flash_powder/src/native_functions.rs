@@ -359,6 +359,10 @@ mod test {
 
     #[test]
     fn test_flash_power_view() -> StableTorchResult<()> {
+        /*
+            #|PYTHON
+            d = torch.tensor(list(range(1,17)), dtype=torch.float).reshape([4,4])
+        */
         let mut d = Tensor::zeros(&[16], &Default::default())?;
         for (i, v) in d.f32_mut()?.iter_mut().enumerate() {
             *v = (i + 1) as f32
@@ -366,7 +370,7 @@ mod test {
 
         let mut a = d.view_mut(&[4, 4])?;
 
-        assert_eq!(a.sizes(), &[4, 4]);
+        assert_eq!(a.sizes(), &[4, 4]); // #PYTHON list(d.shape)
         assert_eq!(
             a.f32_ref()?,
             &[
