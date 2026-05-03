@@ -10,6 +10,7 @@ from pathlib import Path
 from textwrap import dedent
 from typing import Any
 
+# Only a global import because we want to load it once for the exec blocks, not actually relied on elsewhere.
 import torch
 
 
@@ -39,6 +40,31 @@ RUST_INTS = [
 ]
 RUST_FLOATS = ["f32", "f64"]
 RUST_SCALAR_TYPES = RUST_INTS + RUST_FLOATS
+
+
+def torch_dtype_to_scalar_type(d) -> str:
+    # https://github.com/pytorch/pytorch/blob/6a357dd272853cb6567bb277da62750013c76b4a/torch/csrc/stable/stableivalue_conversions.h#L114
+    conversions = {
+        torch.bool: "ScalarType::Bool",
+        torch.float: "ScalarType::Float",
+        torch.double: "ScalarType::Double",
+        #
+        torch.int8: "ScalarType::Char",
+        torch.int16: "ScalarType::Short",
+        torch.int32: "ScalarType::Int",
+        torch.int64: "ScalarType::Long",
+        #
+        torch.uint8: "ScalarType::Byte",
+        torch.uint16: "ScalarType::UInt16",
+        torch.uint32: "ScalarType::UInt32",
+        torch.uint64: "ScalarType::UInt64",
+    }
+    if d not in conversions:
+        raise KeyError(f"Unsupported dtype: {d}")
+    return conversions[d]
+
+
+PYTHON_TO_RUST_CONVERTERS = {type(torch.float): torch_dtype_to_scalar_type}
 
 
 @dataclass
@@ -247,6 +273,8 @@ def format_payload_as_rust(payload, rust_type=None):
         payload_str[0] += type_str
         payload_str = ", ".join(payload_str)
         return f"{ref_str}[{payload_str}]"
+    elif type(payload) in PYTHON_TO_RUST_CONVERTERS:
+        return PYTHON_TO_RUST_CONVERTERS[type(payload)](payload)
     else:
         raise NotImplementedError(
             f"not implemented payload type: {type(payload)}, for {rust_type}"
@@ -350,6 +378,7 @@ class RustWrangler:
                     accumulated = ""
                     continue
             accumulated += t
+        current.children.append(accumulated)
         return root
 
 
