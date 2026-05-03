@@ -13,7 +13,7 @@ use torch_stable::headeronly::core::{Layout, ScalarType};
 use torch_stable::stable::device::Device;
 use torch_stable::stable::ops::{EmtpyOptions, ToOptions};
 use torch_stable::{
-    aoti_torch::{aoti_torch_zero_, StableIValue},
+    aoti_torch::{StableIValue, aoti_torch_zero_},
     stable::tensor::Tensor as StableTensor,
     unsafe_call_bail, unsafe_call_dispatch_bail,
 };
@@ -268,21 +268,21 @@ mod test {
     fn test_flash_powder_narrow() -> StableTorchResult<()> {
         /*
             #|PYTHON
-            t = torch.tensor(list(range(1,26)), dtype=torch.float).reshape([5,5])
+            t = torch.tensor(list(range(1,10)), dtype=torch.float).reshape([3,3])
             v = t.narrow(0, 0, 3)
             v.fill_(3.0)
             nv = t.narrow(0, 0, 3)
         */
 
-        let mut t = Tensor::zeros(&[5, 5], &Default::default())?;
-        assert_eq!(t.sizes(), &[5, 5]); // #PYTHON list(t.shape)
+        let mut t = Tensor::zeros(&[3, 3], &Default::default())?;
+        assert_eq!(t.sizes(), &[3, 3]); // #PYTHON list(t.shape)
 
         let mut view_mut = t.narrow_mut(0, 0, 3)?;
         view_mut.fill_tensor(&Tensor::from_f32(3.0)?)?;
-        assert_eq!(view_mut.sizes(), &[3, 5]); // #PYTHON list(v.shape)
+        assert_eq!(view_mut.sizes(), &[3, 3]); // #PYTHON list(v.shape)
         assert_eq!(
             view_mut.f32_ref()?,
-            &[3.0f32, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0]
+            &[3.0f32, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0]
         ); // #PYTHON list(v.view(-1).tolist())
 
         drop(view_mut);
@@ -290,7 +290,7 @@ mod test {
         let view = t.narrow(0, 0, 3)?;
         assert_eq!(
             view.f32_ref()?,
-            &[3.0f32, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0]
+            &[3.0f32, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0]
         ); // #PYTHON list(nv.view(-1).tolist())
 
         Ok(())
@@ -409,6 +409,22 @@ mod test {
                 0.0, 46.0, 84.0, 94.0, 104.0, 44.0, 0.0, 0.0, 70.0, 124.0, 134.0, 144.0, 60.0, 0.0,
                 0.0, 26.0, 41.0, 44.0, 47.0, 16.0, 0.0
             ]
+        ); // #PYTHON list(r.view(-1).tolist())
+
+        /*
+            #|PYTHON
+            b = torch.tensor([5.0])
+            r = torch.nn.functional.conv2d(d, w, b)
+        */
+        let mut b = Tensor::zeros(&[1], &Default::default())?;
+        b.f32_mut()?.copy_from_slice(&[5.0]);
+        assert_eq!(b.sizes(), &[1]); // #PYTHON list(b.shape)
+
+        let r = d.conv2d(&w, Some(&b), &Default::default())?;
+        assert_eq!(r.sizes(), &[1, 3, 3]); // #PYTHON list(r.shape)
+        assert_eq!(
+            r.f32_ref()?,
+            &[49.0f32, 59.0, 69.0, 89.0, 99.0, 109.0, 129.0, 139.0, 149.0]
         ); // #PYTHON list(r.view(-1).tolist())
 
         Ok(())
