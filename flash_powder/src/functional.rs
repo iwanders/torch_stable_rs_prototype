@@ -1,4 +1,4 @@
-pub use torch_stable::stable::ops::{EmtpyOptions, ToOptions};
+//! This holds functions that pytorch puts into the functional module.
 use torch_stable::{
     aoti_torch::StableIValue, stable::tensor::Tensor as StableTensor, unsafe_call_dispatch_bail,
 };

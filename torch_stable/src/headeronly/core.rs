@@ -142,6 +142,7 @@ impl TryFrom<i32> for Layout {
 // /tmp/pytorch$ gcc -I. -E test.cpp -o test.o
 // And then search for 'enum class ScalarType' in that test.o file.
 
+/// The dtype enumeration.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[repr(i8)]
 #[allow(non_camel_case_types)]

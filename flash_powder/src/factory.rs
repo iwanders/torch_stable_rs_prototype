@@ -1,5 +1,9 @@
+//! Factory methods to create [`Tensor`].
+//!
+//! Pytorch puts these in the module, as torch.zeros(), I chose to put them as static methods on Tensor.
+
 use crate::properties::TensorProperties;
-use crate::{StableTorchResult, Ten, TenMut, Tensor, TensorAccess};
+use crate::{StableTorchResult, Tensor, TensorAccess};
 use torch_stable::aoti_torch::{AtenTensorHandle, aoti_torch_zero_};
 use torch_stable::headeronly::core::{Layout, ScalarType};
 use torch_stable::stable::device::Device;
@@ -20,7 +24,14 @@ pub struct ZeroOptions {
 
 /// Native functions that produce owned tensors.
 ///
-/// See the [`native_functions`][crate::native_functions] module for description of this trait's functionality.
+/// See the [`factory`][crate::factory] module for description of this trait's functionality.
+/// This trait is only implemented for [`Tensor`].
+///
+/// ```
+///   # use flash_powder::prelude::*;
+///   let a = Tensor::empty(&[5, 5], &Default::default()).unwrap();
+///   assert_eq!(a.sizes(), &[5, 5]);
+/// ```
 pub trait TensorFactory: TensorAccess + TensorProperties {
     /// A new empty vector
     ///

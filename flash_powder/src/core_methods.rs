@@ -1,13 +1,18 @@
-//! This holds functions and methods from the pytorch `native_functions.yaml` file.
+//! This holds the core methods on the tensor object.
 //!
+//! Most of them originate from the yaml `native_functions.yaml` file.
 //! See [native_functions.yaml@v2.12.0-rc7](https://github.com/pytorch/pytorch/blob/v2.12.0-rc7/aten/src/ATen/native/native_functions.yaml)
 //! and its [readme](https://github.com/pytorch/pytorch/blob/v2.12.0-rc7/aten/src/ATen/native/README.md).
+//!
+//! Its readme states;
+//! > Tensor operations as methods are appropriate for "core" Tensor operations (e.g., add, sub, etc.), but not for more complicated neural network layers (e.g., conv2d)
+//!
+//! This module holds the methods that are considered core tensor operations.
 
 // https://docs.pytorch.org/docs/2.11/tensor_view.html
 // has a nice overview of what operators return views.
 //
 // Hmm... from https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/README.md
-// > Tensor operations as methods are appropriate for "core" Tensor operations (e.g., add, sub, etc.), but not for more complicated neural network layers (e.g., conv2d)
 // We should probably follow that guidance and kick conv2d to a functional module.
 //
 // The foo_ underscore methods modify data in place, see https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/README.md#annotations
@@ -15,25 +20,16 @@
 use crate::properties::TensorProperties;
 use crate::{StableTorchResult, Ten, TenMut, Tensor, TensorAccess};
 use torch_stable::aoti_torch::*;
-use torch_stable::headeronly::core::{Layout, ScalarType};
-use torch_stable::stable::device::Device;
-pub use torch_stable::stable::ops::{EmtpyOptions, ToOptions};
+use torch_stable::stable::ops::ToOptions;
 use torch_stable::{
     aoti_torch::StableIValue, stable::tensor::Tensor as StableTensor, unsafe_call_bail,
     unsafe_call_dispatch_bail,
 };
 
-// This file has three traits:
-// - NativeFunctions; Implemented for Tensor, Ten and Tenmut
-// - NativeFunctionsMut; Implemented for Tensor and TenMut, so not for Ten.
-// - NativeFunctionsOwned; Implemented only for Tensor
-//
-// These are strictly from the native functions yaml.
-
-/// Native functions that require const access.
+/// Core methods that require const access.
 ///
-/// See the [`native_functions`][crate::native_functions] module for description of this trait's functionality.
-pub trait NativeFunctions: TensorAccess + TensorProperties {
+/// See the [`core_methods`][crate::core_methods] module for description of this trait's functionality.
+pub trait CoreMethods: TensorAccess + TensorProperties {
     /// Narrow view
     ///
     /// - [native_functions.yaml](https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L4489)
@@ -86,14 +82,14 @@ pub trait NativeFunctions: TensorAccess + TensorProperties {
         Ok(Ten::new(self.get_tensor(), r))
     }
 }
-impl NativeFunctions for Tensor {}
-impl<'a> NativeFunctions for Ten<'a> {}
-impl<'a> NativeFunctions for TenMut<'a> {}
+impl CoreMethods for Tensor {}
+impl<'a> CoreMethods for Ten<'a> {}
+impl<'a> CoreMethods for TenMut<'a> {}
 
-/// Native functions that require mutable access.
+/// Core methods that require mutable access.
 ///
-/// See the [`native_functions`][crate::native_functions] module for description of this trait's functionality.
-pub trait NativeFunctionsMut: TensorAccess + TensorProperties {
+/// See the [`core_methods`][crate::core_methods] module for description of this trait's functionality.
+pub trait CoreMethodsMut: TensorAccess + TensorProperties {
     fn narrow_mut(
         &mut self,
         dim: usize,
@@ -145,9 +141,9 @@ pub trait NativeFunctionsMut: TensorAccess + TensorProperties {
         Ok(TenMut::new(self.get_tensor_mut(), r))
     }
 }
-impl NativeFunctionsMut for Tensor {}
-impl<'a> NativeFunctionsMut for Ten<'a> {}
-impl<'a> NativeFunctionsMut for TenMut<'a> {}
+impl CoreMethodsMut for Tensor {}
+impl<'a> CoreMethodsMut for Ten<'a> {}
+impl<'a> CoreMethodsMut for TenMut<'a> {}
 
 #[cfg(test)]
 mod test {
@@ -219,6 +215,7 @@ mod test {
 
     #[test]
     fn test_flash_powder_to() -> StableTorchResult<()> {
+        use crate::ScalarType;
         use crate::factory::ZeroOptions;
         let t = Tensor::zeros(
             &[5, 5],

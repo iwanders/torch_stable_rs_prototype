@@ -7,42 +7,45 @@
 //!
 //! All of these provide [`TensorAccess`] and all functions and methods are implemented on that trait.
 //!
-//! - [`methods::TensorMethods`]: Methods to retrieve tensor properties like dimension and size.
+//! - [`properties::TensorProperties`]: Methods to retrieve tensor properties like dimension and size.
 //! - [`data`]`::{`[`DataRef`][`data::DataRef`], [`DataMut`][`data::DataMut`]`}`: Traits to access the tensor's data as bytes or other types.
-//! - [`native_functions`]`::`[`NativeFunctions`][`native_functions::NativeFunctions`]: Methods / Functions on [`TensorAccess`] that require const access.
-//! - [`native_functions`]`::`[`NativeFunctionsMut`][`native_functions::NativeFunctionsMut`]: Methods / Functions on [`TensorAccess`] that require mutable access.
+//! - [`core_methods`]`::`[`CoreMethods`][`core_methods::CoreMethods`]: Methods / Functions on [`TensorAccess`] that require const access.
+//! - [`core_methods`]`::`[`CoreMethodsMut`][`core_methods::CoreMethodsMut`]: Methods / Functions on [`TensorAccess`] that require mutable access.
+//! - [`functional`]: Holds free functions line [`conv2d`][`functional::conv2d`] and [`relu`][`functional::relu`], just like PyTorch's Functional.
 //!
 //!
 //! Other principles;
 //! - No unsafe in the public interface, safe behaviour as you'd expect.
 //! - No interior mutability, all methods are const correct.
-//! - Modifying one tensor will not modify another, unless it has a mutable borrow.
+//! - Modifying one tensor will not modify another, unless through an mutable borrow.
 //! - Rust style lifetimes on tensors, either tied together with an explicit lifetime, or completely separate.
 
 pub mod conversion;
+pub mod core_methods;
 pub mod data;
 pub mod factory;
 pub mod functional;
-pub mod native_functions;
 pub mod properties;
 pub mod tensor;
 use tensor::{Ten, TenMut, Tensor, TensorAccess};
-pub use torch_stable::StableTorchResult;
+pub use torch_stable::{StableTorchResult, headeronly::core::ScalarType};
+
+/// The prelude that contains all the important types and traits.
 pub mod prelude {
     use super::*;
+    #[doc(inline)]
+    pub use core_methods::{CoreMethods, CoreMethodsMut};
     #[doc(inline)]
     pub use data::{DataMut, DataRef};
     #[doc(inline)]
     pub use factory::TensorFactory;
     #[doc(inline)]
-    pub use native_functions::{NativeFunctions, NativeFunctionsMut};
-    #[doc(inline)]
     pub use properties::TensorProperties;
     #[doc(inline)]
     pub use tensor::{Ten, TenMut, Tensor, TensorAccess};
 
-    #[doc(inline)]
-    pub use crate::functional;
+    // #[doc(inline)]
+    // pub use crate::functional;
 }
 #[cfg(test)]
 mod test {

@@ -1,3 +1,4 @@
+//! Holds the three Tensor types.
 use crate::StableTorchResult;
 use anyhow;
 use torch_stable::unsafe_call_dispatch_panic;
@@ -7,7 +8,7 @@ use torch_stable::{aoti_torch::StableIValue, stable::tensor::Tensor as StableTen
 ///
 /// Interact with it through any of the traits that are implemented for [`TensorAccess`].
 ///
-/// Usually you don't create this directly, but create tensors through [`crate::native_functions::NativeFunctionsOwned`].
+/// Usually you don't create this directly, but create tensors through [`crate::factory::TensorFactory`].
 pub struct Tensor {
     tensor: StableTensor,
 }
@@ -45,7 +46,7 @@ impl Tensor {
     ///
     /// Always allocates in the provided data type, on the cpu.
     ///
-    /// https://docs.pytorch.org/docs/2.11/generated/torch.tensor.html#torch.tensor
+    /// - [pytorch equivalent](https://docs.pytorch.org/docs/2.11/generated/torch.tensor.html#torch.tensor>)
     ///
     /// Is actually implemented via TryInto
     pub fn from<T>(data: T) -> StableTorchResult<Tensor>

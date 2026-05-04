@@ -1,3 +1,5 @@
+//! Retrieve properties like [`sizes`][`TensorProperties::sizes()`] from any [`TensorAccess`].
+
 use crate::{Ten, TenMut, Tensor, TensorAccess};
 use torch_stable::headeronly::core::{Layout, ScalarType};
 use torch_stable::stable::device::{Device, DeviceIndex};

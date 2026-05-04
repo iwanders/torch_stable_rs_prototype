@@ -1,3 +1,6 @@
+//! Accessors to the data in the Tensor.
+//!
+//! These only work if the Tensor is on the cpu.
 use anyhow::bail;
 use zerocopy::{Immutable, IntoBytes, TryFromBytes};
 
