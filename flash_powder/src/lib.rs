@@ -21,6 +21,7 @@
 
 pub mod conversion;
 pub mod data;
+pub mod factory;
 pub mod functional;
 pub mod methods;
 pub mod native_functions;
@@ -32,9 +33,11 @@ pub mod prelude {
     #[doc(inline)]
     pub use data::{DataMut, DataRef};
     #[doc(inline)]
+    pub use factory::NativeFunctionsOwned;
+    #[doc(inline)]
     pub use methods::TensorMethods;
     #[doc(inline)]
-    pub use native_functions::{NativeFunctions, NativeFunctionsMut, NativeFunctionsOwned};
+    pub use native_functions::{NativeFunctions, NativeFunctionsMut};
     #[doc(inline)]
     pub use tensor::{Ten, TenMut, Tensor, TensorAccess};
 
@@ -44,7 +47,7 @@ pub mod prelude {
 #[cfg(test)]
 mod test {
     use super::*;
-    use native_functions::NativeFunctionsOwned;
+    use crate::factory::NativeFunctionsOwned;
     use tensor::Tensor;
     pub use torch_stable::StableTorchResult;
 

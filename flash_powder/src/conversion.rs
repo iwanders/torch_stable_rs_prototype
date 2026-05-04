@@ -1,5 +1,6 @@
 use crate::data::DataMut;
-use crate::native_functions::{EmtpyOptions, NativeFunctionsOwned};
+use crate::factory::NativeFunctionsOwned;
+use crate::native_functions::EmtpyOptions;
 use crate::tensor::Tensor;
 use torch_stable::headeronly::core::ScalarType;
 pub trait TensorScalar {
