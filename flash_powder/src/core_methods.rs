@@ -74,7 +74,7 @@ pub trait CoreMethods: TensorAccess + TensorProperties {
     /// - [native_functions.yaml](https://github.com/pytorch/pytorch/blob/v2.11.0/aten/src/ATen/native/native_functions.yaml#L8362)
     /// - [pytorch equivalent](https://docs.pytorch.org/docs/2.11/generated/torch.Tensor.view.html)
     ///
-    fn view(&mut self, shape: &[usize]) -> StableTorchResult<Ten<'_>> {
+    fn view(&self, shape: &[usize]) -> StableTorchResult<Ten<'_>> {
         let mut stack: [StableIValue; 2] = [(self.get_tensor()).into(), (shape).into()];
         unsafe_call_dispatch_bail!("aten::view", "", stack.as_mut_slice());
         let r: StableTensor = stack[0].try_into()?;
@@ -87,7 +87,7 @@ pub trait CoreMethods: TensorAccess + TensorProperties {
     /// - [native_functions.yaml](https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L10556)
     /// - [pytorch equivalent](https://docs.pytorch.org/docs/2.11/generated/torch.Tensor.equal.html)
     ///
-    fn equal<T: TensorAccess>(&mut self, other: &T) -> StableTorchResult<bool> {
+    fn equal<T: TensorAccess>(&self, other: &T) -> StableTorchResult<bool> {
         let mut stack: [StableIValue; 2] =
             [(self.get_tensor()).into(), (other.get_tensor()).into()];
         unsafe_call_dispatch_bail!("aten::equal", "", stack.as_mut_slice());

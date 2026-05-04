@@ -119,11 +119,12 @@ mod test {
             r = torch.nn.functional.conv2d(d, w)
         */
 
-        let mut d = Tensor::zeros(&[1, 4, 4], &Default::default())?;
-        for (i, v) in d.f32_mut()?.iter_mut().enumerate() {
-            *v = (i + 1) as f32
-        }
-
+        let d = Tensor::from(&[[
+            [1.0f32, 2.0, 3.0, 4.0],
+            [5.0, 6.0, 7.0, 8.0],
+            [9.0, 10.0, 11.0, 12.0],
+            [13.0, 14.0, 15.0, 16.0],
+        ]])?;
         assert_eq!(d.sizes(), &[1, 4, 4]); // #PYTHON list(d.shape)
         assert_eq!(
             d.f32_ref()?,
@@ -244,11 +245,12 @@ mod test {
             d = torch.tensor(list(range(1,17)), dtype=torch.float).reshape([1,4,4])
             r = torch.nn.functional.max_pool2d(d, (2,2))
         */
-
-        let mut d = Tensor::zeros(&[1, 4, 4], &Default::default())?;
-        for (i, v) in d.f32_mut()?.iter_mut().enumerate() {
-            *v = (i + 1) as f32
-        }
+        let d = Tensor::from(&[[
+            [1.0f32, 2.0, 3.0, 4.0],
+            [5.0, 6.0, 7.0, 8.0],
+            [9.0, 10.0, 11.0, 12.0],
+            [13.0, 14.0, 15.0, 16.0],
+        ]])?;
 
         assert_eq!(d.sizes(), &[1, 4, 4]); // #PYTHON list(d.shape)
         assert_eq!(
@@ -262,6 +264,21 @@ mod test {
         let r = max_pool2d(&d, (2, 2), &Default::default())?;
         assert_eq!(r.sizes(), &[1, 2, 2]); // #PYTHON list(r.shape)
         assert_eq!(r.f32_ref()?, &[6.0f32, 8.0, 14.0, 16.0]); // #PYTHON list(r.view(-1).tolist())
+
+        /*
+            #|PYTHON
+            r = torch.nn.functional.max_pool2d(d, (2,2), stride=3)
+        */
+        let r = max_pool2d(
+            &d,
+            (2, 2),
+            &MaxPool2dDOptions {
+                stride: Some((3, 3)),
+                ..Default::default()
+            },
+        )?;
+        assert_eq!(r.sizes(), &[1, 1, 1]); // #PYTHON list(r.shape)
+        assert_eq!(r.f32_ref()?, &[6.0f32]); // #PYTHON list(r.view(-1).tolist())
 
         Ok(())
     }
