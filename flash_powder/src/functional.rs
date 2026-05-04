@@ -6,13 +6,13 @@ use torch_stable::{
 use crate::{StableTorchResult, Tensor, TensorAccess};
 /// Options for conv2d.
 #[derive(Copy, Clone, Debug)]
-pub struct Conv2DOptions {
+pub struct Conv2dOptions {
     pub stride: (i64, i64),
     pub padding: (i64, i64),
     pub dilation: (i64, i64),
     pub groups: i64,
 }
-impl Default for Conv2DOptions {
+impl Default for Conv2dOptions {
     fn default() -> Self {
         Self {
             stride: (1, 1),
@@ -31,7 +31,7 @@ pub fn conv2d<T: TensorAccess>(
     input: &T,
     weight: &T,
     bias: Option<&T>,
-    options: &Conv2DOptions,
+    options: &Conv2dOptions,
 ) -> StableTorchResult<Tensor> {
     // return wrap(dispatch_conv2d(r.tensor(0), r.tensor(1), r.tensor(2), r.intlist(3), r.intlist(4), r.intlist(5), r.toInt64(6)));
     let mut stack: [StableIValue; 7] = [
@@ -44,6 +44,49 @@ pub fn conv2d<T: TensorAccess>(
         (&options.groups).into(),
     ];
     unsafe_call_dispatch_bail!("aten::conv2d", "", stack.as_mut_slice());
+    let r: StableTensor = stack[0].try_into()?;
+
+    Ok(Tensor::new(r))
+}
+
+/// Options for max_pool2d.
+#[derive(Copy, Clone, Debug)]
+pub struct MaxPool2dDOptions {
+    /// Stride to use, if unset defaults to kernel_size.
+    pub stride: Option<(i64, i64)>,
+    pub padding: (i64, i64),
+    pub dilation: (i64, i64),
+    pub ceil_mode: bool,
+}
+impl Default for MaxPool2dDOptions {
+    fn default() -> Self {
+        Self {
+            stride: None,
+            padding: (0, 0),
+            dilation: (1, 1),
+            ceil_mode: false,
+        }
+    }
+}
+/// Maxpool 2d
+///
+/// - [native_functions.yaml](https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L3991)
+/// - [pytorch equivalent](https://docs.pytorch.org/docs/2.11/generated/torch.nn.functional.max_pool2d.html)
+pub fn max_pool2d<T: TensorAccess>(
+    input: &T,
+    kernel_size: (i64, i64),
+    options: &MaxPool2dDOptions,
+) -> StableTorchResult<Tensor> {
+    let stride = options.stride.unwrap_or(kernel_size);
+    let mut stack: [StableIValue; 6] = [
+        input.get_tensor().into(),
+        (&kernel_size).into(),
+        (&stride).into(),
+        (&options.padding).into(),
+        (&options.dilation).into(),
+        (options.ceil_mode).into(),
+    ];
+    unsafe_call_dispatch_bail!("aten::max_pool2d", "", stack.as_mut_slice());
     let r: StableTensor = stack[0].try_into()?;
 
     Ok(Tensor::new(r))
@@ -113,7 +156,7 @@ mod test {
             &d,
             &w,
             None,
-            &Conv2DOptions {
+            &Conv2dOptions {
                 stride: (1, 2),
                 ..Default::default()
             },
@@ -129,7 +172,7 @@ mod test {
             &d,
             &w,
             None,
-            &Conv2DOptions {
+            &Conv2dOptions {
                 stride: (2, 2),
                 ..Default::default()
             },
@@ -145,7 +188,7 @@ mod test {
             &d,
             &w,
             None,
-            &Conv2DOptions {
+            &Conv2dOptions {
                 padding: (1, 2),
                 ..Default::default()
             },
@@ -191,6 +234,34 @@ mod test {
         assert_eq!(d.sizes(), &[4]); // #PYTHON list(d.shape)
         let r = relu(&d)?;
         assert_eq!(r.f32_ref()?, &[0.0f32, 0.0, 0.5, 1.0]); // #PYTHON list(r.view(-1).tolist())
+
+        Ok(())
+    }
+    #[test]
+    fn test_flash_power_max_pool2d() -> StableTorchResult<()> {
+        /*
+            #|PYTHON
+            d = torch.tensor(list(range(1,17)), dtype=torch.float).reshape([1,4,4])
+            r = torch.nn.functional.max_pool2d(d, (2,2))
+        */
+
+        let mut d = Tensor::zeros(&[1, 4, 4], &Default::default())?;
+        for (i, v) in d.f32_mut()?.iter_mut().enumerate() {
+            *v = (i + 1) as f32
+        }
+
+        assert_eq!(d.sizes(), &[1, 4, 4]); // #PYTHON list(d.shape)
+        assert_eq!(
+            d.f32_ref()?,
+            &[
+                1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0,
+                16.0
+            ]
+        ); // #PYTHON list(d.view(-1).tolist())
+
+        let r = max_pool2d(&d, (2, 2), &Default::default())?;
+        assert_eq!(r.sizes(), &[1, 2, 2]); // #PYTHON list(r.shape)
+        assert_eq!(r.f32_ref()?, &[6.0f32, 8.0, 14.0, 16.0]); // #PYTHON list(r.view(-1).tolist())
 
         Ok(())
     }
