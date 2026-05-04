@@ -1,7 +1,7 @@
 use crate::{Ten, TenMut, Tensor, TensorAccess};
 use torch_stable::headeronly::core::{Layout, ScalarType};
 use torch_stable::stable::device::{Device, DeviceIndex};
-pub trait TensorMethods: TensorAccess {
+pub trait TensorProperties: TensorAccess {
     fn dim(&self) -> usize {
         self.get_tensor().dim()
     }
@@ -75,6 +75,6 @@ pub trait TensorMethods: TensorAccess {
         self.get_tensor_mut().mutable_data_ptr()
     }
 }
-impl TensorMethods for Tensor {}
-impl<'a> TensorMethods for Ten<'a> {}
-impl<'a> TensorMethods for TenMut<'a> {}
+impl TensorProperties for Tensor {}
+impl<'a> TensorProperties for Ten<'a> {}
+impl<'a> TensorProperties for TenMut<'a> {}

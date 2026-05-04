@@ -1,5 +1,5 @@
 use crate::data::DataMut;
-use crate::factory::NativeFunctionsOwned;
+use crate::factory::TensorFactory;
 use crate::native_functions::EmtpyOptions;
 use crate::tensor::Tensor;
 use torch_stable::headeronly::core::ScalarType;
@@ -169,7 +169,7 @@ mod test {
     use super::*;
     use crate::StableTorchResult;
     use crate::data::DataRef;
-    use crate::methods::TensorMethods;
+    use crate::properties::TensorProperties;
 
     #[test]
     fn test_tensor_try_from() -> StableTorchResult<()> {

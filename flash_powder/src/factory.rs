@@ -1,4 +1,4 @@
-use crate::methods::TensorMethods;
+use crate::properties::TensorProperties;
 use crate::{StableTorchResult, Ten, TenMut, Tensor, TensorAccess};
 use torch_stable::aoti_torch::{AtenTensorHandle, aoti_torch_zero_};
 use torch_stable::headeronly::core::{Layout, ScalarType};
@@ -21,7 +21,7 @@ pub struct ZeroOptions {
 /// Native functions that produce owned tensors.
 ///
 /// See the [`native_functions`][crate::native_functions] module for description of this trait's functionality.
-pub trait NativeFunctionsOwned: TensorAccess + TensorMethods {
+pub trait TensorFactory: TensorAccess + TensorProperties {
     /// A new empty vector
     ///
     ///
@@ -75,4 +75,4 @@ pub trait NativeFunctionsOwned: TensorAccess + TensorMethods {
         Ok(Tensor::new(StableTensor::from_handle(handle_res)))
     }
 }
-impl NativeFunctionsOwned for Tensor {}
+impl TensorFactory for Tensor {}

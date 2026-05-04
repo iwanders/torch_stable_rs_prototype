@@ -12,7 +12,7 @@
 //
 // The foo_ underscore methods modify data in place, see https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/README.md#annotations
 
-use crate::methods::TensorMethods;
+use crate::properties::TensorProperties;
 use crate::{StableTorchResult, Ten, TenMut, Tensor, TensorAccess};
 use torch_stable::aoti_torch::*;
 use torch_stable::headeronly::core::{Layout, ScalarType};
@@ -33,7 +33,7 @@ use torch_stable::{
 /// Native functions that require const access.
 ///
 /// See the [`native_functions`][crate::native_functions] module for description of this trait's functionality.
-pub trait NativeFunctions: TensorAccess + TensorMethods {
+pub trait NativeFunctions: TensorAccess + TensorProperties {
     /// Narrow view
     ///
     /// - [native_functions.yaml](https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L4489)
@@ -93,7 +93,7 @@ impl<'a> NativeFunctions for TenMut<'a> {}
 /// Native functions that require mutable access.
 ///
 /// See the [`native_functions`][crate::native_functions] module for description of this trait's functionality.
-pub trait NativeFunctionsMut: TensorAccess + TensorMethods {
+pub trait NativeFunctionsMut: TensorAccess + TensorProperties {
     fn narrow_mut(
         &mut self,
         dim: usize,

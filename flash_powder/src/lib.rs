@@ -1,7 +1,7 @@
 //!
 //! Main building blocks:
 //!
-//! - [`Tensor`]; Owning tensor, this owns the data, created with [`NativeFunctionsOwned`][native_functions::NativeFunctionsOwned]. (think `Vec<u8>`)
+//! - [`Tensor`]; Owning tensor, this owns the data, created with [`TensorFactory`][factory::TensorFactory]. (think `Vec<u8>`)
 //! - [`Ten<'_>`]; Const borrow of Tensor, this has a parent, its lifetime cannot exceed the parent. (think `&[u8]`)
 //! - [`TenMut<'_>`]; Mutable borrow of Tensor, this has a mutable parent, its lifetime cannot exceed the parent. (think `&mut [u8]`)
 //!
@@ -23,8 +23,8 @@ pub mod conversion;
 pub mod data;
 pub mod factory;
 pub mod functional;
-pub mod methods;
 pub mod native_functions;
+pub mod properties;
 pub mod tensor;
 use tensor::{Ten, TenMut, Tensor, TensorAccess};
 pub use torch_stable::StableTorchResult;
@@ -33,11 +33,11 @@ pub mod prelude {
     #[doc(inline)]
     pub use data::{DataMut, DataRef};
     #[doc(inline)]
-    pub use factory::NativeFunctionsOwned;
-    #[doc(inline)]
-    pub use methods::TensorMethods;
+    pub use factory::TensorFactory;
     #[doc(inline)]
     pub use native_functions::{NativeFunctions, NativeFunctionsMut};
+    #[doc(inline)]
+    pub use properties::TensorProperties;
     #[doc(inline)]
     pub use tensor::{Ten, TenMut, Tensor, TensorAccess};
 
@@ -47,7 +47,7 @@ pub mod prelude {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::factory::NativeFunctionsOwned;
+    use crate::factory::TensorFactory;
     use tensor::Tensor;
     pub use torch_stable::StableTorchResult;
 
