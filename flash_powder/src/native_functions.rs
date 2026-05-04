@@ -5,6 +5,12 @@
 
 // https://docs.pytorch.org/docs/2.11/tensor_view.html
 // has a nice overview of what operators return views.
+//
+// Hmm... from https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/README.md
+// > Tensor operations as methods are appropriate for "core" Tensor operations (e.g., add, sub, etc.), but not for more complicated neural network layers (e.g., conv2d)
+// We should probably follow that guidance and kick conv2d to a functional module.
+//
+// The foo_ underscore methods modify data in place, see https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/README.md#annotations
 
 use crate::methods::TensorMethods;
 use torch_stable::aoti_torch::*;
@@ -89,6 +95,7 @@ pub trait NativeFunctions: TensorAccess + TensorMethods {
 
         Ok(Tensor::new(r))
     }
+
     /// A 2d convolution.
     ///
     /// - [native_functions.yaml](https://github.com/pytorch/pytorch/blob/v2.11.0/aten/src/ATen/native/native_functions.yaml#L1757)
@@ -111,6 +118,19 @@ pub trait NativeFunctions: TensorAccess + TensorMethods {
         ];
         unsafe_call_dispatch_bail!("aten::conv2d", "", stack.as_mut_slice());
         let r: StableTensor = stack[0].try_into()?;
+
+        Ok(Tensor::new(r))
+    }
+
+    /// A 2d convolution.
+    ///
+    /// - [native_functions.yaml](https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L5251)
+    /// - [pytorch equivalent](https://docs.pytorch.org/docs/2.11/generated/torch.nn.functional.relu.html)
+    fn relu(&self) -> StableTorchResult<Tensor> {
+        let mut stack: [StableIValue; 1] = [self.get_tensor().into()];
+        unsafe_call_dispatch_bail!("aten::relu", "", stack.as_mut_slice());
+        let r: StableTensor = stack[0].try_into()?;
+        assert_ne!(self.data_ptr(), r.data_ptr());
 
         Ok(Tensor::new(r))
     }
@@ -430,6 +450,22 @@ mod test {
             r.f32_ref()?,
             &[49.0f32, 59.0, 69.0, 89.0, 99.0, 109.0, 129.0, 139.0, 149.0]
         ); // #PYTHON list(r.view(-1).tolist())
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_flash_power_relu() -> StableTorchResult<()> {
+        /*
+            #|PYTHON
+            d = torch.tensor([-1.0, 0.0, 0.5, 1.0], dtype=torch.float)
+            r = d.relu()
+        */
+        let d = Tensor::from(&[-1.0f32, 0.0, 0.5, 1.0])?;
+
+        assert_eq!(d.sizes(), &[4]); // #PYTHON list(d.shape)
+        let r = d.relu()?;
+        assert_eq!(r.f32_ref()?, &[0.0f32, 0.0, 0.5, 1.0]); // #PYTHON list(r.view(-1).tolist())
 
         Ok(())
     }

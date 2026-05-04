@@ -1,6 +1,5 @@
 use crate::StableTorchResult;
 use anyhow;
-use torch_stable::stable::device::Device;
 use torch_stable::unsafe_call_dispatch_panic;
 use torch_stable::{aoti_torch::StableIValue, stable::tensor::Tensor as StableTensor};
 
