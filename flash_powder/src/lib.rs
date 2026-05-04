@@ -21,6 +21,7 @@
 
 pub mod conversion;
 pub mod data;
+pub mod functional;
 pub mod methods;
 pub mod native_functions;
 pub mod tensor;
@@ -36,6 +37,9 @@ pub mod prelude {
     pub use native_functions::{NativeFunctions, NativeFunctionsMut, NativeFunctionsOwned};
     #[doc(inline)]
     pub use tensor::{Ten, TenMut, Tensor, TensorAccess};
+
+    #[doc(inline)]
+    pub use crate::functional;
 }
 #[cfg(test)]
 mod test {
