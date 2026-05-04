@@ -241,3 +241,13 @@ impl TryFrom<StableIValue> for Tensor {
         Ok(Tensor::from_handle(handle))
     }
 }
+impl TryFrom<StableIValue> for bool {
+    type Error = anyhow::Error;
+    fn try_from(value: StableIValue) -> Result<Self, Self::Error> {
+        match value.0 {
+            0 => Ok(false),
+            1 => Ok(true),
+            _ => bail!("failed to convert StableIValue to bool, not 0 or 1"),
+        }
+    }
+}

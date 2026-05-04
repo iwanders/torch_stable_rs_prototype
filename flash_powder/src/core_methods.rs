@@ -81,6 +81,19 @@ pub trait CoreMethods: TensorAccess + TensorProperties {
         assert_eq!(self.data_ptr(), r.data_ptr());
         Ok(Ten::new(self.get_tensor(), r))
     }
+
+    /// Equal
+    ///
+    /// - [native_functions.yaml](https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L10556)
+    /// - [pytorch equivalent](https://docs.pytorch.org/docs/2.11/generated/torch.Tensor.equal.html)
+    ///
+    fn equal<T: TensorAccess>(&mut self, other: &T) -> StableTorchResult<bool> {
+        let mut stack: [StableIValue; 2] =
+            [(self.get_tensor()).into(), (other.get_tensor()).into()];
+        unsafe_call_dispatch_bail!("aten::equal", "", stack.as_mut_slice());
+        let r: bool = stack[0].try_into()?;
+        Ok(r)
+    }
 }
 impl CoreMethods for Tensor {}
 impl<'a> CoreMethods for Ten<'a> {}
@@ -265,11 +278,13 @@ mod test {
         // Currently lazy copy
         let old_n_ptr = n.const_data_ptr();
         assert_eq!(n.const_data_ptr(), a.const_data_ptr());
+        assert!(n.equal(&a)?);
 
         // Verify n holds same data
         assert_eq!(n.f32_ref()?[0], 50.0);
         // Modify n, this performs the copy.
         n.f32_mut()?[0] = 20.0;
+        assert_eq!(n.equal(&a)?, false);
 
         // data pointer shouldn't be the same now.
         assert_ne!(n.const_data_ptr(), old_n_ptr);
