@@ -249,7 +249,7 @@ mod test {
     }
 
     #[test]
-    fn test_flash_power_view() -> StableTorchResult<()> {
+    fn test_flash_powder_view() -> StableTorchResult<()> {
         /*
             #|PYTHON
             d = torch.tensor(list(range(1,17)), dtype=torch.float).reshape([4,4])

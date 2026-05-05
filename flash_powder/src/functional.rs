@@ -55,6 +55,55 @@ pub fn conv2d<T: TensorAccess>(
     Ok(Tensor::new(r))
 }
 
+/// Options for conv2d.
+#[derive(Copy, Clone, Debug)]
+pub struct ConvTranspose2dOptions {
+    pub stride: (i64, i64),
+    pub padding: (i64, i64),
+    pub output_padding: (i64, i64),
+    pub groups: i64,
+    pub dilation: (i64, i64),
+}
+impl Default for ConvTranspose2dOptions {
+    fn default() -> Self {
+        Self {
+            stride: (1, 1),
+            padding: (0, 0),
+            output_padding: (0, 0),
+            dilation: (1, 1),
+            groups: 1,
+        }
+    }
+}
+
+///  conv_transpose2d
+///
+/// - [native_functions.yaml](https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L1793)
+/// - [pytorch equivalent](https://docs.pytorch.org/docs/2.11/generated/torch.nn.functional.conv_transpose2d.html)
+pub fn conv_transpose2d<T: TensorAccess>(
+    input: &T,
+    weight: &T,
+    bias: Option<&T>,
+    options: &ConvTranspose2dOptions,
+) -> StableTorchResult<Tensor> {
+    // Comment on https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L1788
+    // is nice :)
+    let mut stack: [StableIValue; 8] = [
+        input.get_tensor().into(),
+        weight.get_tensor().into(),
+        (&bias.map(|z| z.get_tensor())).into(),
+        (&options.stride).into(),
+        (&options.padding).into(),
+        (&options.output_padding).into(),
+        (&options.groups).into(),
+        (&options.dilation).into(),
+    ];
+    unsafe_call_dispatch_bail!("aten::conv_transpose2d", "input", stack.as_mut_slice());
+    let r: StableTensor = stack[0].try_into()?;
+
+    Ok(Tensor::new(r))
+}
+
 /// Options for max_pool2d.
 #[derive(Copy, Clone, Debug)]
 pub struct MaxPool2dDOptions {
@@ -152,7 +201,7 @@ pub fn interpolate<T: TensorAccess + TensorProperties>(
     options: &InterpolateOptions,
 ) -> StableTorchResult<Tensor> {
     let dim = input.dim() - 2; // Number of spatial dimensions.
-                               // Validation in https://github.com/pytorch/pytorch/blob/v2.11.0/torch/nn/functional.py#L4715-L4761 :o
+    // Validation in https://github.com/pytorch/pytorch/blob/v2.11.0/torch/nn/functional.py#L4715-L4761 :o
 
     let mut scale_factors: Option<&[f64]> = None;
     let mut output_size: Option<&[i64]> = None;
@@ -295,7 +344,7 @@ mod test {
     use crate::prelude::*;
 
     #[test]
-    fn test_flash_power_conv2d() -> StableTorchResult<()> {
+    fn test_flash_powder_conv2d() -> StableTorchResult<()> {
         /*
             #|PYTHON
             d = torch.tensor(list(range(1,17)), dtype=torch.float).reshape([1,4,4])
@@ -408,7 +457,51 @@ mod test {
     }
 
     #[test]
-    fn test_flash_power_relu() -> StableTorchResult<()> {
+    fn test_flash_powder_conv_transpose2d() -> StableTorchResult<()> {
+        /*
+            #|PYTHON
+            d = torch.tensor(list(range(1,17)), dtype=torch.float).reshape([1,4,4])
+            w = torch.tensor([[[1.0, 2.0],[3.0, 4.0]]]).unsqueeze(0)
+            r = torch.nn.functional.conv_transpose2d(d, w)
+        */
+
+        let d = Tensor::from(&[[
+            [1.0f32, 2.0, 3.0, 4.0],
+            [5.0, 6.0, 7.0, 8.0],
+            [9.0, 10.0, 11.0, 12.0],
+            [13.0, 14.0, 15.0, 16.0],
+        ]])?;
+        assert_eq!(d.sizes(), &[1, 4, 4]); // #PYTHON list(d.shape)
+        assert_eq!(
+            d.f32_ref()?,
+            &[
+                1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0,
+                16.0
+            ]
+        ); // #PYTHON list(d.view(-1).tolist())
+
+        let mut w = Tensor::zeros(&[1, 1, 2, 2], &Default::default())?;
+        for (i, v) in w.d_mut::<f32>()?.iter_mut().enumerate() {
+            *v = (i + 1) as f32
+        }
+        assert_eq!(w.sizes(), &[1, 1, 2, 2]);
+        assert_eq!(w.f32_ref()?, &[1.0f32, 2.0, 3.0, 4.0]); // #PYTHON list(w.view(-1).tolist())
+
+        let r = conv_transpose2d(&d, &w, None, &Default::default())?;
+        assert_eq!(r.sizes(), &[1, 5, 5]); // #PYTHON list(r.shape)
+
+        assert_eq!(
+            r.f32_ref()?,
+            &[
+                1.0f32, 4.0, 7.0, 10.0, 8.0, 8.0, 26.0, 36.0, 46.0, 32.0, 24.0, 66.0, 76.0, 86.0,
+                56.0, 40.0, 106.0, 116.0, 126.0, 80.0, 39.0, 94.0, 101.0, 108.0, 64.0
+            ]
+        ); // #PYTHON list(r.view(-1).tolist())
+        Ok(())
+    }
+
+    #[test]
+    fn test_flash_powder_relu() -> StableTorchResult<()> {
         /*
             #|PYTHON
             d = torch.tensor([-1.0, 0.0, 0.5, 1.0], dtype=torch.float)
@@ -468,7 +561,7 @@ mod test {
     }
 
     #[test]
-    fn test_flash_power_upsample() -> StableTorchResult<()> {
+    fn test_flash_powder_upsample() -> StableTorchResult<()> {
         // Example values from https://docs.pytorch.org/docs/2.11/generated/torch.nn.modules.upsampling.Upsample.html
         /*
             #|PYTHON
@@ -496,7 +589,9 @@ mod test {
         assert_eq!(m.sizes(), &[1, 1, 4, 4]); // #PYTHON list(m.shape)
         assert_eq!(
             m.f32_ref()?,
-            &[1.0f32, 1.0, 2.0, 2.0, 1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 3.0, 3.0, 4.0, 4.0]
+            &[
+                1.0f32, 1.0, 2.0, 2.0, 1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 3.0, 3.0, 4.0, 4.0
+            ]
         ); // #PYTHON list(m.view(-1).tolist())
 
         // Bilinear 2
@@ -557,6 +652,9 @@ mod test {
                 4.0
             ]
         ); // #PYTHON list(m.view(-1).tolist())
+
+        // For the rest of the examples from Upsample we need slicing to do that copy... which we don't currently have.
+        // TODO
 
         Ok(())
     }
