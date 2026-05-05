@@ -92,12 +92,6 @@ impl<'a> TenMut<'a> {
 pub trait TensorAccess {
     fn get_tensor(&self) -> &StableTensor;
     fn get_tensor_mut(&mut self) -> &mut StableTensor;
-    fn to_owned(&self) -> StableTorchResult<Tensor> {
-        let mut stack: [StableIValue; 1] = [(self.get_tensor()).into()];
-        unsafe_call_dispatch_panic!("aten::_lazy_clone", "", stack.as_mut_slice());
-        let r: Tensor = Tensor::new(stack[0].try_into().unwrap());
-        Ok(r)
-    }
 }
 
 impl<'a> TensorAccess for TenMut<'a> {

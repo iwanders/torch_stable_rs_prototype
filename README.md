@@ -98,6 +98,11 @@ It automatically calls `rustfmt` to ensure files are always formatted.
 ./util/python_truth.py  update ./flash_powder/src/native_functions.rs
 ```
 
+When developing, something like this is usually helpful:
+```
+./util/python_truth.py  update ./flash_powder/src/functional.rs  && cargo t -- --nocapture
+```
+
 
 ## Valgrind
 There's some helper tooling in `./util/valgrind` to create suppression files against a C++ binary.

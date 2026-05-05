@@ -19,12 +19,12 @@
 
 use crate::properties::TensorProperties;
 use crate::{StableTorchResult, Ten, TenMut, Tensor, TensorAccess};
-use torch_stable::aoti_torch::*;
 use torch_stable::stable::ops::ToOptions;
 use torch_stable::{
     aoti_torch::StableIValue, stable::tensor::Tensor as StableTensor, unsafe_call_bail,
     unsafe_call_dispatch_bail,
 };
+use torch_stable::{aoti_torch::*, unsafe_call_dispatch_panic};
 
 /// Core methods that require const access.
 ///
@@ -92,6 +92,13 @@ pub trait CoreMethods: TensorAccess + TensorProperties {
             [(self.get_tensor()).into(), (other.get_tensor()).into()];
         unsafe_call_dispatch_bail!("aten::equal", "", stack.as_mut_slice());
         let r: bool = stack[0].try_into()?;
+        Ok(r)
+    }
+
+    fn to_owned(&self) -> StableTorchResult<Tensor> {
+        let mut stack: [StableIValue; 1] = [(self.get_tensor()).into()];
+        unsafe_call_dispatch_panic!("aten::_lazy_clone", "", stack.as_mut_slice());
+        let r: Tensor = Tensor::new(stack[0].try_into().unwrap());
         Ok(r)
     }
 }

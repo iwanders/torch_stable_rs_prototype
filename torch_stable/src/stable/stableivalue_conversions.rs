@@ -106,6 +106,25 @@ where
     }
 }
 
+impl<T> FromIterator<T> for StableIValue
+where
+    T: Into<StableIValue>,
+{
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        let mut handle_res: StableListHandle = std::ptr::null_mut();
+        let iter = iter.into_iter();
+        let (min_bound, max_bound) = iter.size_hint();
+        unsafe_call_panic!(torch_new_list_reserve_size(
+            max_bound.unwrap_or(min_bound),
+            &mut handle_res
+        ));
+        for v in iter {
+            unsafe_call_panic!(torch_list_push_back(handle_res, v.into()));
+        }
+        StableIValue(handle_res as u64)
+    }
+}
+
 impl From<i32> for StableIValue {
     fn from(value: i32) -> Self {
         let mut res_bytes = [0u8; 8];

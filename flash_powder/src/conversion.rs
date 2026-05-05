@@ -5,6 +5,7 @@ use crate::factory::TensorFactory;
 use crate::tensor::Tensor;
 use torch_stable::headeronly::core::ScalarType;
 use torch_stable::stable::ops::EmtpyOptions;
+
 pub trait TensorScalar {
     fn tensor_scalar_type() -> ScalarType;
 }
