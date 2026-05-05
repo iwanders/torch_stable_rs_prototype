@@ -1,7 +1,13 @@
 //! This holds functions that pytorch puts into the functional module.
+use crate::properties::TensorProperties;
+use anyhow::bail;
 use torch_stable::{
     aoti_torch::StableIValue, stable::tensor::Tensor as StableTensor, unsafe_call_dispatch_bail,
 };
+
+// Should all these (i64, i64) be arrays instead?
+// What about the variable length arrays in interpolate? Currently they are [f32;3]... but in python you can provide a
+// scalar or even just two values instead of all three.
 
 use crate::{StableTorchResult, Tensor, TensorAccess};
 /// Options for conv2d.
@@ -103,6 +109,184 @@ pub fn relu<T: TensorAccess>(input: &T) -> StableTorchResult<Tensor> {
     assert_ne!(input.get_tensor().data_ptr(), r.data_ptr());
 
     Ok(Tensor::new(r))
+}
+
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
+pub enum InterpolateAlgorithm {
+    #[default]
+    Nearest,
+    Linear,
+    Bilinear,
+    Trilinear,
+    Bicubic,
+    Area,
+    NearestExact,
+}
+
+/// Options for interpolate.
+///
+/// If lower dimensionality, only the first values are used.
+#[derive(Copy, Clone, Debug)]
+pub struct InterpolateOptions {
+    pub size: Option<[i64; 3]>,
+    pub scale_factor: Option<[f64; 3]>,
+    pub mode: InterpolateAlgorithm,
+    pub align_corners: Option<bool>,
+    pub recompute_scale_factor: Option<bool>,
+    pub antialias: bool,
+}
+impl Default for InterpolateOptions {
+    fn default() -> Self {
+        Self {
+            size: None,
+            scale_factor: None,
+            mode: InterpolateAlgorithm::Nearest,
+            recompute_scale_factor: None,
+            align_corners: None,
+            antialias: false,
+        }
+    }
+}
+pub fn interpolate<T: TensorAccess + TensorProperties>(
+    input: &T,
+    options: &InterpolateOptions,
+) -> StableTorchResult<Tensor> {
+    let dim = input.dim() - 2; // Number of spatial dimensions.
+                               // Validation in https://github.com/pytorch/pytorch/blob/v2.11.0/torch/nn/functional.py#L4715-L4761 :o
+
+    let mut scale_factors: Option<&[f64]> = None;
+    let mut output_size: Option<&[i64]> = None;
+    let mode = options.mode;
+
+    let mut align_corners: bool = false;
+    if mode == InterpolateAlgorithm::Nearest
+        || mode == InterpolateAlgorithm::Area
+        || mode == InterpolateAlgorithm::NearestExact
+    {
+        if options.align_corners.is_some() {
+            bail!(
+                "align_corners option can only be set with the interpolating modes: linear | bilinear | bicubic | trilinear"
+            )
+        }
+    } else {
+        align_corners = options.align_corners.unwrap_or_default();
+    }
+    println!("align_corners: {align_corners}");
+
+    if options.size.is_some() && options.scale_factor.is_some() {
+        bail!("only one of size or scale_factor should be defined");
+    } else if options.size.is_some() {
+        // We can't validate lengths here because our arrays are always fixed size.
+        output_size = Some(&options.size.as_ref().unwrap()[0..dim]);
+    } else if options.scale_factor.is_some() {
+        // We can't validate lengths here because our arrays are always fixed size.
+        scale_factors = Some(&options.scale_factor.as_ref().unwrap()[0..dim]);
+    } else {
+        bail!("one of size or scale_factor must be defined");
+    }
+
+    if options.recompute_scale_factor.is_some() {
+        todo!("recomputing scale factor not yet supported");
+    }
+    if options.antialias
+        && !((mode == InterpolateAlgorithm::Bilinear || mode == InterpolateAlgorithm::Bicubic)
+            && input.dim() == 4)
+    {
+        bail!(
+            "Anti-alias option is restricted to bilinear and bicubic modes and requires a 4-D tensor as input"
+        );
+    }
+
+    macro_rules! dispatch_interpolate_simple {
+        ($t:literal ) => {{
+            let mut stack: [StableIValue; 3] = [
+                input.get_tensor().into(),
+                (&output_size).into(),
+                (&scale_factors).into(),
+            ];
+            unsafe_call_dispatch_bail!($t, "vec", stack.as_mut_slice());
+            let r: StableTensor = stack[0].try_into()?;
+
+            return Ok(Tensor::new(r));
+        }};
+    }
+
+    macro_rules! dispatch_interpolate_corners {
+        ($t:literal) => {{
+            let mut stack: [StableIValue; 4] = [
+                input.get_tensor().into(),
+                (&output_size).into(),
+                (align_corners).into(),
+                (&scale_factors).into(),
+            ];
+            unsafe_call_dispatch_bail!($t, "vec", stack.as_mut_slice());
+            let r: StableTensor = stack[0].try_into()?;
+
+            return Ok(Tensor::new(r));
+        }};
+    }
+
+    // This indeed is a forest of if statements; https://github.com/pytorch/pytorch/blob/v2.11.0/torch/nn/functional.py#L4812-L4830
+    if input.dim() == 3 && options.mode == InterpolateAlgorithm::Nearest {
+        dispatch_interpolate_simple!("aten::upsample_nearest1d");
+    } else if input.dim() == 4 && options.mode == InterpolateAlgorithm::Nearest {
+        dispatch_interpolate_simple!("aten::upsample_nearest2d");
+    } else if input.dim() == 5 && options.mode == InterpolateAlgorithm::Nearest {
+        dispatch_interpolate_simple!("upsample_nearest3d");
+    }
+
+    if input.dim() == 3 && options.mode == InterpolateAlgorithm::Linear {
+        dispatch_interpolate_corners!("aten::upsample_linear1d");
+    } else if input.dim() == 4 && options.mode == InterpolateAlgorithm::Bilinear {
+        dispatch_interpolate_corners!("aten::upsample_bilinear2d");
+    } else if input.dim() == 5 && options.mode == InterpolateAlgorithm::Trilinear {
+        dispatch_interpolate_corners!("aten::upsample_trilinear3d");
+    }
+
+    todo!("missing some of the complex branches in interpolate")
+}
+
+/// Options for upsample.
+///
+/// If lower dimensionality, only the first values are used.
+#[derive(Copy, Clone, Debug)]
+pub struct UpsampleOptions {
+    pub size: Option<[i64; 3]>,
+    pub scale_factor: Option<[f64; 3]>,
+    pub mode: InterpolateAlgorithm,
+    pub align_corners: Option<bool>,
+}
+impl Default for UpsampleOptions {
+    fn default() -> Self {
+        Self {
+            size: None,
+            scale_factor: None,
+            mode: InterpolateAlgorithm::Nearest,
+            align_corners: None,
+        }
+    }
+}
+/// Upsample
+///
+/// - [native_functions.yaml](https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L13001-L13053)
+/// - [pytorch equivalent](https://docs.pytorch.org/docs/2.11/generated/torch.nn.functional.upsample.html)
+/// - [pytorch class](https://docs.pytorch.org/docs/2.11/generated/torch.nn.modules.upsampling.Upsample.html)
+pub fn upsample<T: TensorAccess + TensorProperties>(
+    input: &T,
+    options: &UpsampleOptions,
+) -> StableTorchResult<Tensor> {
+    // Interestingly; https://github.com/pytorch/pytorch/blob/v2.11.0/torch/nn/modules/upsampling.py#L174
+    // this calls interpolate under the hood...
+    let interpolate_options = InterpolateOptions {
+        size: options.size,
+        scale_factor: options.scale_factor,
+        mode: options.mode,
+        recompute_scale_factor: None,
+        align_corners: options.align_corners,
+        antialias: false,
+    };
+
+    interpolate(input, &interpolate_options)
 }
 
 #[cfg(test)]
@@ -279,6 +463,100 @@ mod test {
         )?;
         assert_eq!(r.sizes(), &[1, 1, 1]); // #PYTHON list(r.shape)
         assert_eq!(r.f32_ref()?, &[6.0f32]); // #PYTHON list(r.view(-1).tolist())
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_flash_power_upsample() -> StableTorchResult<()> {
+        // Example values from https://docs.pytorch.org/docs/2.11/generated/torch.nn.modules.upsampling.Upsample.html
+        /*
+            #|PYTHON
+            input = torch.tensor(list(range(1,5)), dtype=torch.float).reshape([1,1, 2,2])
+        */
+        let d = Tensor::from(&[[1.0f32, 2.0], [3.0, 4.0]])?
+            .view(&[1, 1, 2, 2])?
+            .to_owned()?;
+        assert_eq!(d.sizes(), &[1, 1, 2, 2]); // #PYTHON list(input.shape)
+        assert_eq!(d.f32_ref()?, &[1.0f32, 2.0, 3.0, 4.0]); // #PYTHON list(input.view(-1).tolist())
+
+        // Nearest 2
+        /*
+            #|PYTHON
+            m = torch.nn.functional.interpolate(input, scale_factor=2, mode="nearest")
+        */
+        let m = upsample(
+            &d,
+            &UpsampleOptions {
+                scale_factor: Some([2.0, 2.0, 2.0]),
+                mode: InterpolateAlgorithm::Nearest,
+                ..Default::default()
+            },
+        )?;
+        assert_eq!(m.sizes(), &[1, 1, 4, 4]); // #PYTHON list(m.shape)
+        assert_eq!(
+            m.f32_ref()?,
+            &[1.0f32, 1.0, 2.0, 2.0, 1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 3.0, 3.0, 4.0, 4.0]
+        ); // #PYTHON list(m.view(-1).tolist())
+
+        // Bilinear 2
+        /*
+            #|PYTHON
+            m = torch.nn.functional.interpolate(input, scale_factor=2, mode="bilinear")
+        */
+        let m = upsample(
+            &d,
+            &UpsampleOptions {
+                scale_factor: Some([2.0, 2.0, 2.0]),
+                mode: InterpolateAlgorithm::Bilinear,
+                ..Default::default()
+            },
+        )?;
+        assert_eq!(m.sizes(), &[1, 1, 4, 4]); // #PYTHON list(m.shape)
+        assert_eq!(
+            m.f32_ref()?,
+            &[
+                1.0f32, 1.25, 1.75, 2.0, 1.5, 1.75, 2.25, 2.5, 2.5, 2.75, 3.25, 3.5, 3.0, 3.25,
+                3.75, 4.0
+            ]
+        ); // #PYTHON list(m.view(-1).tolist())
+
+        // Bilinear 2, aligned corners.
+        /*
+            #|PYTHON
+            m = torch.nn.functional.interpolate(input, scale_factor=2, mode="bilinear", align_corners=True)
+        */
+        let m = upsample(
+            &d,
+            &UpsampleOptions {
+                scale_factor: Some([2.0, 2.0, 2.0]),
+                mode: InterpolateAlgorithm::Bilinear,
+                align_corners: Some(true),
+                ..Default::default()
+            },
+        )?;
+        assert_eq!(m.sizes(), &[1, 1, 4, 4]); // #PYTHON list(m.shape)
+        assert_eq!(
+            m.f32_ref()?,
+            &[
+                1.0f32,
+                1.3333332538604736,
+                1.6666667461395264,
+                2.0,
+                1.6666666269302368,
+                2.0,
+                2.3333334922790527,
+                2.6666665077209473,
+                2.3333334922790527,
+                2.6666665077209473,
+                3.0,
+                3.3333334922790527,
+                3.0,
+                3.3333332538604736,
+                3.6666667461395264,
+                4.0
+            ]
+        ); // #PYTHON list(m.view(-1).tolist())
 
         Ok(())
     }
