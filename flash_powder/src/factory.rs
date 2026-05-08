@@ -15,7 +15,7 @@ use torch_stable::{
 
 /// Options to create zero tensors.
 #[derive(Copy, Clone, Debug, Default)]
-pub struct ZeroOptions {
+pub struct TensorOptions {
     pub dtype: Option<ScalarType>,
     pub layout: Option<Layout>,
     pub device: Option<Device>,
@@ -56,7 +56,7 @@ pub trait TensorFactory: TensorAccess + TensorProperties {
 
         Ok(Tensor::new(r))
     }
-    /// A new empty vector
+    /// A new zeros vector
     ///
     ///
     /// - [native_functions.yaml](https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L6837)
@@ -64,7 +64,7 @@ pub trait TensorFactory: TensorAccess + TensorProperties {
     ///
     //
     // https://github.com/pytorch/pytorch/blob/v2.11.0/aten/src/ATen/native/native_functions.yaml#L6800
-    fn zeros(dimensions: &[usize], options: &ZeroOptions) -> StableTorchResult<Tensor> {
+    fn zeros(dimensions: &[usize], options: &TensorOptions) -> StableTorchResult<Tensor> {
         let mut stack: [StableIValue; 5] = [
             (dimensions).into(),
             (&options.dtype).into(),
@@ -73,6 +73,26 @@ pub trait TensorFactory: TensorAccess + TensorProperties {
             (&options.pin_memory).into(),
         ];
         unsafe_call_dispatch_bail!("aten::zeros", "", stack.as_mut_slice());
+        let r: StableTensor = stack[0].try_into()?;
+
+        Ok(Tensor::new(r))
+    }
+
+    /// A new randn tensor
+    ///
+    ///
+    /// - [native_functions.yaml](https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L4963)
+    /// - [pytorch equivalent](https://docs.pytorch.org/docs/2.12/generated/torch.randn.html)
+    ///
+    fn randn(dimensions: &[usize], options: &TensorOptions) -> StableTorchResult<Tensor> {
+        let mut stack: [StableIValue; 5] = [
+            (dimensions).into(),
+            (&options.dtype).into(),
+            (&options.layout).into(),
+            (&options.device).into(),
+            (&options.pin_memory).into(),
+        ];
+        unsafe_call_dispatch_bail!("aten::randn", "", stack.as_mut_slice());
         let r: StableTensor = stack[0].try_into()?;
 
         Ok(Tensor::new(r))
@@ -110,7 +130,25 @@ mod test {
     use crate::prelude::*;
 
     #[test]
-    fn test_flash_powder_conv2d() -> StableTorchResult<()> {
+    fn test_flash_powder_randn() -> StableTorchResult<()> {
+        /*
+            #|PYTHON
+            x = torch.randn([5,5], dtype=torch.float)
+        */
+
+        let d = Tensor::randn(&[100, 100], &Default::default())?;
+        assert_eq!(d.sizes(), &[100, 100]); // #PYTHON list(x.shape)
+
+
+        let mean = d.mean(&Default::default())?;
+        let value = mean.f32_ref()?[0];
+        assert!(value.abs() < 0.01);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_flash_powder_cat() -> StableTorchResult<()> {
         /*
             #|PYTHON
             x = torch.tensor([[1.0, 2.0],[3.0, 4.0]], dtype=torch.float)
