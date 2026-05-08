@@ -26,6 +26,23 @@ use torch_stable::{
 };
 use torch_stable::{aoti_torch::*, unsafe_call_dispatch_panic};
 
+use torch_stable::headeronly::core::ScalarType;
+#[derive(Copy, Clone, Debug)]
+pub struct MeanOptions {
+    pub dim: Option<usize>,
+    pub keepdim: bool,
+    pub dtype: Option<ScalarType>,
+}
+impl Default for MeanOptions {
+    fn default() -> Self {
+        Self {
+            dim: None,
+            keepdim: false,
+            dtype: None,
+        }
+    }
+}
+
 /// Core methods that require const access.
 ///
 /// See the [`core_methods`][crate::core_methods] module for description of this trait's functionality.
@@ -95,6 +112,27 @@ pub trait CoreMethods: TensorAccess + TensorProperties {
         Ok(r)
     }
 
+    /// Mean of this tensor.
+    ///
+    /// - [native_functions.yaml](https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L4055)
+    /// - [pytorch method](https://docs.pytorch.org/docs/2.12/generated/torch.Tensor.mean.html)
+    /// - [pytorch function](https://docs.pytorch.org/docs/2.12/generated/torch.mean.html#torch.mean)
+    fn mean(&self, mean_options: &MeanOptions) -> StableTorchResult<Tensor> {
+        // https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L4489
+        let as_array = mean_options.dim.as_ref().map(|z| [*z]);
+        let as_array = as_array.as_ref().map(|a| a.as_slice());
+        let mut stack: [StableIValue; 4] = [
+            self.get_tensor().into(),
+            (&as_array).into(),
+            mean_options.keepdim.into(),
+            (&mean_options.dtype).into(),
+        ];
+        unsafe_call_dispatch_bail!("aten::mean", "dim", stack.as_mut_slice());
+        let r: Tensor = Tensor::new(stack[0].try_into().unwrap());
+        Ok(r)
+    }
+
+    /// Lazily clone this into an owning tensor.
     fn to_owned(&self) -> StableTorchResult<Tensor> {
         let mut stack: [StableIValue; 1] = [(self.get_tensor()).into()];
         unsafe_call_dispatch_panic!("aten::_lazy_clone", "", stack.as_mut_slice());
@@ -235,11 +273,11 @@ mod test {
 
     #[test]
     fn test_flash_powder_to() -> StableTorchResult<()> {
+        use crate::factory::TensorOptions;
         use crate::ScalarType;
-        use crate::factory::ZeroOptions;
         let t = Tensor::zeros(
             &[5, 5],
-            &ZeroOptions {
+            &TensorOptions {
                 ..Default::default()
             },
         )?;
@@ -308,6 +346,67 @@ mod test {
         // Reshape to incorrect size.
         assert!(d.view(&[12]).is_err());
 
+        Ok(())
+    }
+
+    #[test]
+    fn test_flash_powder_mean() -> StableTorchResult<()> {
+        /*
+            #|PYTHON
+            d = torch.tensor(list(range(1,17)), dtype=torch.float).reshape([1,4,4])
+            mean = d.mean()
+            mean_0 = d.mean(0)
+            mean_1 = d.mean(1)
+            mean_2 = d.mean(2)
+            mean_1_double = d.mean(1, dtype=torch.double)
+        */
+
+        let d = Tensor::from(&[[
+            [1.0f32, 2.0, 3.0, 4.0],
+            [5.0, 6.0, 7.0, 8.0],
+            [9.0, 10.0, 11.0, 12.0],
+            [13.0, 14.0, 15.0, 16.0],
+        ]])?;
+        assert_eq!(d.sizes(), &[1, 4, 4]); // #PYTHON list(d.shape)
+
+        let mean = d.mean(&Default::default())?;
+        assert_eq!(mean.dim(), 0); // #PYTHON mean.dim()
+        assert_eq!(mean.f32_ref()?, &[8.5f32]); // #PYTHON list(mean.view(-1).tolist())
+
+        let mean_0 = d.mean(&MeanOptions {
+            dim: Some(0),
+            ..Default::default()
+        })?;
+        assert_eq!(mean_0.sizes(), &[4, 4]); // #PYTHON list(mean_0.shape)
+        assert_eq!(
+            mean_0.f32_ref()?,
+            &[
+                1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0,
+                16.0
+            ]
+        ); // #PYTHON list(mean_0.view(-1).tolist())
+
+        let mean_1 = d.mean(&MeanOptions {
+            dim: Some(1),
+            ..Default::default()
+        })?;
+        assert_eq!(mean_1.sizes(), &[1, 4]); // #PYTHON list(mean_1.shape)
+        assert_eq!(mean_1.f32_ref()?, &[7.0f32, 8.0, 9.0, 10.0]); // #PYTHON list(mean_1.view(-1).tolist())
+
+        let mean_2 = d.mean(&MeanOptions {
+            dim: Some(2),
+            ..Default::default()
+        })?;
+        assert_eq!(mean_2.sizes(), &[1, 4]); // #PYTHON list(mean_2.shape)
+        assert_eq!(mean_2.f32_ref()?, &[2.5f32, 6.5, 10.5, 14.5]); // #PYTHON list(mean_2.view(-1).tolist())
+
+        let mean_1_double = d.mean(&MeanOptions {
+            dim: Some(1),
+            dtype: Some(ScalarType::Double),
+            ..Default::default()
+        })?;
+        assert_eq!(mean_1_double.sizes(), &[1, 4]); // #PYTHON list(mean_1_double.shape)
+        assert_eq!(mean_1_double.f64_ref()?, &[7.0f64, 8.0, 9.0, 10.0]); // #PYTHON list(mean_1_double.view(-1).tolist())
         Ok(())
     }
 }
