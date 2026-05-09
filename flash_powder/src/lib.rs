@@ -25,6 +25,7 @@ pub mod core_methods;
 pub mod data;
 pub mod factory;
 pub mod functional;
+pub mod index;
 pub mod properties;
 pub mod tensor;
 use tensor::{Ten, TenMut, Tensor, TensorAccess};

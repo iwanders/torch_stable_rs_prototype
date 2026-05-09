@@ -131,14 +131,8 @@ mod test {
 
     #[test]
     fn test_flash_powder_randn() -> StableTorchResult<()> {
-        /*
-            #|PYTHON
-            x = torch.randn([5,5], dtype=torch.float)
-        */
-
-        let d = Tensor::randn(&[100, 100], &Default::default())?;
-        assert_eq!(d.sizes(), &[100, 100]); // #PYTHON list(x.shape)
-
+        let d = Tensor::randn(&[1000, 1000], &Default::default())?;
+        assert_eq!(d.sizes(), &[1000, 1000]);
 
         let mean = d.mean(&Default::default())?;
         let value = mean.f32_ref()?[0];

@@ -1,5 +1,6 @@
 //! Holds the three Tensor types.
 use crate::StableTorchResult;
+use crate::properties::TensorProperties;
 use anyhow;
 use torch_stable::unsafe_call_dispatch_panic;
 use torch_stable::{aoti_torch::StableIValue, stable::tensor::Tensor as StableTensor};
@@ -117,5 +118,50 @@ impl TensorAccess for Tensor {
     }
     fn get_tensor_mut(&mut self) -> &mut StableTensor {
         &mut self.tensor
+    }
+}
+
+fn debug_print<T: TensorAccess + TensorProperties>(
+    v: &T,
+    f: &mut std::fmt::Formatter<'_>,
+) -> std::fmt::Result {
+    // https://docs.pytorch.org/docs/2.12/generated/torch.set_printoptions.html#torch.set_printoptions
+    f.write_fmt(format_args!(
+        "Tensor<{:?}, ",
+        v.get_tensor().const_data_ptr()
+    ))?;
+    f.write_fmt(format_args!("{}", v.dim()))?;
+    f.write_str(">")
+}
+
+impl std::fmt::Debug for Tensor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        debug_print(self, f)
+    }
+}
+
+impl std::fmt::Debug for TenMut<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        debug_print(self, f)
+    }
+}
+
+impl std::fmt::Debug for Ten<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        debug_print(self, f)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::prelude::*;
+    use crate::{StableTorchResult, Tensor, TensorAccess};
+
+    #[test]
+    fn test_flash_powder_debug_print() -> StableTorchResult<()> {
+        let z = Tensor::randn(&[5, 5], &Default::default())?;
+        println!("{:?}", z);
+        todo!();
     }
 }

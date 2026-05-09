@@ -27,6 +27,14 @@ pub trait DataRef: TensorAccess {
             Err(z) => bail!("failed slice conversion: {z:?}"),
         }
     }
+    fn f64_ref(&self) -> StableTorchResult<&[f64]> {
+        let byte_ref = self.u8_ref()?;
+        use zerocopy::TryFromBytes;
+        match <[f64]>::try_ref_from_bytes(byte_ref) {
+            Ok(e) => Ok(e),
+            Err(z) => bail!("failed slice conversion: {z:?}"),
+        }
+    }
     fn d_ref<T: IntoBytes + TryFromBytes + Immutable>(&self) -> StableTorchResult<&[T]> {
         let byte_ref = self.u8_ref()?;
         match <[T]>::try_ref_from_bytes(byte_ref) {
@@ -55,6 +63,13 @@ pub trait DataMut: TensorAccess {
     fn f32_mut(&mut self) -> StableTorchResult<&mut [f32]> {
         let byte_ref = self.u8_mut()?;
         match <[f32]>::try_mut_from_bytes(byte_ref) {
+            Ok(e) => Ok(e),
+            Err(z) => bail!("failed slice conversion: {z:?}"),
+        }
+    }
+    fn f64_mut(&mut self) -> StableTorchResult<&mut [f64]> {
+        let byte_ref = self.u8_mut()?;
+        match <[f64]>::try_mut_from_bytes(byte_ref) {
             Ok(e) => Ok(e),
             Err(z) => bail!("failed slice conversion: {z:?}"),
         }
