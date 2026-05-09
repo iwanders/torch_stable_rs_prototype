@@ -1,5 +1,6 @@
 //! Indexing
 
+use crate::core_methods::CoreMethods;
 use crate::properties::TensorProperties;
 use crate::tensor::{Ten, TenMut};
 use crate::{StableTorchResult, TensorAccess};
@@ -44,8 +45,9 @@ use torch_stable::stable::tensor::Tensor as StableTensor;
 pub enum TensorIndexOptions<'a> {
     Tensor(&'a StableTensor),
     Index(isize),
-    Range {
-        range: std::ops::Range<isize>,
+    Range(std::ops::Range<usize>),
+    RangeWithStride {
+        range: std::ops::Range<usize>,
         stride: isize,
     },
 }
@@ -54,31 +56,44 @@ impl<'a> Into<TensorIndexOptions<'a>> for isize {
         TensorIndexOptions::Index(self)
     }
 }
-impl<'a> Into<TensorIndexOptions<'a>> for std::ops::Range<isize> {
+impl<'a> Into<TensorIndexOptions<'a>> for std::ops::Range<usize> {
     fn into(self) -> TensorIndexOptions<'a> {
-        TensorIndexOptions::Range {
-            range: self,
-            stride: 1,
-        }
+        TensorIndexOptions::Range(self)
     }
 }
-impl<'a> Into<TensorIndexOptions<'a>> for (std::ops::Range<isize>, isize) {
+impl<'a> Into<TensorIndexOptions<'a>> for (std::ops::Range<usize>, isize) {
     fn into(self) -> TensorIndexOptions<'a> {
-        TensorIndexOptions::Range {
+        TensorIndexOptions::RangeWithStride {
             range: self.0,
             stride: self.1,
         }
     }
 }
 
-pub trait TensorIndex: TensorAccess + TensorProperties {
-    fn i<'a, T: Into<TensorIndexOptions<'a>>>(&self, index: &'a [T]) -> StableTorchResult<Ten<'_>> {
-        todo!()
-    }
-    fn i_mut<'a, T: Into<TensorIndexOptions<'a>>>(
-        &mut self,
-        index: &'a [T],
-    ) -> StableTorchResult<TenMut<'_>> {
+pub trait TensorIndex: TensorAccess + TensorProperties + CoreMethods {
+    fn i<'a, T>(&self, index: &'a [T]) -> StableTorchResult<Ten<'_>>
+    where
+        &'a T: Into<TensorIndexOptions<'a>>,
+    {
+        // Make a view into the tensor, we'll be updating this as we go through the indexing operations.
+        let mut current = self.view(self.sizes())?;
+        let mut dim = 0;
+        for index_op_conv in index.iter() {
+            let index_op: TensorIndexOptions<'_> = index_op_conv.into();
+            match index_op {
+                TensorIndexOptions::Tensor(tensor) => todo!(),
+                TensorIndexOptions::Index(_) => todo!(),
+                TensorIndexOptions::Range(range) => {
+                    // current = current.narrow(dim, range.start, range.end)?;
+                    todo!(
+                        "That doesn't work because narrow borrows current, so we can't assign into current again"
+                    );
+                }
+                TensorIndexOptions::RangeWithStride { range, stride } => todo!(),
+            }
+            dim += 1;
+        }
+
         todo!()
     }
 }

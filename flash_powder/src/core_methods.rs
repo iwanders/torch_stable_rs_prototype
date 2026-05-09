@@ -51,7 +51,7 @@ pub trait CoreMethods: TensorAccess + TensorProperties {
     ///
     /// - [native_functions.yaml](https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L4489)
     /// - [pytorch equivalent](https://docs.pytorch.org/docs/2.11/generated/torch.Tensor.narrow.html)
-    fn narrow(&self, dim: usize, start: usize, end: usize) -> StableTorchResult<Ten<'_>> {
+    fn narrow<'a>(&'a self, dim: usize, start: usize, end: usize) -> StableTorchResult<Ten<'a>> {
         // https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L4489
         let mut stack: [StableIValue; 4] = [
             self.get_tensor().into(),
@@ -91,7 +91,7 @@ pub trait CoreMethods: TensorAccess + TensorProperties {
     /// - [native_functions.yaml](https://github.com/pytorch/pytorch/blob/v2.11.0/aten/src/ATen/native/native_functions.yaml#L8362)
     /// - [pytorch equivalent](https://docs.pytorch.org/docs/2.11/generated/torch.Tensor.view.html)
     ///
-    fn view(&self, shape: &[usize]) -> StableTorchResult<Ten<'_>> {
+    fn view<'a>(&'a self, shape: &[usize]) -> StableTorchResult<Ten<'a>> {
         let mut stack: [StableIValue; 2] = [(self.get_tensor()).into(), (shape).into()];
         unsafe_call_dispatch_bail!("aten::view", "", stack.as_mut_slice());
         let r: StableTensor = stack[0].try_into()?;
