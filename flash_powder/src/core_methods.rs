@@ -273,15 +273,15 @@ mod test {
 
     #[test]
     fn test_flash_powder_to() -> StableTorchResult<()> {
-        use crate::factory::TensorOptions;
         use crate::ScalarType;
+        use crate::factory::TensorOptions;
         let t = Tensor::zeros(
             &[5, 5],
             &TensorOptions {
                 ..Default::default()
             },
         )?;
-        assert_eq!(t.scalar_type(), ScalarType::Float);
+        assert_eq!(t.dtype(), ScalarType::Float);
         let orig = t.const_data_ptr();
 
         let z = t.to(&ToOptions {

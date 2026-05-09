@@ -130,7 +130,9 @@ fn debug_print<T: TensorAccess + TensorProperties>(
         "Tensor<{:?}, ",
         v.get_tensor().const_data_ptr()
     ))?;
-    f.write_fmt(format_args!("{}", v.dim()))?;
+    f.write_fmt(format_args!(" dim {}", v.dim()))?;
+    f.write_fmt(format_args!(", shape: {:?}", v.sizes()))?;
+    f.write_fmt(format_args!(", dtype: {:?}", v.dtype()))?;
     f.write_str(">")
 }
 

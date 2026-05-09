@@ -186,7 +186,7 @@ mod test {
             d.u8_ref()?,
             &[5, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0]
         ); // #PYTHON d.view(torch.uint8).view(-1).tolist()
-        assert_eq!(d.scalar_type(), ScalarType::Long); // #PYTHON d.dtype
+        assert_eq!(d.dtype(), ScalarType::Long); // #PYTHON d.dtype
 
         /*
             #|PYTHON
@@ -195,7 +195,7 @@ mod test {
         let d: Tensor = (&[5.0f32, 3.0]).try_into()?;
         assert_eq!(d.sizes(), &[2]); // #PYTHON list(d.shape)
         assert_eq!(d.u8_ref()?, &[0, 0, 160, 64, 0, 0, 64, 64]); // #PYTHON d.view(torch.uint8).view(-1).tolist()
-        assert_eq!(d.scalar_type(), ScalarType::Float); // #PYTHON d.dtype
+        assert_eq!(d.dtype(), ScalarType::Float); // #PYTHON d.dtype
 
         /*
             #|PYTHON
@@ -207,7 +207,7 @@ mod test {
             d.u8_ref()?,
             &[0, 0, 160, 64, 0, 0, 64, 64, 0, 0, 128, 63, 0, 0, 0, 64]
         ); // #PYTHON d.view(torch.uint8).view(-1).tolist()
-        assert_eq!(d.scalar_type(), ScalarType::Float); // #PYTHON d.dtype
+        assert_eq!(d.dtype(), ScalarType::Float); // #PYTHON d.dtype
 
         /*
             #|PYTHON
@@ -216,7 +216,7 @@ mod test {
         let d: Tensor = [1i8, 3, 4, 5].try_into()?;
         assert_eq!(d.sizes(), &[4]); // #PYTHON list(d.shape)
         assert_eq!(d.u8_ref()?, &[1, 3, 4, 5]); // #PYTHON d.view(torch.uint8).view(-1).tolist()
-        assert_eq!(d.scalar_type(), ScalarType::Char); // #PYTHON d.dtype
+        assert_eq!(d.dtype(), ScalarType::Char); // #PYTHON d.dtype
 
         /*
             #|PYTHON
@@ -225,7 +225,7 @@ mod test {
         let d: Tensor = [[[5i64]]].try_into()?;
         assert_eq!(d.sizes(), &[1, 1, 1]); // #PYTHON list(d.shape)
         assert_eq!(d.u8_ref()?, &[5, 0, 0, 0, 0, 0, 0, 0]); // #PYTHON d.view(torch.uint8).view(-1).tolist()
-        assert_eq!(d.scalar_type(), ScalarType::Long); // #PYTHON d.dtype
+        assert_eq!(d.dtype(), ScalarType::Long); // #PYTHON d.dtype
 
         /*
             #|PYTHON
@@ -234,7 +234,7 @@ mod test {
         let d: Tensor = [true, false, true].try_into()?;
         assert_eq!(d.sizes(), &[3]); // #PYTHON list(d.shape)
         assert_eq!(d.u8_ref()?, &[1, 0, 1]); // #PYTHON d.view(torch.uint8).view(-1).tolist()
-        assert_eq!(d.scalar_type(), ScalarType::Bool); // #PYTHON d.dtype
+        assert_eq!(d.dtype(), ScalarType::Bool); // #PYTHON d.dtype
 
         // Non square
         /*
@@ -249,7 +249,7 @@ mod test {
                 0, 0, 160, 64, 0, 0, 64, 64, 0, 0, 160, 64, 0, 0, 128, 63, 0, 0, 0, 64, 0, 0, 0, 0
             ]
         ); // #PYTHON d.view(torch.uint8).view(-1).tolist()
-        assert_eq!(d.scalar_type(), ScalarType::Float); // #PYTHON d.dtype
+        assert_eq!(d.dtype(), ScalarType::Float); // #PYTHON d.dtype
 
         /*
             #|PYTHON
@@ -263,7 +263,7 @@ mod test {
                 0, 0, 160, 64, 0, 0, 64, 64, 0, 0, 128, 63, 0, 0, 0, 64, 0, 0, 128, 63, 0, 0, 0, 64
             ]
         ); // #PYTHON d.view(torch.uint8).view(-1).tolist()
-        assert_eq!(d.scalar_type(), ScalarType::Float); // #PYTHON d.dtype
+        assert_eq!(d.dtype(), ScalarType::Float); // #PYTHON d.dtype
 
         // And with depth;
         /*
@@ -280,7 +280,7 @@ mod test {
                 3, 0, 0, 0, 0, 0, 0, 0
             ]
         ); // #PYTHON d.view(torch.uint8).view(-1).tolist()
-        assert_eq!(d.scalar_type(), ScalarType::Long); // #PYTHON d.dtype
+        assert_eq!(d.dtype(), ScalarType::Long); // #PYTHON d.dtype
 
         Ok(())
     }

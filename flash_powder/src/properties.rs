@@ -28,7 +28,7 @@ pub trait TensorProperties: TensorAccess {
         self.get_tensor().is_contiguous()
     }
 
-    fn scalar_type(&self) -> ScalarType {
+    fn dtype(&self) -> ScalarType {
         self.get_tensor().scalar_type()
     }
     fn layout(&self) -> Layout {

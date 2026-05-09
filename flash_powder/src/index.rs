@@ -12,4 +12,6 @@ use torch_stable::{
     unsafe_call_dispatch_bail,
 };
 
-pub trait TensorIndex: TensorAccess + TensorProperties {}
+pub trait TensorIndex: TensorAccess + TensorProperties {
+    // fn i(&self,
+}
