@@ -3,7 +3,6 @@
 use crate::core_methods::{CoreMethods, CoreMethodsMut};
 use crate::properties::TensorProperties;
 use crate::tensor::{Ten, TenMut, Tensor};
-use crate::torch;
 use crate::{StableTorchResult, TensorAccess};
 pub use torch_stable::stable::ops::{EmtpyOptions, ToOptions};
 use torch_stable::stable::tensor::Tensor as StableTensor;
@@ -146,7 +145,7 @@ where
         tensor.do_the_real_indexing(&[&first, &second, &third])
     }
 }
-
+// ------------------------------------------------------------------------------------------
 // and the mut flavours.
 trait TensorIndexWorkerMut: CoreMethodsMut + CoreMethods {
     fn do_the_real_indexing_mut<'a, 'b>(
@@ -185,6 +184,52 @@ trait TensorIndexWorkerMut: CoreMethodsMut + CoreMethods {
 
 impl TensorIndexWorkerMut for Tensor {}
 impl TensorIndexWorkerMut for TenMut<'_> {}
+
+pub trait IndexSpecMut<T> {
+    fn do_index_mut<'b>(&self, tensor: &'b mut T) -> StableTorchResult<TenMut<'b>>;
+}
+pub trait TensorIndexMut: TensorAccess + TensorProperties + CoreMethodsMut + Sized {
+    fn i_mut<'a, I: IndexSpecMut<Self>>(&'a mut self, index: I) -> StableTorchResult<TenMut<'a>> {
+        index.do_index_mut(self)
+    }
+}
+impl TensorIndexMut for Tensor {}
+impl TensorIndexMut for TenMut<'_> {}
+
+impl<'a, A: Clone, T: TensorIndexWorkerMut> IndexSpecMut<T> for A
+where
+    A: Into<TensorIndexOptions<'a>>,
+{
+    fn do_index_mut<'b>(&self, tensor: &'b mut T) -> StableTorchResult<TenMut<'b>> {
+        let first: TensorIndexOptions<'_> = self.clone().into();
+        tensor.do_the_real_indexing_mut(&[&first])
+    }
+}
+
+impl<'a, 'd, A: Clone, B: Clone, T: TensorIndexWorkerMut> IndexSpecMut<T> for (A, B)
+where
+    A: Into<TensorIndexOptions<'a>>,
+    B: Into<TensorIndexOptions<'a>>,
+{
+    fn do_index_mut<'b>(&self, tensor: &'b mut T) -> StableTorchResult<TenMut<'b>> {
+        let first: TensorIndexOptions<'_> = self.0.clone().into();
+        let second: TensorIndexOptions<'_> = self.1.clone().into();
+        tensor.do_the_real_indexing_mut(&[&first, &second])
+    }
+}
+impl<'a, A: Clone, B: Clone, C: Clone, T: TensorIndexWorkerMut> IndexSpecMut<T> for (A, B, C)
+where
+    A: Into<TensorIndexOptions<'a>>,
+    B: Into<TensorIndexOptions<'a>>,
+    C: Into<TensorIndexOptions<'a>>,
+{
+    fn do_index_mut<'b>(&self, tensor: &'b mut T) -> StableTorchResult<TenMut<'b>> {
+        let first: TensorIndexOptions<'_> = self.0.clone().into();
+        let second: TensorIndexOptions<'_> = self.1.clone().into();
+        let third: TensorIndexOptions<'_> = self.2.clone().into();
+        tensor.do_the_real_indexing_mut(&[&first, &second, &third])
+    }
+}
 
 #[cfg(test)]
 mod test {
@@ -234,7 +279,6 @@ mod test {
             z = d[1, 0:3]
         */
 
-        println!("z: {z:?}");
         assert_eq!(z.sizes(), &[3]); // #PYTHON list(z.shape)
         assert_eq!(z.stride(0), 1); // #PYTHON  (z.stride(0))
         assert_eq!(z.f32_ref(&[0])?, &5.0); // #PYTHON z[0].item()
@@ -247,7 +291,6 @@ mod test {
             z = d[0:3, 1]
         */
 
-        println!("z: {z:?}");
         assert_eq!(z.sizes(), &[3]); // #PYTHON list(z.shape)
         assert_eq!(z.stride(0), 4); // #PYTHON  (z.stride(0))
         assert_eq!(z.f32_ref(&[0])?, &2.0); // #PYTHON z[0].item()
@@ -273,12 +316,64 @@ mod test {
             z = d[-3:3, -3:3]
         */
 
-        println!("z: {z:?}");
         assert_eq!(z.sizes(), &[2, 2]); // #PYTHON list(z.shape)
         assert_eq!(z.stride(0), 4); // #PYTHON  (z.stride(0))
         assert_eq!(z.f32_ref(&[0, 0])?, &6.0); // #PYTHON z[0,0].item()
         assert_eq!(z.f32_ref(&[1, 0])?, &10.0); // #PYTHON z[1,0].item()
         assert_eq!(z.f32_ref(&[1, 1])?, &11.0); // #PYTHON z[1,1].item()
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_flash_powder_indexing_mut() -> StableTorchResult<()> {
+        /*
+            #|PYTHON
+            d = torch.tensor(list(range(1,17)), dtype=torch.float).reshape([ 4,4])
+        */
+
+        let mut d = Tensor::from(&[
+            [1.0f32, 2.0, 3.0, 4.0],
+            [5.0, 6.0, 7.0, 8.0],
+            [9.0, 10.0, 11.0, 12.0],
+            [13.0, 14.0, 15.0, 16.0],
+        ])?;
+        assert_eq!(d.sizes(), &[4, 4]); // #PYTHON list(d.shape)
+        assert_eq!(
+            d.f32s_ref()?,
+            &[
+                1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0,
+                16.0
+            ]
+        ); // #PYTHON list(d.view(-1).tolist())
+
+        /*
+            #|PYTHON
+            z = d[1:3]
+            z[1,2]  = 100.0
+        */
+
+        let mut z = d.i_mut(1..3)?;
+        assert_eq!(z.sizes(), &[2, 4]); // #PYTHON list(z.shape)
+        assert_eq!(z.stride(0), 4); // #PYTHON  (z.stride(0))
+        assert_eq!(z.f32_ref(&[0, 2])?, &7.0); // #PYTHON z[0, 2].item()
+        *(z.f32_mut(&[1, 2])?) = 100.0;
+        assert_eq!(d.f32_ref(&[2, 2])?, &100.0); // #PYTHON d[2, 2].item()
+
+        // borrow on borrow.
+        /*
+            #|PYTHON
+            d = torch.tensor(list(range(1,17)), dtype=torch.float).reshape([ 4,4])
+            z = d[1:3]
+            y = z[0:1]
+            y[0,0] = 120.0
+        */
+        let mut z = d.i_mut(1..3)?;
+        let mut y = z.i_mut(0..1)?;
+        assert_eq!(y.sizes(), &[1, 4]); // #PYTHON list(y.shape)
+        println!("v: {}", y.f32_mut(&[0, 0])?);
+        *(y.f32_mut(&[0, 0])?) = 120.0;
+        assert_eq!(d.f32_ref(&[1, 0])?, &120.0); // #PYTHON d[1, 0].item()
 
         Ok(())
     }
