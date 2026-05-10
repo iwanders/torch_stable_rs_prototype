@@ -28,6 +28,8 @@ pub mod functional;
 pub mod index;
 pub mod properties;
 pub mod tensor;
+pub mod torch;
+
 use tensor::{Ten, TenMut, Tensor, TensorAccess};
 pub use torch_stable::{StableTorchResult, headeronly::core::ScalarType};
 
@@ -45,6 +47,8 @@ pub mod prelude {
     #[doc(inline)]
     pub use tensor::{Ten, TenMut, Tensor, TensorAccess};
 
+    #[doc(inline)]
+    pub use super::torch;
     // #[doc(inline)]
     // pub use crate::functional;
 }

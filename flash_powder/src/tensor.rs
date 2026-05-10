@@ -115,6 +115,7 @@ impl<'a> TensorAccess for Ten<'a> {
         &mut self.tensor
     }
 }
+
 impl TensorAccess for Tensor {
     fn get_tensor(&self) -> &StableTensor {
         &self.tensor

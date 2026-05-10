@@ -160,6 +160,14 @@ impl<'a> Ten<'a> {
         unsafe_call_dispatch_bail!("aten::narrow", "", stack.as_mut_slice());
         Ok(Ten::new(self.as_parent(), stack[0].try_into()?))
     }
+
+    pub fn select(&self, dim: usize, index: usize) -> StableTorchResult<Ten<'a>> {
+        let mut stack: [StableIValue; 3] = [self.get_tensor().into(), dim.into(), index.into()];
+        unsafe_call_dispatch_bail!("aten::select", "int", stack.as_mut_slice());
+        let r: StableTensor = stack[0].try_into()?;
+
+        Ok(Ten::new(self.as_parent(), r))
+    }
 }
 
 /// Core methods that require mutable access.
