@@ -51,13 +51,13 @@ pub trait CoreMethods: TensorAccess + TensorProperties {
     ///
     /// - [native_functions.yaml](https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L4489)
     /// - [pytorch equivalent](https://docs.pytorch.org/docs/2.11/generated/torch.Tensor.narrow.html)
-    fn narrow<'a>(&'a self, dim: usize, start: usize, end: usize) -> StableTorchResult<Ten<'a>> {
+    fn narrow<'a>(&'a self, dim: usize, start: usize, length: usize) -> StableTorchResult<Ten<'a>> {
         // https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L4489
         let mut stack: [StableIValue; 4] = [
             self.get_tensor().into(),
             dim.into(),
             start.into(),
-            end.into(),
+            length.into(),
         ];
         unsafe_call_dispatch_bail!("aten::narrow", "", stack.as_mut_slice());
         Ok(Ten::new(&self.get_tensor(), stack[0].try_into()?))
@@ -149,13 +149,13 @@ impl<'a> Ten<'a> {
     ///
     /// - [native_functions.yaml](https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L4489)
     /// - [pytorch equivalent](https://docs.pytorch.org/docs/2.11/generated/torch.Tensor.narrow.html)
-    pub fn narrow(&self, dim: usize, start: usize, end: usize) -> StableTorchResult<Ten<'a>> {
+    pub fn narrow(&self, dim: usize, start: usize, length: usize) -> StableTorchResult<Ten<'a>> {
         // https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L4489
         let mut stack: [StableIValue; 4] = [
             self.get_tensor().into(),
             dim.into(),
             start.into(),
-            end.into(),
+            length.into(),
         ];
         unsafe_call_dispatch_bail!("aten::narrow", "", stack.as_mut_slice());
         Ok(Ten::new(self.as_parent(), stack[0].try_into()?))
@@ -281,6 +281,38 @@ mod test {
             &[3.0f32, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0]
         ); // #PYTHON list(nv.view(-1).tolist())
 
+        // from https://docs.pytorch.org/docs/2.11/generated/torch.narrow.html#torch.narrow
+        /*
+            #|PYTHON
+            d = torch.tensor(list(range(1,10)), dtype=torch.float).reshape([3,3])
+        */
+
+        let d = Tensor::from(&[[1.0f32, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]])?;
+        assert_eq!(d.sizes(), &[3, 3]); // #PYTHON list(d.shape)
+        assert_eq!(d.f32_ref()?, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]); // #PYTHON list(d.view(-1).tolist())
+
+        /*
+            #|PYTHON
+            x = torch.narrow(d, 0, 0, 2)
+        */
+        let x = d.narrow(0, 0, 2)?;
+        assert_eq!(x.sizes(), &[2, 3]); // #PYTHON list(x.shape)
+        assert_eq!(x.f32_ref()?, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]); // #PYTHON list(x.view(-1).tolist())
+
+        /*
+            #|PYTHON
+            x = torch.narrow(d, 1, 1, 2)
+        */
+        let x = d.narrow(1, 1, 2)?;
+        assert_eq!(x.sizes(), &[3, 2]); // #PYTHON list(x.shape)
+        println!("x ref: {:?}", x.f32_ref()?);
+
+        assert_eq!(x.is_contiguous(), false);
+        // I can't actually compare this at the moment.
+        // we need
+        // https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L1715-L1717
+        // https://docs.pytorch.org/docs/2.11/generated/torch.Tensor.contiguous.html#torch.Tensor.contiguous
+        // assert_eq!(x.to_owned()?.f32_ref()?,&[2.0, 3.0, 5.0, 6.0, 8.0, 9.0]); // #PYTHON list(x.flatten().tolist())
         Ok(())
     }
     #[test]

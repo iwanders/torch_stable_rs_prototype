@@ -77,18 +77,19 @@ pub trait TensorIndex: TensorAccess + TensorProperties + CoreMethods {
     {
         // Make a view into the tensor, we'll be updating this as we go through the indexing operations.
         let mut current = self.view(self.sizes())?;
-        let mut dim = 0;
-        for index_op_conv in index.iter() {
+        // let mut dim = self.dim();
+        for (index_op_conv, dim) in index.iter().zip((0..index.len()).rev()) {
+            // dim -= 1;
             let index_op: TensorIndexOptions<'_> = index_op_conv.into();
             match index_op {
                 TensorIndexOptions::Tensor(tensor) => todo!(),
                 TensorIndexOptions::Index(_) => todo!(),
                 TensorIndexOptions::Range(range) => {
-                    current = current.narrow(dim, range.start, range.end)?;
+                    println!("dim {dim}, start {} len {}", range.start, range.len());
+                    current = current.narrow(dim, range.start, range.len())?;
                 }
                 TensorIndexOptions::RangeWithStride { range, stride } => todo!(),
             }
-            dim += 1;
         }
         Ok(current)
     }
@@ -114,10 +115,19 @@ mod test {
             [13.0, 14.0, 15.0, 16.0],
         ])?;
         assert_eq!(d.sizes(), &[4, 4]); // #PYTHON list(d.shape)
+        assert_eq!(
+            d.f32_ref()?,
+            &[
+                1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0,
+                16.0
+            ]
+        ); // #PYTHON list(d.view(-1).tolist())
 
         println!("d: {d:?}");
         let z = d.i(&[0..3usize, 0..1])?;
         println!("z: {z:?}");
+
+        assert_eq!(z.f32_ref()?, &[1.0, 5.0, 9.0]); // #PYTHON list(d[ 0:3, 0:1].view(-1).tolist())
 
         Ok(())
     }
