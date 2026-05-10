@@ -1,4 +1,6 @@
-//! Implements Debug.
+//! Implements Debug and provides string conversion.
+//!
+//! Printing is not a light operation, and may copy tensors to be able to print them.
 use crate::core_methods::CoreMethods;
 use crate::data::DataRef;
 use crate::properties::TensorProperties;
@@ -95,6 +97,9 @@ fn tensor_format<T: PrintRequirements>(t: &T, options: &TensorPrintOptions) -> S
 
     let determine_width = |o: &T| -> usize {
         let mut m = 0;
+        // This is not great... but we need a contiguous tensor here to iterate over it in 1d.
+        // Should we implement ravel and have it return an enum?
+        let o = (*o).contiguous().unwrap();
         let linear = o.view(&[o.numel()]).unwrap();
         for i in 0..o.numel() {
             m = m.max(linear.d_fmt(&[i], &options.scalar_options).unwrap().len())

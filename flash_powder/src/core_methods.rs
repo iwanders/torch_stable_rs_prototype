@@ -27,7 +27,7 @@ use torch_stable::{
 };
 use torch_stable::{aoti_torch::*, unsafe_call_dispatch_panic};
 
-use torch_stable::headeronly::core::ScalarType;
+use torch_stable::headeronly::core::{MemoryFormat, ScalarType};
 #[derive(Copy, Clone, Debug)]
 pub struct MeanOptions {
     pub dim: Option<usize>,
@@ -148,6 +148,18 @@ pub trait CoreMethods: TensorAccess + TensorProperties {
         unsafe_call_dispatch_panic!("aten::_lazy_clone", "", stack.as_mut_slice());
         let r: Tensor = Tensor::new(stack[0].try_into().unwrap());
         Ok(r)
+    }
+    /// Copied contigous version of tensor.
+    ///
+    /// Contrary to pytorch, this ALWAYS returns a copy.
+    /// - [native_functions.yaml](https://github.com/pytorch/pytorch/blob/v2.12.0-rc9/aten/src/ATen/native/native_functions.yaml#L1715)
+    /// - [pytorch method](https://docs.pytorch.org/docs/2.11/generated/torch.Tensor.contiguous.html)
+    fn contiguous(&self) -> StableTorchResult<Tensor> {
+        let mut stack: [StableIValue; 2] =
+            [(self.get_tensor()).into(), MemoryFormat::Contiguous.into()];
+        unsafe_call_dispatch_panic!("aten::contiguous", "", stack.as_mut_slice());
+        let r: Tensor = Tensor::new(stack[0].try_into().unwrap());
+        Ok(r.clone())
     }
 }
 impl CoreMethods for Tensor {}
