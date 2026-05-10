@@ -29,6 +29,7 @@ pub mod index;
 pub mod properties;
 pub mod size;
 
+#[doc(hidden)]
 pub mod printing;
 pub mod tensor;
 pub mod torch;

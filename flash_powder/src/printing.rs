@@ -51,7 +51,6 @@ impl ScalarPrintOptions {
 pub struct TensorPrintOptions {
     pub print_options: PrintOptions,
     pub scalar_options: ScalarPrintOptions,
-    pub prefix: &'static str,
 }
 
 // formatter's new method is experimental... so I can't create a formatter to just test my printoptions.
@@ -67,12 +66,17 @@ pub fn set_printoptions(options: &PrintOptions) {
     *(GLOBAL_PRINT_YUCK.lock().unwrap()) = *options;
 }
 
+pub trait PrintRequirements: TensorAccess + TensorProperties + CoreMethods + DataRef {}
+impl<T: TensorAccess + TensorProperties + CoreMethods + DataRef> PrintRequirements for T {}
+
 // https://github.com/pytorch/pytorch/blob/8f8409cae86d725a75e2ac54ce8f93def107ced7/torch/_tensor_str.py#L130
 //
 // They do two passess, one to determine the width of the elements, then another to actually print.
-pub fn tensor_format<T: TensorAccess + TensorProperties + CoreMethods + DataRef>(
+fn tensor_format<T: PrintRequirements>(
     t: &T,
+    indent: usize,
     options: &TensorPrintOptions,
+    summarize: bool,
 ) -> String {
     // https://github.com/pytorch/pytorch/blob/8f8409cae86d725a75e2ac54ce8f93def107ced7/torch/_tensor_str.py#L242
     let vector_str = |indent: usize, o: &T, element_width: usize, summarize: bool| -> String {
@@ -126,45 +130,59 @@ pub fn tensor_format<T: TensorAccess + TensorProperties + CoreMethods + DataRef>
         let mut slices: Vec<String> = vec![];
         // https://github.com/pytorch/pytorch/blob/8f8409cae86d725a75e2ac54ce8f93def107ced7/torch/_tensor_str.py#L304
         if summarize && t.size(0) > 2 * options.print_options.edgeitems {
-            todo!();
+            slices.extend((0..options.print_options.edgeitems).map(|i| {
+                tensor_format(
+                    &crate::torch::select(t, 0, i).unwrap(),
+                    indent,
+                    options,
+                    summarize,
+                )
+            }));
+            slices.push("...".to_owned());
+            slices.extend(
+                (t.size(0) - (options.print_options.edgeitems)..t.size(0)).map(|i| {
+                    tensor_format(
+                        &crate::torch::select(t, 0, i).unwrap(),
+                        indent,
+                        options,
+                        summarize,
+                    )
+                }),
+            );
         } else {
-            todo!();
+            slices = (0..t.size(0))
+                .map(|i| {
+                    tensor_format(
+                        &crate::torch::select(t, 0, i).unwrap(),
+                        indent,
+                        options,
+                        summarize,
+                    )
+                })
+                .collect();
         }
         r += "[";
-        // let lines = element_str.chunks(elements_per_line);
-        // let lines: Vec<String> = lines.map(|z| z.join(", ")).collect();
-        let joiner = format!(",{}{}", "\n".repeat(o.dim() - 1), " ".repeat(indent + 1));
+        let joiner = format!(",{}{}", "\n".repeat(o.dim() - 1), " ".repeat(indent));
         r += &slices.join(&joiner);
         r += "]";
         r
     };
 
-    let tensor_str_with_formatter = |v: &T, indent: usize, summarize: bool| -> String {
-        if v.dim() == 0 {
-            format!(
-                "{}({})",
-                options.prefix,
-                v.d_fmt(&[], &options.scalar_options).unwrap()
-            )
-        } else if v.dim() == 1 {
-            let element_width = determine_width(t);
+    if t.dim() == 0 {
+        format!("{}", t.d_fmt(&[], &options.scalar_options).unwrap())
+    } else if t.dim() == 1 {
+        let element_width = determine_width(t);
 
-            let mut r = format!("{}(", options.prefix);
-            r += &vector_str(options.prefix.len() + 2, v, element_width, summarize);
-            r += ")\n";
-            r
-        } else {
-            let mut r = format!("{}(", options.prefix);
-            r += &tensor_str(indent + 1, v, summarize);
-            // r += &tensor_format(v, &options);
-            r += ")\n";
-            r
-        }
-    };
-
-    let summarize = t.numel() > options.print_options.threshold;
-    tensor_str_with_formatter(t, options.prefix.len(), summarize)
+        let mut r = String::new();
+        r += &vector_str(indent + 1, t, element_width, summarize);
+        r
+    } else {
+        let mut r = String::new();
+        r += &tensor_str(indent + 1, t, summarize);
+        r
+    }
 }
+
 fn tensor_format_with_formatter<T: TensorAccess + TensorProperties + CoreMethods + DataRef>(
     t: &T,
     prefix: &'static str,
@@ -174,7 +192,6 @@ fn tensor_format_with_formatter<T: TensorAccess + TensorProperties + CoreMethods
         let l = GLOBAL_PRINT_YUCK.lock().unwrap();
         *l
     };
-
     let mut scalar_options = ScalarPrintOptions::default();
     if let Some(provided_precision) = fmt.precision() {
         scalar_options.precision = Some(provided_precision);
@@ -185,11 +202,14 @@ fn tensor_format_with_formatter<T: TensorAccess + TensorProperties + CoreMethods
     let print_options = TensorPrintOptions {
         print_options,
         scalar_options,
-        prefix,
     };
 
-    let tensor_formatted = tensor_format(t, &print_options);
-    fmt.write_fmt(format_args!("{}", tensor_formatted))
+    let summarize = t.numel() > print_options.print_options.threshold;
+
+    let mut r = format!("{}(", prefix);
+    r += &tensor_format(t, r.len(), &print_options, summarize);
+    r += ")";
+    fmt.write_fmt(format_args!("{}", r))
 }
 
 impl std::fmt::Debug for Tensor {
@@ -240,6 +260,16 @@ mod test {
 
         println!("randn:\n{:?}", Tensor::randn(&[10], &Default::default())?);
         println!("randn:\n{:?}", Tensor::randn(&[5000], &Default::default())?);
+
+        println!(
+            "randn:\n{:?}",
+            Tensor::randn(&[50, 50], &Default::default())?
+        );
+        println!(
+            "randn:\n{:?}",
+            Tensor::randn(&[50, 50, 10], &Default::default())?
+        );
+
         Ok(())
     }
 }
