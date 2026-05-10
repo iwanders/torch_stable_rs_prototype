@@ -1,3 +1,4 @@
+//! Implements Debug.
 use crate::core_methods::CoreMethods;
 use crate::data::DataRef;
 use crate::properties::TensorProperties;
@@ -51,6 +52,20 @@ impl ScalarPrintOptions {
 pub struct TensorPrintOptions {
     pub print_options: PrintOptions,
     pub scalar_options: ScalarPrintOptions,
+    pub element_width: Option<usize>,
+    pub summarize: Option<bool>,
+    pub indent: usize,
+}
+impl Default for TensorPrintOptions {
+    fn default() -> Self {
+        Self {
+            print_options: Default::default(),
+            scalar_options: Default::default(),
+            summarize: None,
+            indent: 0,
+            element_width: None,
+        }
+    }
 }
 
 // formatter's new method is experimental... so I can't create a formatter to just test my printoptions.
@@ -72,12 +87,23 @@ impl<T: TensorAccess + TensorProperties + CoreMethods + DataRef> PrintRequiremen
 // https://github.com/pytorch/pytorch/blob/8f8409cae86d725a75e2ac54ce8f93def107ced7/torch/_tensor_str.py#L130
 //
 // They do two passess, one to determine the width of the elements, then another to actually print.
-fn tensor_format<T: PrintRequirements>(
-    t: &T,
-    indent: usize,
-    options: &TensorPrintOptions,
-    summarize: bool,
-) -> String {
+fn tensor_format<T: PrintRequirements>(t: &T, options: &TensorPrintOptions) -> String {
+    let indent = options.indent;
+    let summarize = options
+        .summarize
+        .unwrap_or(t.numel() > options.print_options.threshold);
+
+    let determine_width = |o: &T| -> usize {
+        let mut m = 0;
+        let linear = o.view(&[o.numel()]).unwrap();
+        for i in 0..o.numel() {
+            m = m.max(linear.d_fmt(&[i], &options.scalar_options).unwrap().len())
+        }
+        m
+    };
+    let mut options = options.clone();
+    let element_width = options.element_width.unwrap_or(determine_width(t));
+    options.element_width = Some(element_width);
     // https://github.com/pytorch/pytorch/blob/8f8409cae86d725a75e2ac54ce8f93def107ced7/torch/_tensor_str.py#L242
     let vector_str = |indent: usize, o: &T, element_width: usize, summarize: bool| -> String {
         let mut r = String::new();
@@ -115,50 +141,26 @@ fn tensor_format<T: PrintRequirements>(
         r += "]";
         r
     };
-    let determine_width = |o: &T| -> usize {
-        let mut m = 0;
-        let linear = o.view(&[o.numel()]).unwrap();
-        for i in 0..o.numel() {
-            m = m.max(linear.d_fmt(&[i], &options.scalar_options).unwrap().len())
-        }
-        m
-    };
-
     let tensor_str = |indent: usize, o: &T, summarize: bool| -> String {
+        let mut options = options;
+        options.indent += 1;
         let mut r = String::new();
         // Okay... the big one.
         let mut slices: Vec<String> = vec![];
         // https://github.com/pytorch/pytorch/blob/8f8409cae86d725a75e2ac54ce8f93def107ced7/torch/_tensor_str.py#L304
         if summarize && t.size(0) > 2 * options.print_options.edgeitems {
-            slices.extend((0..options.print_options.edgeitems).map(|i| {
-                tensor_format(
-                    &crate::torch::select(t, 0, i).unwrap(),
-                    indent,
-                    options,
-                    summarize,
-                )
-            }));
+            slices.extend(
+                (0..options.print_options.edgeitems)
+                    .map(|i| tensor_format(&crate::torch::select(t, 0, i).unwrap(), &options)),
+            );
             slices.push("...".to_owned());
             slices.extend(
-                (t.size(0) - (options.print_options.edgeitems)..t.size(0)).map(|i| {
-                    tensor_format(
-                        &crate::torch::select(t, 0, i).unwrap(),
-                        indent,
-                        options,
-                        summarize,
-                    )
-                }),
+                (t.size(0) - (options.print_options.edgeitems)..t.size(0))
+                    .map(|i| tensor_format(&crate::torch::select(t, 0, i).unwrap(), &options)),
             );
         } else {
             slices = (0..t.size(0))
-                .map(|i| {
-                    tensor_format(
-                        &crate::torch::select(t, 0, i).unwrap(),
-                        indent,
-                        options,
-                        summarize,
-                    )
-                })
+                .map(|i| tensor_format(&crate::torch::select(t, 0, i).unwrap(), &options))
                 .collect();
         }
         r += "[";
@@ -188,7 +190,7 @@ fn tensor_format_with_formatter<T: TensorAccess + TensorProperties + CoreMethods
     prefix: &'static str,
     fmt: &mut std::fmt::Formatter<'_>,
 ) -> std::fmt::Result {
-    let print_options = {
+    let global_options = {
         let l = GLOBAL_PRINT_YUCK.lock().unwrap();
         *l
     };
@@ -196,18 +198,19 @@ fn tensor_format_with_formatter<T: TensorAccess + TensorProperties + CoreMethods
     if let Some(provided_precision) = fmt.precision() {
         scalar_options.precision = Some(provided_precision);
     } else {
-        scalar_options.precision = Some(print_options.precision);
+        scalar_options.precision = Some(global_options.precision);
     }
 
+    let mut r = format!("{}(", prefix);
     let print_options = TensorPrintOptions {
-        print_options,
+        print_options: global_options,
         scalar_options,
+        indent: r.len(),
+        summarize: None,
+        element_width: None,
     };
 
-    let summarize = t.numel() > print_options.print_options.threshold;
-
-    let mut r = format!("{}(", prefix);
-    r += &tensor_format(t, r.len(), &print_options, summarize);
+    r += &tensor_format(t, &print_options);
     r += ")";
     fmt.write_fmt(format_args!("{}", r))
 }
@@ -228,6 +231,10 @@ impl std::fmt::Debug for Ten<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         tensor_format_with_formatter(self, "Ten", f)
     }
+}
+
+pub fn data_to_string<T: PrintRequirements>(v: &T, options: &TensorPrintOptions) -> String {
+    tensor_format(v, &options)
 }
 
 #[cfg(test)]
@@ -253,21 +260,70 @@ mod test {
         assert_eq!(d.sizes(), &[4, 4]); // #PYTHON list(d.shape)
 
         // 0d
-        let sub_0d = d.i((0, 0))?;
-        println!("sub_0d:\n{sub_0d:?}");
-        let sub_1d = d.view(&[d.numel()])?;
-        println!("sub_1d:\n{sub_1d:?}");
+        if false {
+            let sub_0d = d.i((0, 0))?;
+            println!("sub_0d:\n{sub_0d:?}");
+            let sub_1d = d.view(&[d.numel()])?;
+            println!("sub_1d:\n{sub_1d:?}");
 
-        println!("randn:\n{:?}", Tensor::randn(&[10], &Default::default())?);
-        println!("randn:\n{:?}", Tensor::randn(&[5000], &Default::default())?);
+            println!("randn:\n{:?}", Tensor::randn(&[10], &Default::default())?);
+            println!("randn:\n{:?}", Tensor::randn(&[5000], &Default::default())?);
 
-        println!(
-            "randn:\n{:?}",
-            Tensor::randn(&[50, 50], &Default::default())?
+            println!(
+                "randn:\n{:?}",
+                Tensor::randn(&[50, 50], &Default::default())?
+            );
+            println!(
+                "randn:\n{:?}",
+                Tensor::randn(&[50, 50, 10], &Default::default())?
+            );
+        }
+
+        let d_1d = data_to_string(&d.view(&[d.numel()])?, &Default::default());
+        assert_eq!(
+            d_1d,
+            "[ 1.0,  2.0,  3.0,  4.0,  5.0,  6.0,  7.0,  8.0,  9.0, 10.0, 11.0, 12.0, 13.0,\n \
+               14.0, 15.0, 16.0]"
         );
-        println!(
-            "randn:\n{:?}",
-            Tensor::randn(&[50, 50, 10], &Default::default())?
+        let d_2d = data_to_string(&d.view(&[4, 4])?, &Default::default());
+        // println!("{d_2d}");
+        assert_eq!(
+            d_2d,
+            "[[1.0, 2.0, 3.0, 4.0],\n \
+              [5.0, 6.0, 7.0, 8.0],\n \
+              [ 9.0, 10.0, 11.0, 12.0],\n \
+              [13.0, 14.0, 15.0, 16.0]]"
+        );
+        let d_3d = data_to_string(&d.view(&[2, 2, 4])?, &Default::default());
+        // println!("{d_3d}");
+        assert_eq!(
+            d_3d,
+            "[[[1.0, 2.0, 3.0, 4.0],\n  \
+            [5.0, 6.0, 7.0, 8.0]],\n\n \
+            [[ 9.0, 10.0, 11.0, 12.0],\n  \
+            [13.0, 14.0, 15.0, 16.0]]]"
+        );
+
+        let p = TensorPrintOptions {
+            print_options: PrintOptions {
+                precision: 3,
+                threshold: 10,
+                edgeitems: 1,
+                linewidth: 80,
+            },
+            scalar_options: Default::default(),
+            element_width: None,
+            summarize: Some(true),
+            indent: 0,
+        };
+
+        let d_2d = data_to_string(&d.view(&[4, 4])?, &p);
+        // println!("{d_2d}");
+        assert_eq!(
+            d_2d,
+            "[[1.0, ..., 4.0],\n \
+              ...,\n \
+              [13.0, ..., 16.0]]"
         );
 
         Ok(())

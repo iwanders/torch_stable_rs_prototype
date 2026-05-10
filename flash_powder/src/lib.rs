@@ -20,7 +20,8 @@
 //! - Modifying one tensor will not modify another, unless through an mutable borrow.
 //! - Rust style lifetimes on tensors, either tied together with an explicit lifetime, or completely separate.
 
-pub mod conversion;
+pub mod torch;
+
 pub mod core_methods;
 pub mod data;
 pub mod factory;
@@ -28,11 +29,10 @@ pub mod functional;
 pub mod index;
 pub mod properties;
 pub mod size;
-
-#[doc(hidden)]
-pub mod printing;
 pub mod tensor;
-pub mod torch;
+
+pub mod conversion;
+pub mod printing;
 
 use tensor::{Ten, TenMut, Tensor, TensorAccess};
 pub use torch_stable::{StableTorchResult, headeronly::core::ScalarType};
