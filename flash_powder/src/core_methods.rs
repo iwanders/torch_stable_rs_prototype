@@ -151,11 +151,7 @@ impl<'a> Ten<'a> {
     /// - [pytorch equivalent](https://docs.pytorch.org/docs/2.11/generated/torch.Tensor.narrow.html)
     pub fn narrow(&self, dim: usize, start: isize, length: usize) -> StableTorchResult<Ten<'a>> {
         // https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L4489
-        let length = if start < 0 {
-            (self.sizes()[dim] as isize + start) as usize + 1
-        } else {
-            length
-        };
+
         let mut stack: [StableIValue; 4] = [
             self.get_tensor().into(),
             dim.into(),

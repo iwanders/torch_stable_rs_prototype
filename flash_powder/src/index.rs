@@ -81,7 +81,12 @@ trait TensorIndexWorker: TensorAccess + TensorProperties + CoreMethods {
                     do_dim_add = false;
                 }
                 TensorIndexOptions::Range(range) => {
-                    current = current.narrow(dim, range.start, range.len())?;
+                    let length = if range.start < 0 {
+                        (self.sizes()[dim] as isize + range.start) as usize + 1
+                    } else {
+                        range.len()
+                    };
+                    current = current.narrow(dim, range.start, length)?;
                 }
                 TensorIndexOptions::RangeWithStride { range, stride } => todo!(),
             }
