@@ -196,9 +196,10 @@ class RustNode:
         is_ref = False
         is_array_esque = False
         rust_type = ""
+        print(self.children)
         for i, z in enumerate(self.children):
             if isinstance(z, str):
-                if i == 0 and z.strip() == "&":
+                if i == 0 and z.strip().startswith("&"):
                     is_ref = True
                 if z.strip() == "[":
                     is_array_esque = True
@@ -287,13 +288,19 @@ def test_rust_format_payload():
     assert format_payload_as_rust(3.3, rust_type="f32") == "3.3f32"
     assert format_payload_as_rust(3.3, rust_type="f32") == "3.3f32"
     assert format_payload_as_rust(3.3, rust_type="&f32") == "&3.3f32"
+    assert format_payload_as_rust(3.3, rust_type="&") == "&3.3"
+    assert format_payload_as_rust(3.3, rust_type="&f32") == "&3.3f32"
     assert format_payload_as_rust(3.3, rust_type="&[f32]") == "&[3.3f32]"
     assert format_payload_as_rust(3.3, rust_type="[f32]") == "[3.3f32]"
     assert format_payload_as_rust([3.3, 5.5], rust_type="[f32]") == "[3.3f32, 5.5]"
     assert format_payload_as_rust([3.3, 5.5], rust_type="[]") == "[3.3, 5.5]"
     assert format_payload_as_rust([3, 5], rust_type="[]") == "[3, 5]"
     assert format_payload_as_rust([3, 5], rust_type="&") == "&[3, 5]"
-    sys.exit(0)
+
+    ref_to_str = RustNode(children=["&3.3"])
+    print(ref_to_str.determine_type())
+    assert ref_to_str.determine_type() == "&"
+    sys.exit(1)
 
 
 # test_rust_format_payload()
