@@ -10,7 +10,7 @@ use crate::{
     properties::TensorProperties,
     tensor::{Ten, TenMut, Tensor, TensorAccess},
 };
-use torch_stable::StableTorchResult;
+use torch_stable::{contrib::TensorPropertiesContrib as _, StableTorchResult};
 
 macro_rules! impl_slice_ref {
     ($t:ty, $v:ident) => {
@@ -34,13 +34,13 @@ macro_rules! impl_item_ref {
 /// These methods are only valid if the data is on the CPU.
 pub trait DataRef: TensorAccess + TensorProperties {
     /// Direct access to the byte slice backing the tensor.
+    /// This always provides the ENTIRE storage slice, and does materialize the data if we're in a COW situation.
     fn u8s_ref(&self) -> StableTorchResult<&[u8]> {
         let z = self.get_tensor();
-        let element_size = z.element_size();
-        let elements = z.numel();
-        let data_ptr = z.const_data_ptr();
+        // https://github.com/pytorch/pytorch/blob/ec673ecd/c10/core/TensorImpl.h#L743-L756
+        let data_ptr = z.data_ptr();
         if z.is_cpu() {
-            Ok(unsafe { std::slice::from_raw_parts(data_ptr, elements * element_size) })
+            Ok(unsafe { std::slice::from_raw_parts(data_ptr, z.storage_size()) })
         } else {
             bail!("tensor must be on cpu to access slice")
         }
@@ -62,8 +62,24 @@ pub trait DataRef: TensorAccess + TensorProperties {
         &self,
         index: &[usize],
     ) -> StableTorchResult<&T> {
-        let mut offset = self.storage_offset();
+        if index.len() > self.dim() {
+            bail!(
+                "indices provided {} dim, tensor is {} dim",
+                index.len(),
+                self.dim()
+            )
+        }
+
+        let mut offset = 0;
         for (dim, index) in index.iter().enumerate() {
+            if *index > self.sizes()[dim] {
+                bail!(
+                    "index {} for dimension {} exceeded size {}",
+                    index,
+                    dim,
+                    self.sizes()[dim]
+                );
+            }
             offset += self.stride(dim) * index;
         }
         if std::mem::size_of::<T>() != self.element_size() {
@@ -74,6 +90,13 @@ pub trait DataRef: TensorAccess + TensorProperties {
             )
         }
         let size = std::mem::size_of::<T>();
+        if std::mem::size_of::<T>() != self.element_size() {
+            bail!(
+                "indexing with element size of {} which does not match {}",
+                std::mem::size_of::<T>(),
+                self.element_size()
+            )
+        }
         let byte_ref = &self.u8s_ref()?[offset * size..size * (offset + 1)];
         match <T>::try_ref_from_bytes(byte_ref) {
             Ok(e) => Ok(e),
@@ -134,11 +157,10 @@ pub trait DataMut: TensorAccess + TensorProperties {
     /// Direct access to the mutable byte slice backing the tensor.
     fn u8s_mut(&mut self) -> StableTorchResult<&mut [u8]> {
         let z = self.get_tensor_mut();
-        let element_size = z.element_size();
-        let elements = z.numel();
-        let data_ptr = z.mutable_data_ptr();
+        // https://github.com/pytorch/pytorch/blob/ec673ecd/c10/core/TensorImpl.h#L743-L756
+        let data_ptr = z.data_ptr();
         if z.is_cpu() {
-            Ok(unsafe { std::slice::from_raw_parts_mut(data_ptr, elements * element_size) })
+            Ok(unsafe { std::slice::from_raw_parts_mut(data_ptr, z.storage_size()) })
         } else {
             bail!("tensor must be on cpu to access slice")
         }
@@ -160,9 +182,32 @@ pub trait DataMut: TensorAccess + TensorProperties {
         &mut self,
         index: &[usize],
     ) -> StableTorchResult<&mut T> {
-        let mut offset = self.storage_offset();
+        if index.len() > self.dim() {
+            bail!(
+                "indices provided {} dim, tensor is {} dim",
+                index.len(),
+                self.dim()
+            )
+        }
+
+        let mut offset = 0;
         for (dim, index) in index.iter().enumerate() {
+            if *index > self.sizes()[dim] {
+                bail!(
+                    "index {} for dimension {} exceeded size {}",
+                    index,
+                    dim,
+                    self.sizes()[dim]
+                );
+            }
             offset += self.stride(dim) * index;
+        }
+        if std::mem::size_of::<T>() != self.element_size() {
+            bail!(
+                "indexing with element size of {} which does not match {}",
+                std::mem::size_of::<T>(),
+                self.element_size()
+            )
         }
         if std::mem::size_of::<T>() != self.element_size() {
             bail!(
@@ -245,6 +290,7 @@ mod test {
 
         assert_eq!(z.sizes(), &[4, 3]); // #PYTHON list(z.shape)
         assert_eq!(z.is_contiguous(), false);
+        assert_eq!(z.storage_offset(), 0);
 
         assert_eq!(z.f32_ref(&[0, 0])?, &1.0); // #PYTHON z[ 0,  0].item()
         assert_eq!(z.f32_ref(&[0, 1])?, &2.0); // #PYTHON z[ 0,  1].item()
@@ -265,6 +311,33 @@ mod test {
         assert_eq!(z.f32_ref(&[0, 2])?, &50.0); // #PYTHON z[ 0,  2].item()
         assert_eq!(z.f32_ref(&[1, 2])?, &100.0); // #PYTHON z[ 1,  2].item()
 
+        /*
+            #|PYTHON
+            y = torch.narrow(d, 1, 1, 3)
+        */
+
+        // Do something with a storage offset.
+        let y = d.narrow(1, 1, 3)?;
+        println!("y: {y:?}");
+        assert_eq!(y.sizes(), &[4, 3]); // #PYTHON list(y.shape)
+        assert_eq!(y.is_contiguous(), false);
+        assert_eq!(y.storage_offset(), 1);
+        assert_eq!(y.f32_ref(&[0, 2])?, &4.0); // #PYTHON y[ 0,  2].item()
+        assert_eq!(y.f32_ref(&[1, 2])?, &8.0); // #PYTHON y[ 1,  2].item()
+
+        /*
+            #|PYTHON
+            x = torch.narrow(d, 1, 1, 3).narrow(0, 1, 3)
+        */
+
+        // Do something with a storage offset.
+        let x = d.narrow(1, 1, 3)?.narrow(0, 1, 3)?;
+        println!("x: {x:?}");
+        assert_eq!(x.sizes(), &[3, 3]); // #PYTHON list(x.shape)
+        assert_eq!(x.is_contiguous(), false);
+        assert_eq!(x.storage_offset(), 5);
+        assert_eq!(x.f32_ref(&[0, 2])?, &8.0); // #PYTHON x[ 0,  2].item()
+        assert_eq!(x.f32_ref(&[1, 2])?, &12.0); // #PYTHON x[ 1,  2].item()
         Ok(())
     }
 }

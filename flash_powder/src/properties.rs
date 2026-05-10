@@ -61,6 +61,11 @@ pub trait TensorProperties: TensorAccess {
         self.get_tensor().element_size()
     }
 
+    /// Returns the storage offset of the tensor.
+    ///
+    /// In number of elements.
+    ///
+    /// - [stable docs](https://github.com/pytorch/pytorch/blob/7ee00f187cb55019d648efc6779c0925f643f01c/torch/csrc/stable/tensor_struct.h#L382-L397)
     fn storage_offset(&self) -> usize {
         self.get_tensor().storage_offset()
     }

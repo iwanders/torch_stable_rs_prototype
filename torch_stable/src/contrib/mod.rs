@@ -23,7 +23,7 @@ use crate::aoti_torch::AtenTensorHandle;
 use crate::headeronly::core::ScalarType;
 use crate::stable::ops::EmtpyOptions;
 use crate::stable::tensor::Tensor;
-use crate::{StableTorchResult, unsafe_call_bail};
+use crate::{StableTorchResult, unsafe_call_bail, unsafe_call_panic};
 use crate::{aoti_torch::*, unsafe_call_dispatch_bail};
 use zerocopy::{Immutable, IntoBytes, TryFromBytes};
 
@@ -212,13 +212,17 @@ impl Arange for Tensor {
     }
 }
 
-pub trait Indexing<T> {
-    fn i(&self, i: T) -> StableTorchResult<Tensor>;
+pub trait TensorPropertiesContrib {
+    fn storage_size(&self) -> usize;
 }
-
-impl Indexing<std::ops::Range<usize>> for Tensor {
-    fn i(&self, _i: std::ops::Range<usize>) -> StableTorchResult<Tensor> {
-        todo!()
+impl TensorPropertiesContrib for Tensor {
+    fn storage_size(&self) -> usize {
+        let mut storage_size: i64 = 0;
+        unsafe_call_panic!(aoti_torch_get_storage_size(self.get(), &mut storage_size));
+        if storage_size < 0 {
+            panic!("storage_offset got negative value");
+        }
+        storage_size as usize
     }
 }
 

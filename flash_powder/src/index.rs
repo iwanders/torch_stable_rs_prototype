@@ -78,7 +78,7 @@ pub trait TensorIndex: TensorAccess + TensorProperties + CoreMethods {
         // Make a view into the tensor, we'll be updating this as we go through the indexing operations.
         let mut current = self.view(self.sizes())?;
         // let mut dim = self.dim();
-        for (index_op_conv, dim) in index.iter().zip((0..index.len()).rev()) {
+        for (index_op_conv, dim) in index.iter().zip((0..index.len())) {
             // dim -= 1;
             let index_op: TensorIndexOptions<'_> = index_op_conv.into();
             match index_op {
@@ -124,10 +124,20 @@ mod test {
         ); // #PYTHON list(d.view(-1).tolist())
 
         println!("d: {d:?}");
-        let z = d.i(&[0..3usize, 0..1])?;
-        println!("z: {z:?}");
+        let z = d.i(&[1..3usize, 0..1])?;
+        /*
+            #|PYTHON
+            z = d[1:3, 0:1]
+        */
 
-        assert_eq!(z.f32s_ref()?, &[1.0, 5.0, 9.0]); // #PYTHON list(d[ 0:3, 0:1].view(-1).tolist())
+        println!("z: {z:?}");
+        assert_eq!(z.sizes(), &[2, 1]); // #PYTHON list(z.shape)
+        assert_eq!(z.stride(0), 4); // #PYTHON  (z.stride(0))
+        assert_eq!(z.stride(1), 1); // #PYTHON  (z.stride(1))
+        assert_eq!(z.f32_ref(&[0, 0])?, &5.0); // #PYTHON z[0,0].item()
+        assert_eq!(z.f32_ref(&[1, 0])?, &9.0); // #PYTHON z[1,0].item()
+
+        //assert_eq!(z.f32s_ref()?,&[1.0, 5.0, 9.0]); // #PYTHON list(d[ 0:3, 0:1].view(-1).tolist())
 
         Ok(())
     }
