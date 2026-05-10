@@ -208,6 +208,13 @@ impl From<usize> for StableIValue {
     }
 }
 
+impl From<isize> for StableIValue {
+    fn from(value: isize) -> Self {
+        let bitwise_value: u64 = u64::from_ne_bytes(value.to_ne_bytes());
+        Self(bitwise_value)
+    }
+}
+
 impl From<f64> for StableIValue {
     fn from(value: f64) -> Self {
         Self(value.to_bits())
