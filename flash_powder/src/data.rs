@@ -12,7 +12,28 @@ use crate::{
 };
 use torch_stable::StableTorchResult;
 
+macro_rules! impl_slice_ref {
+    ($t:ty, $v:ident) => {
+        fn $v(&self) -> StableTorchResult<&[$t]> {
+            self.ds_ref::<$t>()
+        }
+    };
+}
+macro_rules! impl_item_ref {
+    ($t:ty, $v:ident) => {
+        fn $v(&self, indices: &[usize]) -> StableTorchResult<&$t> {
+            self.d_ref::<$t>(indices)
+        }
+    };
+}
+
+/// Access data in the tensor through a reference.
+///
+/// Methods ending with 's' return a slice.
+///
+/// These methods are only valid if the data is on the CPU.
 pub trait DataRef: TensorAccess + TensorProperties {
+    /// Direct access to the byte slice backing the tensor.
     fn u8s_ref(&self) -> StableTorchResult<&[u8]> {
         let z = self.get_tensor();
         let element_size = z.element_size();
@@ -24,23 +45,10 @@ pub trait DataRef: TensorAccess + TensorProperties {
             bail!("tensor must be on cpu to access slice")
         }
     }
-    fn f32s_ref(&self) -> StableTorchResult<&[f32]> {
-        let byte_ref = self.u8s_ref()?;
-        use zerocopy::TryFromBytes;
-        match <[f32]>::try_ref_from_bytes(byte_ref) {
-            Ok(e) => Ok(e),
-            Err(z) => bail!("failed slice conversion: {z:?}"),
-        }
-    }
 
-    fn f64s_ref(&self) -> StableTorchResult<&[f64]> {
-        let byte_ref = self.u8s_ref()?;
-        use zerocopy::TryFromBytes;
-        match <[f64]>::try_ref_from_bytes(byte_ref) {
-            Ok(e) => Ok(e),
-            Err(z) => bail!("failed slice conversion: {z:?}"),
-        }
-    }
+    /// Access to the slice spanning the entire tensor data.
+    ///
+    /// Zerocopy cast of [`Self::u8s_ref`] to `&[T]`.
     fn ds_ref<T: IntoBytes + TryFromBytes + Immutable>(&self) -> StableTorchResult<&[T]> {
         let byte_ref = self.u8s_ref()?;
         match <[T]>::try_ref_from_bytes(byte_ref) {
@@ -49,6 +57,7 @@ pub trait DataRef: TensorAccess + TensorProperties {
         }
     }
 
+    /// Element reference to element at the provided indices.
     fn d_ref<T: IntoBytes + TryFromBytes + Immutable + KnownLayout>(
         &self,
         index: &[usize],
@@ -72,15 +81,57 @@ pub trait DataRef: TensorAccess + TensorProperties {
         }
     }
 
-    fn f32_ref(&self, indices: &[usize]) -> StableTorchResult<&f32> {
-        self.d_ref::<f32>(indices)
-    }
+    impl_slice_ref!(f32, f32s_ref);
+    impl_slice_ref!(f64, f64s_ref);
+
+    impl_slice_ref!(u16, u16s_ref);
+    impl_slice_ref!(u32, u32s_ref);
+    impl_slice_ref!(u64, u64s_ref);
+
+    impl_slice_ref!(i8, i8s_ref);
+    impl_slice_ref!(i16, i16s_ref);
+    impl_slice_ref!(i32, i32s_ref);
+    impl_slice_ref!(i64, i64s_ref);
+
+    impl_item_ref!(f32, f32_ref);
+    impl_item_ref!(f64, f64_ref);
+
+    impl_item_ref!(u16, u16_ref);
+    impl_item_ref!(u32, u32_ref);
+    impl_item_ref!(u64, u64_ref);
+
+    impl_item_ref!(i8, i8_ref);
+    impl_item_ref!(i16, i16_ref);
+    impl_item_ref!(i32, i32_ref);
+    impl_item_ref!(i64, i64_ref);
 }
+
 impl DataRef for Tensor {}
 impl<'a> DataRef for Ten<'a> {}
 impl<'a> DataRef for TenMut<'a> {}
 
+macro_rules! impl_slice_mut {
+    ($t:ty, $v:ident) => {
+        fn $v(&mut self) -> StableTorchResult<&mut [$t]> {
+            self.ds_mut::<$t>()
+        }
+    };
+}
+macro_rules! impl_item_mut {
+    ($t:ty, $v:ident) => {
+        fn $v(&mut self, indices: &[usize]) -> StableTorchResult<&mut $t> {
+            self.d_mut::<$t>(indices)
+        }
+    };
+}
+
+/// Access data in the tensor through a mutable reference.
+///
+/// Methods ending with 's' return a slice.
+///
+/// These methods are only valid if the data is on the CPU.
 pub trait DataMut: TensorAccess + TensorProperties {
+    /// Direct access to the mutable byte slice backing the tensor.
     fn u8s_mut(&mut self) -> StableTorchResult<&mut [u8]> {
         let z = self.get_tensor_mut();
         let element_size = z.element_size();
@@ -93,20 +144,9 @@ pub trait DataMut: TensorAccess + TensorProperties {
         }
     }
 
-    fn f32s_mut(&mut self) -> StableTorchResult<&mut [f32]> {
-        let byte_ref = self.u8s_mut()?;
-        match <[f32]>::try_mut_from_bytes(byte_ref) {
-            Ok(e) => Ok(e),
-            Err(z) => bail!("failed slice conversion: {z:?}"),
-        }
-    }
-    fn f64s_mut(&mut self) -> StableTorchResult<&mut [f64]> {
-        let byte_ref = self.u8s_mut()?;
-        match <[f64]>::try_mut_from_bytes(byte_ref) {
-            Ok(e) => Ok(e),
-            Err(z) => bail!("failed slice conversion: {z:?}"),
-        }
-    }
+    /// Access to the mutable slice spanning the entire tensor data.
+    ///
+    /// Zerocopy cast of [`Self::u8s_mut`] to `&mut [T]`.
     fn ds_mut<T: IntoBytes + TryFromBytes + Immutable>(&mut self) -> StableTorchResult<&mut [T]> {
         let byte_ref = self.u8s_mut()?;
         match <[T]>::try_mut_from_bytes(byte_ref) {
@@ -115,6 +155,7 @@ pub trait DataMut: TensorAccess + TensorProperties {
         }
     }
 
+    /// Element mutable reference to element at the provided indices.
     fn d_mut<T: IntoBytes + TryFromBytes + Immutable + KnownLayout>(
         &mut self,
         index: &[usize],
@@ -137,9 +178,30 @@ pub trait DataMut: TensorAccess + TensorProperties {
             Err(z) => bail!("failed slice conversion: {z:?}"),
         }
     }
-    fn f32_mut(&mut self, indices: &[usize]) -> StableTorchResult<&mut f32> {
-        self.d_mut::<f32>(indices)
-    }
+
+    impl_slice_mut!(f32, f32s_mut);
+    impl_slice_mut!(f64, f64s_mut);
+
+    impl_slice_mut!(u16, u16s_mut);
+    impl_slice_mut!(u32, u32s_mut);
+    impl_slice_mut!(u64, u64s_mut);
+
+    impl_slice_mut!(i8, i8s_mut);
+    impl_slice_mut!(i16, i16s_mut);
+    impl_slice_mut!(i32, i32s_mut);
+    impl_slice_mut!(i64, i64s_mut);
+
+    impl_item_mut!(f32, f32_mut);
+    impl_item_mut!(f64, f64_mut);
+
+    impl_item_mut!(u16, u16_mut);
+    impl_item_mut!(u32, u32_mut);
+    impl_item_mut!(u64, u64_mut);
+
+    impl_item_mut!(i8, i8_mut);
+    impl_item_mut!(i16, i16_mut);
+    impl_item_mut!(i32, i32_mut);
+    impl_item_mut!(i64, i64_mut);
 }
 impl DataMut for Tensor {}
 impl<'a> DataMut for TenMut<'a> {}
@@ -172,10 +234,10 @@ mod test {
             ]
         ); // #PYTHON list(d.view(-1).tolist())
 
-        assert_eq!(d.d_ref::<f32>(&[2, 2])?, &11.0); // #PYTHON d[2, 2].item()
-        assert_eq!(d.d_ref::<f32>(&[2, 3])?, &12.0); // #PYTHON d[2, 3].item()
-        assert_eq!(d.d_ref::<f32>(&[0, 3])?, &4.0); // #PYTHON d[0, 3].item()
-        assert_eq!(d.d_ref::<f32>(&[3, 0])?, &13.0); // #PYTHON d[3, 0].item()
+        assert_eq!(d.f32_ref(&[2, 2])?, &11.0); // #PYTHON d[2, 2].item()
+        assert_eq!(d.f32_ref(&[2, 3])?, &12.0); // #PYTHON d[2, 3].item()
+        assert_eq!(d.f32_ref(&[0, 3])?, &4.0); // #PYTHON d[0, 3].item()
+        assert_eq!(d.f32_ref(&[3, 0])?, &13.0); // #PYTHON d[3, 0].item()
 
         println!("d: {d:?}");
         let mut z = d.narrow_mut(1, 0, 3)?;
@@ -184,12 +246,12 @@ mod test {
         assert_eq!(z.sizes(), &[4, 3]); // #PYTHON list(z.shape)
         assert_eq!(z.is_contiguous(), false);
 
-        assert_eq!(z.d_ref::<f32>(&[0, 0])?, &1.0); // #PYTHON z[ 0,  0].item()
-        assert_eq!(z.d_ref::<f32>(&[0, 1])?, &2.0); // #PYTHON z[ 0,  1].item()
-        assert_eq!(z.d_ref::<f32>(&[0, 2])?, &3.0); // #PYTHON z[ 0,  2].item()
-        assert_eq!(z.d_ref::<f32>(&[1, 0])?, &5.0); // #PYTHON z[ 1,  0].item()
-        assert_eq!(z.d_ref::<f32>(&[1, 1])?, &6.0); // #PYTHON z[ 1,  1].item()
-        assert_eq!(z.d_ref::<f32>(&[1, 2])?, &7.0); // #PYTHON z[ 1,  2].item()
+        assert_eq!(z.f32_ref(&[0, 0])?, &1.0); // #PYTHON z[ 0,  0].item()
+        assert_eq!(z.f32_ref(&[0, 1])?, &2.0); // #PYTHON z[ 0,  1].item()
+        assert_eq!(z.f32_ref(&[0, 2])?, &3.0); // #PYTHON z[ 0,  2].item()
+        assert_eq!(z.f32_ref(&[1, 0])?, &5.0); // #PYTHON z[ 1,  0].item()
+        assert_eq!(z.f32_ref(&[1, 1])?, &6.0); // #PYTHON z[ 1,  1].item()
+        assert_eq!(z.f32_ref(&[1, 2])?, &7.0); // #PYTHON z[ 1,  2].item()
 
         /*
             #|PYTHON
@@ -200,8 +262,8 @@ mod test {
         *(z.f32_mut(&[0, 2])?) = 50.0;
         *(z.f32_mut(&[1, 2])?) = 100.0;
 
-        assert_eq!(z.d_ref::<f32>(&[0, 2])?, &50.0); // #PYTHON z[ 0,  2].item()
-        assert_eq!(z.d_ref::<f32>(&[1, 2])?, &100.0); // #PYTHON z[ 1,  2].item()
+        assert_eq!(z.f32_ref(&[0, 2])?, &50.0); // #PYTHON z[ 0,  2].item()
+        assert_eq!(z.f32_ref(&[1, 2])?, &100.0); // #PYTHON z[ 1,  2].item()
 
         Ok(())
     }
