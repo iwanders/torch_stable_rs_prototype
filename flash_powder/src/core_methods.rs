@@ -51,7 +51,7 @@ pub trait CoreMethods: TensorAccess + TensorProperties {
     ///
     /// - [native_functions.yaml](https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L4489)
     /// - [pytorch equivalent](https://docs.pytorch.org/docs/2.11/generated/torch.Tensor.narrow.html)
-    fn narrow<'a>(&'a self, dim: usize, start: usize, length: usize) -> StableTorchResult<Ten<'a>> {
+    fn narrow<'a>(&'a self, dim: usize, start: isize, length: usize) -> StableTorchResult<Ten<'a>> {
         // https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L4489
         let mut stack: [StableIValue; 4] = [
             self.get_tensor().into(),
@@ -323,7 +323,7 @@ mod test {
         */
         let x = d.narrow(1, 1, 2)?;
         assert_eq!(x.sizes(), &[3, 2]); // #PYTHON list(x.shape)
-        println!("x ref: {:?}", x.f32s_ref()?);
+        assert_eq!(x.is_contiguous(), false);
         assert_eq!(x.f32_ref(&[0, 0])?, &2.0); // #PYTHON x[ 0, 0].item()
         assert_eq!(x.f32_ref(&[1, 0])?, &5.0); // #PYTHON x[ 1, 0].item()
         assert_eq!(x.f32_ref(&[2, 0])?, &8.0); // #PYTHON x[ 2, 0].item()
@@ -331,7 +331,40 @@ mod test {
         assert_eq!(x.f32_ref(&[1, 1])?, &6.0); // #PYTHON x[ 1, 1].item()
         assert_eq!(x.f32_ref(&[2, 1])?, &9.0); // #PYTHON x[ 2, 1].item()
 
+        /*
+            #|PYTHON
+            x = torch.narrow(d, 1, -3, 2)
+        */
+        let x = d.narrow(1, -3, 2)?;
+        assert_eq!(x.sizes(), &[3, 2]); // #PYTHON list(x.shape)
         assert_eq!(x.is_contiguous(), false);
+        assert_eq!(x.f32_ref(&[0, 0])?, &1.0); // #PYTHON x[ 0, 0].item()
+        assert_eq!(x.f32_ref(&[1, 0])?, &4.0); // #PYTHON x[ 1, 0].item()
+        assert_eq!(x.f32_ref(&[2, 0])?, &7.0); // #PYTHON x[ 2, 0].item()
+        assert_eq!(x.f32_ref(&[0, 1])?, &2.0); // #PYTHON x[ 0, 1].item()
+        assert_eq!(x.f32_ref(&[1, 1])?, &5.0); // #PYTHON x[ 1, 1].item()
+        assert_eq!(x.f32_ref(&[2, 1])?, &8.0); // #PYTHON x[ 2, 1].item()
+
+        /*
+            #|PYTHON
+            d = torch.tensor(d)
+            x = torch.narrow(d, 0, 0, 2)
+            x[0,0] = 15.0
+            x[0,2] = 16.0
+            x[1,2] = 17.0
+        */
+        let mut d: Tensor = d.clone();
+        let mut x = d.narrow_mut(0, 0, 2)?;
+        assert_eq!(x.sizes(), &[2, 3]); // #PYTHON list(x.shape)
+
+        *x.f32_mut(&[0, 0])? = 15.0;
+        *x.f32_mut(&[0, 2])? = 16.0;
+        *x.f32_mut(&[1, 2])? = 17.0;
+
+        assert_eq!(d.f32_ref(&[0, 0])?, &15.0); // #PYTHON d[ 0,  0].item()
+        assert_eq!(d.f32_ref(&[0, 2])?, &16.0); // #PYTHON d[ 0,  2].item()
+        assert_eq!(d.f32_ref(&[1, 2])?, &17.0); // #PYTHON d[ 1,  2].item()
+
         Ok(())
     }
     #[test]
@@ -342,8 +375,8 @@ mod test {
 
     #[test]
     fn test_flash_powder_to() -> StableTorchResult<()> {
-        use crate::ScalarType;
         use crate::factory::TensorOptions;
+        use crate::ScalarType;
         let t = Tensor::zeros(
             &[5, 5],
             &TensorOptions {

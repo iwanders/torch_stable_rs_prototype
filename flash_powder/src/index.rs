@@ -1,6 +1,6 @@
 //! Indexing
 
-use crate::core_methods::CoreMethods;
+use crate::core_methods::{CoreMethods, CoreMethodsMut};
 use crate::properties::TensorProperties;
 use crate::tensor::{Ten, TenMut, Tensor};
 use crate::torch;
@@ -64,7 +64,7 @@ impl<'a> Into<TensorIndexOptions<'a>> for std::ops::Range<isize> {
     }
 }
 
-trait TensorIndexWorker: TensorAccess + TensorProperties + CoreMethods {
+trait TensorIndexWorker: CoreMethods {
     fn do_the_real_indexing<'a, 'b>(
         &'b self,
         index: &[&TensorIndexOptions<'a>],
@@ -99,6 +99,7 @@ trait TensorIndexWorker: TensorAccess + TensorProperties + CoreMethods {
 }
 
 impl TensorIndexWorker for Tensor {}
+impl TensorIndexWorker for Ten<'_> {}
 
 pub trait IndexSpec<T> {
     fn do_index<'b>(&self, tensor: &'b T) -> StableTorchResult<Ten<'b>>;
@@ -109,6 +110,7 @@ pub trait TensorIndex: TensorAccess + TensorProperties + CoreMethods + Sized {
     }
 }
 impl TensorIndex for Tensor {}
+impl TensorIndex for Ten<'_> {}
 
 impl<'a, A: Clone, T: TensorIndexWorker> IndexSpec<T> for A
 where
@@ -145,6 +147,45 @@ where
     }
 }
 
+// and the mut flavours.
+/*
+trait TensorIndexWorkerMut: CoreMethodsMut {
+    fn do_the_real_indexingMut<'a, 'b>(
+        &'b self,
+        index: &[&TensorIndexOptions<'a>],
+    ) -> StableTorchResult<Ten<'b>> {
+        // Make a view into the tensor, we'll be updating this as we go through the indexing operations.
+        let mut current = self.view_mut(self.sizes())?;
+        let mut dim = 0;
+        for index_op_conv in index.iter() {
+            let mut do_dim_add = true;
+            match index_op_conv {
+                TensorIndexOptions::Tensor(tensor) => todo!(),
+                TensorIndexOptions::Index(index) => {
+                    current = current.select_mut(dim, *index as usize)?;
+                    do_dim_add = false;
+                }
+                TensorIndexOptions::Range(range) => {
+                    let length = if range.start < 0 {
+                        (self.sizes()[dim] as isize + range.start) as usize + 1
+                    } else {
+                        range.len()
+                    };
+                    current = current.narrow_mut(dim, range.start, length)?;
+                }
+                TensorIndexOptions::RangeWithStride { range, stride } => todo!(),
+            }
+            if do_dim_add {
+                dim += 1;
+            }
+        }
+        Ok(current)
+    }
+}
+
+impl TensorIndexWorker for Tensor {}
+impl TensorIndexWorker for Ten<'_> {}
+*/
 #[cfg(test)]
 mod test {
     use super::*;
