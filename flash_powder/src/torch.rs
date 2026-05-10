@@ -1,12 +1,11 @@
-//! This holds functions that pytorch puts into the functional module.
-use crate::{
-    properties::TensorProperties,
-    tensor::{Ten, TensorAccess},
-};
-use anyhow::bail;
+//! This holds functions that pytorch puts into the torch module.
+//!
+//! This module is a bit sad atm... it holds select, but it not ever used because I needed specific selects in each
+//! of the three principal types.
+use crate::tensor::{Ten, TensorAccess};
 use torch_stable::{
-    aoti_torch::StableIValue, stable::tensor::Tensor as StableTensor, unsafe_call_dispatch_bail,
-    StableTorchResult,
+    StableTorchResult, aoti_torch::StableIValue, stable::tensor::Tensor as StableTensor,
+    unsafe_call_dispatch_bail,
 };
 
 /// Select an index in a dimension

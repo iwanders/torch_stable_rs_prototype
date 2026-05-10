@@ -74,7 +74,7 @@ trait TensorIndexWorker: CoreMethods {
         for index_op_conv in index.iter() {
             let mut do_dim_add = true;
             match index_op_conv {
-                TensorIndexOptions::Tensor(tensor) => todo!(),
+                TensorIndexOptions::Tensor(_tensor) => todo!(),
                 TensorIndexOptions::Index(index) => {
                     current = current.select(dim, *index as usize)?;
                     do_dim_add = false;
@@ -87,7 +87,10 @@ trait TensorIndexWorker: CoreMethods {
                     };
                     current = current.narrow(dim, range.start, length)?;
                 }
-                TensorIndexOptions::RangeWithStride { range, stride } => todo!(),
+                TensorIndexOptions::RangeWithStride {
+                    range: _range,
+                    stride: _stride,
+                } => todo!(),
             }
             if do_dim_add {
                 dim += 1;
@@ -159,7 +162,7 @@ trait TensorIndexWorkerMut: CoreMethodsMut + CoreMethods {
         for index_op_conv in index.iter() {
             let mut do_dim_add = true;
             match index_op_conv {
-                TensorIndexOptions::Tensor(tensor) => todo!(),
+                TensorIndexOptions::Tensor(_tensor) => todo!(),
                 TensorIndexOptions::Index(index) => {
                     current = current.select_mut(dim, *index as usize)?;
                     do_dim_add = false;
@@ -172,7 +175,10 @@ trait TensorIndexWorkerMut: CoreMethodsMut + CoreMethods {
                     };
                     current = current.narrow_mut(dim, range.start, length)?;
                 }
-                TensorIndexOptions::RangeWithStride { range, stride } => todo!(),
+                TensorIndexOptions::RangeWithStride {
+                    range: _range,
+                    stride: _stride,
+                } => todo!(),
             }
             if do_dim_add {
                 dim += 1;

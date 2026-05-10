@@ -10,7 +10,7 @@ use crate::{
     properties::TensorProperties,
     tensor::{Ten, TenMut, Tensor, TensorAccess},
 };
-use torch_stable::{contrib::TensorPropertiesContrib as _, StableTorchResult};
+use torch_stable::{StableTorchResult, contrib::TensorPropertiesContrib as _};
 
 macro_rules! impl_slice_ref {
     ($t:ty, $v:ident) => {
@@ -127,6 +127,22 @@ pub trait DataRef: TensorAccess + TensorProperties {
     impl_item_ref!(i16, i16_ref);
     impl_item_ref!(i32, i32_ref);
     impl_item_ref!(i64, i64_ref);
+
+    fn d_fmt(
+        &self,
+        indices: &[usize],
+        options: &crate::tensor::ScalarPrintOptions,
+    ) -> StableTorchResult<String> {
+        use torch_stable::headeronly::core::ScalarType;
+
+        match self.dtype() {
+            ScalarType::Float => {
+                let v = self.d_ref::<f32>(indices)?;
+                Ok(options.format(v))
+            }
+            _ => todo!(),
+        }
+    }
 }
 
 impl DataRef for Tensor {}
