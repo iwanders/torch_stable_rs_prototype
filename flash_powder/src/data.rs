@@ -131,7 +131,7 @@ pub trait DataRef: TensorAccess + TensorProperties {
     fn d_fmt(
         &self,
         indices: &[usize],
-        options: &crate::tensor::ScalarPrintOptions,
+        options: &crate::printing::ScalarPrintOptions,
     ) -> StableTorchResult<String> {
         use torch_stable::headeronly::core::ScalarType;
 
