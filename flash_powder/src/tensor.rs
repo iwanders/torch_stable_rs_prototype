@@ -212,7 +212,19 @@ pub fn tensor_format<T: TensorAccess + TensorProperties + CoreMethods + DataRef>
 
         let mut element_str = vec![];
         if summarize {
-            todo!()
+            let left = o.narrow(0, 0, options.print_options.edgeitems).unwrap();
+            element_str
+                .extend((0..left.numel()).map(|i| left.d_fmt(&[i], &local_options).unwrap()));
+            element_str.push("...".to_owned());
+            let right = o
+                .narrow(
+                    0,
+                    -(options.print_options.edgeitems as isize),
+                    options.print_options.edgeitems,
+                )
+                .unwrap();
+            element_str
+                .extend((0..right.numel()).map(|i| right.d_fmt(&[i], &local_options).unwrap()));
         } else {
             element_str = (0..o.numel())
                 .map(|i| o.d_fmt(&[i], &local_options).unwrap())
@@ -327,6 +339,7 @@ mod test {
         println!("sub_1d:\n{sub_1d:?}");
 
         println!("randn:\n{:?}", Tensor::randn(&[10], &Default::default())?);
+        println!("randn:\n{:?}", Tensor::randn(&[5000], &Default::default())?);
         Ok(())
     }
 }
