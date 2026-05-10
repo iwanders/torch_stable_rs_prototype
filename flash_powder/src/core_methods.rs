@@ -99,6 +99,10 @@ pub trait CoreMethods: TensorAccess + TensorProperties {
         Ok(Ten::new(self.get_tensor(), r))
     }
 
+    fn ten<'a>(&'a self) -> StableTorchResult<Ten<'a>> {
+        self.view(self.sizes())
+    }
+
     /// Equal
     ///
     /// - [native_functions.yaml](https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L10556)
@@ -219,6 +223,15 @@ pub trait CoreMethodsMut: TensorAccess + TensorProperties {
     /// - [pytorch equivalent](https://docs.pytorch.org/docs/2.11/generated/torch.Tensor.view.html)
     ///
     fn view_mut(&mut self, shape: &[usize]) -> StableTorchResult<TenMut<'_>> {
+        let mut stack: [StableIValue; 2] = [(self.get_tensor()).into(), (shape).into()];
+        unsafe_call_dispatch_bail!("aten::view", "", stack.as_mut_slice());
+        let r: StableTensor = stack[0].try_into()?;
+        assert_eq!(self.data_ptr(), r.data_ptr());
+        Ok(TenMut::new(self.get_tensor_mut(), r))
+    }
+
+    fn ten_mut<'a>(&'a mut self) -> StableTorchResult<TenMut<'a>> {
+        let shape = self.sizes();
         let mut stack: [StableIValue; 2] = [(self.get_tensor()).into(), (shape).into()];
         unsafe_call_dispatch_bail!("aten::view", "", stack.as_mut_slice());
         let r: StableTensor = stack[0].try_into()?;
@@ -541,6 +554,37 @@ mod test {
         })?;
         assert_eq!(mean_1_double.sizes(), &[1, 4]); // #PYTHON list(mean_1_double.shape)
         assert_eq!(mean_1_double.f64s_ref()?, &[7.0f64, 8.0, 9.0, 10.0]); // #PYTHON list(mean_1_double.view(-1).tolist())
+        Ok(())
+    }
+    #[test]
+    fn test_flash_powder_full_view() -> StableTorchResult<()> {
+        /*
+            #|PYTHON
+            d = torch.tensor(list(range(1,17)), dtype=torch.float).reshape([1,4,4])
+            mean = d.mean()
+            mean_0 = d.mean(0)
+            mean_1 = d.mean(1)
+            mean_2 = d.mean(2)
+            mean_1_double = d.mean(1, dtype=torch.double)
+        */
+
+        let d = Tensor::from(&[[
+            [1.0f32, 2.0, 3.0, 4.0],
+            [5.0, 6.0, 7.0, 8.0],
+            [9.0, 10.0, 11.0, 12.0],
+            [13.0, 14.0, 15.0, 16.0],
+        ]])?;
+        let z = d.view(d.sizes())?;
+        let z = z.ten()?;
+
+        drop(z);
+
+        let mut d = d;
+        let mut z = d.ten_mut()?;
+        let mut z = z.ten_mut()?;
+        *z.f32_mut(&[0, 0])? = 30.0;
+        assert_eq!(d.f32_ref(&[0, 0])?, &30.0);
+
         Ok(())
     }
 }
