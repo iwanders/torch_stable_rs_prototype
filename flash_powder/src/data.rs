@@ -134,14 +134,33 @@ pub trait DataRef: TensorAccess + TensorProperties {
         options: &crate::printing::ScalarPrintOptions,
     ) -> StableTorchResult<String> {
         use torch_stable::headeronly::core::ScalarType;
-
-        match self.dtype() {
-            ScalarType::Float => {
-                let v = self.d_ref::<f32>(indices)?;
-                Ok(options.format(v))
-            }
-            _ => todo!(),
+        macro_rules! generate_match {
+            // Matches: an expression, then a list of (pattern, result) pairs
+            ($val:expr, $(($r:ty, $p:pat)),*) => {
+                match $val {
+                    $( $p => {
+                        let v = self.d_ref::<$r>(indices)?;
+                        Ok(options.format(v))
+                    }, )*  // Repeatedly generate each arm
+                    _ => todo!("missing d_fmt for {:?}", $val),   // Optional: catch-all arm
+                }
+            };
         }
+
+        generate_match!(
+            self.dtype(),
+            (f32, ScalarType::Float),
+            (f64, ScalarType::Double),
+            (u8, ScalarType::Byte),
+            (i8, ScalarType::Char),
+            (u16, ScalarType::UInt16),
+            (i16, ScalarType::Short),
+            (i32, ScalarType::Int),
+            (u32, ScalarType::UInt32),
+            (i64, ScalarType::Long),
+            (u64, ScalarType::UInt64),
+            (bool, ScalarType::Bool)
+        )
     }
 }
 
