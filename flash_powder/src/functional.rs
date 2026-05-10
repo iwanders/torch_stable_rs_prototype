@@ -360,7 +360,7 @@ mod test {
         ]])?;
         assert_eq!(d.sizes(), &[1, 4, 4]); // #PYTHON list(d.shape)
         assert_eq!(
-            d.f32_ref()?,
+            d.f32s_ref()?,
             &[
                 1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0,
                 16.0
@@ -368,17 +368,17 @@ mod test {
         ); // #PYTHON list(d.view(-1).tolist())
 
         let mut w = Tensor::zeros(&[1, 1, 2, 2], &Default::default())?;
-        for (i, v) in w.d_mut::<f32>()?.iter_mut().enumerate() {
+        for (i, v) in w.ds_mut::<f32>()?.iter_mut().enumerate() {
             *v = (i + 1) as f32
         }
         assert_eq!(w.sizes(), &[1, 1, 2, 2]);
-        assert_eq!(w.f32_ref()?, &[1.0f32, 2.0, 3.0, 4.0]); // #PYTHON list(w.view(-1).tolist())
+        assert_eq!(w.f32s_ref()?, &[1.0f32, 2.0, 3.0, 4.0]); // #PYTHON list(w.view(-1).tolist())
 
         let r = conv2d(&d, &w, None, &Default::default())?;
         assert_eq!(r.sizes(), &[1, 3, 3]); // #PYTHON list(r.shape)
 
         assert_eq!(
-            r.f32_ref()?,
+            r.f32s_ref()?,
             &[44.0f32, 54.0, 64.0, 84.0, 94.0, 104.0, 124.0, 134.0, 144.0]
         ); // #PYTHON list(r.view(-1).tolist())
 
@@ -396,7 +396,7 @@ mod test {
             },
         )?;
         assert_eq!(r.sizes(), &[1, 3, 2]); // #PYTHON list(r.shape)
-        assert_eq!(r.f32_ref()?, &[44.0f32, 64.0, 84.0, 104.0, 124.0, 144.0]); // #PYTHON list(r.view(-1).tolist())
+        assert_eq!(r.f32s_ref()?, &[44.0f32, 64.0, 84.0, 104.0, 124.0, 144.0]); // #PYTHON list(r.view(-1).tolist())
 
         /*
             #|PYTHON
@@ -412,7 +412,7 @@ mod test {
             },
         )?;
         assert_eq!(r.sizes(), &[1, 2, 2]); // #PYTHON list(r.shape)
-        assert_eq!(r.f32_ref()?, &[44.0f32, 64.0, 124.0, 144.0]); // #PYTHON list(r.view(-1).tolist())
+        assert_eq!(r.f32s_ref()?, &[44.0f32, 64.0, 124.0, 144.0]); // #PYTHON list(r.view(-1).tolist())
 
         /*
             #|PYTHON
@@ -429,7 +429,7 @@ mod test {
         )?;
         assert_eq!(r.sizes(), &[1, 5, 7]); // #PYTHON list(r.shape)
         assert_eq!(
-            r.f32_ref()?,
+            r.f32s_ref()?,
             &[
                 0.0f32, 4.0, 11.0, 18.0, 25.0, 12.0, 0.0, 0.0, 22.0, 44.0, 54.0, 64.0, 28.0, 0.0,
                 0.0, 46.0, 84.0, 94.0, 104.0, 44.0, 0.0, 0.0, 70.0, 124.0, 134.0, 144.0, 60.0, 0.0,
@@ -443,13 +443,13 @@ mod test {
             r = torch.nn.functional.conv2d(d, w, b)
         */
         let mut b = Tensor::zeros(&[1], &Default::default())?;
-        b.f32_mut()?.copy_from_slice(&[5.0]);
+        b.f32s_mut()?.copy_from_slice(&[5.0]);
         assert_eq!(b.sizes(), &[1]); // #PYTHON list(b.shape)
 
         let r = conv2d(&d, &w, Some(&b), &Default::default())?;
         assert_eq!(r.sizes(), &[1, 3, 3]); // #PYTHON list(r.shape)
         assert_eq!(
-            r.f32_ref()?,
+            r.f32s_ref()?,
             &[49.0f32, 59.0, 69.0, 89.0, 99.0, 109.0, 129.0, 139.0, 149.0]
         ); // #PYTHON list(r.view(-1).tolist())
 
@@ -473,7 +473,7 @@ mod test {
         ]])?;
         assert_eq!(d.sizes(), &[1, 4, 4]); // #PYTHON list(d.shape)
         assert_eq!(
-            d.f32_ref()?,
+            d.f32s_ref()?,
             &[
                 1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0,
                 16.0
@@ -481,17 +481,17 @@ mod test {
         ); // #PYTHON list(d.view(-1).tolist())
 
         let mut w = Tensor::zeros(&[1, 1, 2, 2], &Default::default())?;
-        for (i, v) in w.d_mut::<f32>()?.iter_mut().enumerate() {
+        for (i, v) in w.ds_mut::<f32>()?.iter_mut().enumerate() {
             *v = (i + 1) as f32
         }
         assert_eq!(w.sizes(), &[1, 1, 2, 2]);
-        assert_eq!(w.f32_ref()?, &[1.0f32, 2.0, 3.0, 4.0]); // #PYTHON list(w.view(-1).tolist())
+        assert_eq!(w.f32s_ref()?, &[1.0f32, 2.0, 3.0, 4.0]); // #PYTHON list(w.view(-1).tolist())
 
         let r = conv_transpose2d(&d, &w, None, &Default::default())?;
         assert_eq!(r.sizes(), &[1, 5, 5]); // #PYTHON list(r.shape)
 
         assert_eq!(
-            r.f32_ref()?,
+            r.f32s_ref()?,
             &[
                 1.0f32, 4.0, 7.0, 10.0, 8.0, 8.0, 26.0, 36.0, 46.0, 32.0, 24.0, 66.0, 76.0, 86.0,
                 56.0, 40.0, 106.0, 116.0, 126.0, 80.0, 39.0, 94.0, 101.0, 108.0, 64.0
@@ -511,7 +511,7 @@ mod test {
 
         assert_eq!(d.sizes(), &[4]); // #PYTHON list(d.shape)
         let r = relu(&d)?;
-        assert_eq!(r.f32_ref()?, &[0.0f32, 0.0, 0.5, 1.0]); // #PYTHON list(r.view(-1).tolist())
+        assert_eq!(r.f32s_ref()?, &[0.0f32, 0.0, 0.5, 1.0]); // #PYTHON list(r.view(-1).tolist())
 
         Ok(())
     }
@@ -531,7 +531,7 @@ mod test {
 
         assert_eq!(d.sizes(), &[1, 4, 4]); // #PYTHON list(d.shape)
         assert_eq!(
-            d.f32_ref()?,
+            d.f32s_ref()?,
             &[
                 1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0,
                 16.0
@@ -540,7 +540,7 @@ mod test {
 
         let r = max_pool2d(&d, (2, 2), &Default::default())?;
         assert_eq!(r.sizes(), &[1, 2, 2]); // #PYTHON list(r.shape)
-        assert_eq!(r.f32_ref()?, &[6.0f32, 8.0, 14.0, 16.0]); // #PYTHON list(r.view(-1).tolist())
+        assert_eq!(r.f32s_ref()?, &[6.0f32, 8.0, 14.0, 16.0]); // #PYTHON list(r.view(-1).tolist())
 
         /*
             #|PYTHON
@@ -555,7 +555,7 @@ mod test {
             },
         )?;
         assert_eq!(r.sizes(), &[1, 1, 1]); // #PYTHON list(r.shape)
-        assert_eq!(r.f32_ref()?, &[6.0f32]); // #PYTHON list(r.view(-1).tolist())
+        assert_eq!(r.f32s_ref()?, &[6.0f32]); // #PYTHON list(r.view(-1).tolist())
 
         Ok(())
     }
@@ -571,7 +571,7 @@ mod test {
             .view(&[1, 1, 2, 2])?
             .to_owned()?;
         assert_eq!(d.sizes(), &[1, 1, 2, 2]); // #PYTHON list(input.shape)
-        assert_eq!(d.f32_ref()?, &[1.0f32, 2.0, 3.0, 4.0]); // #PYTHON list(input.view(-1).tolist())
+        assert_eq!(d.f32s_ref()?, &[1.0f32, 2.0, 3.0, 4.0]); // #PYTHON list(input.view(-1).tolist())
 
         // Nearest 2
         /*
@@ -588,7 +588,7 @@ mod test {
         )?;
         assert_eq!(m.sizes(), &[1, 1, 4, 4]); // #PYTHON list(m.shape)
         assert_eq!(
-            m.f32_ref()?,
+            m.f32s_ref()?,
             &[
                 1.0f32, 1.0, 2.0, 2.0, 1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 3.0, 3.0, 4.0, 4.0
             ]
@@ -609,7 +609,7 @@ mod test {
         )?;
         assert_eq!(m.sizes(), &[1, 1, 4, 4]); // #PYTHON list(m.shape)
         assert_eq!(
-            m.f32_ref()?,
+            m.f32s_ref()?,
             &[
                 1.0f32, 1.25, 1.75, 2.0, 1.5, 1.75, 2.25, 2.5, 2.5, 2.75, 3.25, 3.5, 3.0, 3.25,
                 3.75, 4.0
@@ -632,7 +632,7 @@ mod test {
         )?;
         assert_eq!(m.sizes(), &[1, 1, 4, 4]); // #PYTHON list(m.shape)
         assert_eq!(
-            m.f32_ref()?,
+            m.f32s_ref()?,
             &[
                 1.0f32,
                 1.3333332538604736,

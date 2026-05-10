@@ -101,12 +101,12 @@ def eval_statement(line: Line, locals) -> Any:
     try:
         return eval(line.line, locals=locals, globals={"torch": torch})
     except IndentationError as e:
-        e.lineno += lines[0].index
-        e.filename = lines[0].filename
+        e.lineno += line.index
+        e.filename = line.filename
         raise e
     except SyntaxError as e:
-        e.lineno += lines[0].index
-        e.filename = lines[0].filename
+        e.lineno += line.index
+        e.filename = line.filename
         raise e
     except RuntimeError as e:
         raise e
@@ -196,7 +196,6 @@ class RustNode:
         is_ref = False
         is_array_esque = False
         rust_type = ""
-        print(self.children)
         for i, z in enumerate(self.children):
             if isinstance(z, str):
                 if i == 0 and z.strip().startswith("&"):
@@ -298,7 +297,6 @@ def test_rust_format_payload():
     assert format_payload_as_rust([3, 5], rust_type="&") == "&[3, 5]"
 
     ref_to_str = RustNode(children=["&3.3"])
-    print(ref_to_str.determine_type())
     assert ref_to_str.determine_type() == "&"
     sys.exit(1)
 

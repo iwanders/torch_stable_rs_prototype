@@ -46,7 +46,7 @@ impl<T: TensorScalar + Immutable + IntoBytes + TryFromBytes + Copy> TryInto<Tens
                 ..Default::default()
             },
         )?;
-        v.d_mut::<T>()?.copy_from_slice(&self);
+        v.ds_mut::<T>()?.copy_from_slice(&self);
         Ok(v)
     }
 }
@@ -64,7 +64,7 @@ impl<T: TensorScalar + Immutable + IntoBytes + TryFromBytes + Copy, const V: usi
                 ..Default::default()
             },
         )?;
-        v.d_mut::<T>()?.copy_from_slice(&self);
+        v.ds_mut::<T>()?.copy_from_slice(&self);
         Ok(v)
     }
 }
@@ -82,7 +82,7 @@ impl<T: TensorScalar + Immutable + IntoBytes + TryFromBytes + Copy, const V: usi
                 ..Default::default()
             },
         )?;
-        v.d_mut::<T>()?.copy_from_slice(self);
+        v.ds_mut::<T>()?.copy_from_slice(self);
         Ok(v)
     }
 }
@@ -100,7 +100,7 @@ impl<T: TensorScalar + Immutable + IntoBytes + TryFromBytes + Copy, const C: usi
                 ..Default::default()
             },
         )?;
-        v.u8_mut()?.copy_from_slice(&self.as_bytes());
+        v.u8s_mut()?.copy_from_slice(&self.as_bytes());
         Ok(v)
     }
 }
@@ -118,7 +118,7 @@ impl<T: TensorScalar + Immutable + IntoBytes + TryFromBytes + Copy, const C: usi
                 ..Default::default()
             },
         )?;
-        v.u8_mut()?.copy_from_slice(&self.as_bytes());
+        v.u8s_mut()?.copy_from_slice(&self.as_bytes());
         Ok(v)
     }
 }
@@ -140,7 +140,7 @@ impl<
                 ..Default::default()
             },
         )?;
-        v.u8_mut()?.copy_from_slice(&self.as_bytes());
+        v.u8s_mut()?.copy_from_slice(&self.as_bytes());
         Ok(v)
     }
 }
@@ -162,7 +162,7 @@ impl<
                 ..Default::default()
             },
         )?;
-        v.u8_mut()?.copy_from_slice(&self.as_bytes());
+        v.u8s_mut()?.copy_from_slice(&self.as_bytes());
         Ok(v)
     }
 }
@@ -183,7 +183,7 @@ mod test {
         let d: Tensor = [5i64, 3].try_into()?;
         assert_eq!(d.sizes(), &[2]); // #PYTHON list(d.shape)
         assert_eq!(
-            d.u8_ref()?,
+            d.u8s_ref()?,
             &[5, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0]
         ); // #PYTHON d.view(torch.uint8).view(-1).tolist()
         assert_eq!(d.dtype(), ScalarType::Long); // #PYTHON d.dtype
@@ -194,7 +194,7 @@ mod test {
         */
         let d: Tensor = (&[5.0f32, 3.0]).try_into()?;
         assert_eq!(d.sizes(), &[2]); // #PYTHON list(d.shape)
-        assert_eq!(d.u8_ref()?, &[0, 0, 160, 64, 0, 0, 64, 64]); // #PYTHON d.view(torch.uint8).view(-1).tolist()
+        assert_eq!(d.u8s_ref()?, &[0, 0, 160, 64, 0, 0, 64, 64]); // #PYTHON d.view(torch.uint8).view(-1).tolist()
         assert_eq!(d.dtype(), ScalarType::Float); // #PYTHON d.dtype
 
         /*
@@ -204,7 +204,7 @@ mod test {
         let d: Tensor = [[5.0f32, 3.0], [1.0, 2.0]].try_into()?;
         assert_eq!(d.sizes(), &[2, 2]); // #PYTHON list(d.shape)
         assert_eq!(
-            d.u8_ref()?,
+            d.u8s_ref()?,
             &[0, 0, 160, 64, 0, 0, 64, 64, 0, 0, 128, 63, 0, 0, 0, 64]
         ); // #PYTHON d.view(torch.uint8).view(-1).tolist()
         assert_eq!(d.dtype(), ScalarType::Float); // #PYTHON d.dtype
@@ -215,7 +215,7 @@ mod test {
         */
         let d: Tensor = [1i8, 3, 4, 5].try_into()?;
         assert_eq!(d.sizes(), &[4]); // #PYTHON list(d.shape)
-        assert_eq!(d.u8_ref()?, &[1, 3, 4, 5]); // #PYTHON d.view(torch.uint8).view(-1).tolist()
+        assert_eq!(d.u8s_ref()?, &[1, 3, 4, 5]); // #PYTHON d.view(torch.uint8).view(-1).tolist()
         assert_eq!(d.dtype(), ScalarType::Char); // #PYTHON d.dtype
 
         /*
@@ -224,7 +224,7 @@ mod test {
         */
         let d: Tensor = [[[5i64]]].try_into()?;
         assert_eq!(d.sizes(), &[1, 1, 1]); // #PYTHON list(d.shape)
-        assert_eq!(d.u8_ref()?, &[5, 0, 0, 0, 0, 0, 0, 0]); // #PYTHON d.view(torch.uint8).view(-1).tolist()
+        assert_eq!(d.u8s_ref()?, &[5, 0, 0, 0, 0, 0, 0, 0]); // #PYTHON d.view(torch.uint8).view(-1).tolist()
         assert_eq!(d.dtype(), ScalarType::Long); // #PYTHON d.dtype
 
         /*
@@ -233,7 +233,7 @@ mod test {
         */
         let d: Tensor = [true, false, true].try_into()?;
         assert_eq!(d.sizes(), &[3]); // #PYTHON list(d.shape)
-        assert_eq!(d.u8_ref()?, &[1, 0, 1]); // #PYTHON d.view(torch.uint8).view(-1).tolist()
+        assert_eq!(d.u8s_ref()?, &[1, 0, 1]); // #PYTHON d.view(torch.uint8).view(-1).tolist()
         assert_eq!(d.dtype(), ScalarType::Bool); // #PYTHON d.dtype
 
         // Non square
@@ -244,7 +244,7 @@ mod test {
         let d: Tensor = [[5.0f32, 3.0, 5.0], [1.0, 2.0, 0.0]].try_into()?;
         assert_eq!(d.sizes(), &[2, 3]); // #PYTHON list(d.shape)
         assert_eq!(
-            d.u8_ref()?,
+            d.u8s_ref()?,
             &[
                 0, 0, 160, 64, 0, 0, 64, 64, 0, 0, 160, 64, 0, 0, 128, 63, 0, 0, 0, 64, 0, 0, 0, 0
             ]
@@ -258,7 +258,7 @@ mod test {
         let d: Tensor = [[5.0f32, 3.0], [1.0, 2.0], [1.0, 2.0]].try_into()?;
         assert_eq!(d.sizes(), &[3, 2]); // #PYTHON list(d.shape)
         assert_eq!(
-            d.u8_ref()?,
+            d.u8s_ref()?,
             &[
                 0, 0, 160, 64, 0, 0, 64, 64, 0, 0, 128, 63, 0, 0, 0, 64, 0, 0, 128, 63, 0, 0, 0, 64
             ]
@@ -273,7 +273,7 @@ mod test {
         let d: Tensor = [[[1i64, 2], [3, 4]], [[8, 1], [9, 3]]].try_into()?;
         assert_eq!(d.sizes(), &[2, 2, 2]); // #PYTHON list(d.shape)
         assert_eq!(
-            d.u8_ref()?,
+            d.u8s_ref()?,
             &[
                 1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0,
                 0, 0, 0, 0, 8, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0, 0, 0, 0, 0,

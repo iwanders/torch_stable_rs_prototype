@@ -135,7 +135,7 @@ mod test {
         assert_eq!(d.sizes(), &[1000, 1000]);
 
         let mean = d.mean(&Default::default())?;
-        let value = mean.f32_ref()?[0];
+        let value = mean.f32s_ref()?[0];
         assert!(value.abs() < 0.01);
 
         Ok(())
@@ -150,7 +150,7 @@ mod test {
 
         let d = Tensor::from(&[[1.0f32, 2.0], [3.0, 4.0]])?;
         assert_eq!(d.sizes(), &[2, 2]); // #PYTHON list(x.shape)
-        assert_eq!(d.f32_ref()?, &[1.0f32, 2.0, 3.0, 4.0]); // #PYTHON list(x.view(-1).tolist())
+        assert_eq!(d.f32s_ref()?, &[1.0f32, 2.0, 3.0, 4.0]); // #PYTHON list(x.view(-1).tolist())
 
         /*
             #|PYTHON
@@ -159,7 +159,7 @@ mod test {
         let a = Tensor::cat(&[&d, &d, &d], 0)?;
         assert_eq!(a.sizes(), &[6, 2]); // #PYTHON list(a.shape)
         assert_eq!(
-            a.f32_ref()?,
+            a.f32s_ref()?,
             &[1.0f32, 2.0, 3.0, 4.0, 1.0, 2.0, 3.0, 4.0, 1.0, 2.0, 3.0, 4.0]
         ); // #PYTHON list(a.view(-1).tolist())
            /*
@@ -169,7 +169,7 @@ mod test {
         let b = Tensor::cat(&[&d, &d, &d], 1)?;
         assert_eq!(b.sizes(), &[2, 6]); // #PYTHON list(b.shape)
         assert_eq!(
-            b.f32_ref()?,
+            b.f32s_ref()?,
             &[1.0f32, 2.0, 1.0, 2.0, 1.0, 2.0, 3.0, 4.0, 3.0, 4.0, 3.0, 4.0]
         ); // #PYTHON list(b.view(-1).tolist())
         Ok(())

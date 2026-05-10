@@ -239,7 +239,7 @@ mod test {
         assert_eq!(t.sizes(), &[2, 2]); // #PYTHON list(t.shape)
 
         let v = Tensor::from_f32(5.0)?;
-        assert_eq!(v.f32_ref()?, &[5.0f32]); // #PYTHON list(v.view(-1).tolist())
+        assert_eq!(v.f32s_ref()?, &[5.0f32]); // #PYTHON list(v.view(-1).tolist())
 
         /*
             #|PYTHON
@@ -247,7 +247,7 @@ mod test {
         */
 
         t.fill_tensor(&v)?;
-        assert_eq!(t.f32_ref()?, &[5.0f32, 5.0, 5.0, 5.0]); // #PYTHON list(t.view(-1).tolist())
+        assert_eq!(t.f32s_ref()?, &[5.0f32, 5.0, 5.0, 5.0]); // #PYTHON list(t.view(-1).tolist())
 
         Ok(())
     }
@@ -269,7 +269,7 @@ mod test {
         view_mut.fill_tensor(&Tensor::from_f32(3.0)?)?;
         assert_eq!(view_mut.sizes(), &[3, 3]); // #PYTHON list(v.shape)
         assert_eq!(
-            view_mut.f32_ref()?,
+            view_mut.f32s_ref()?,
             &[3.0f32, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0]
         ); // #PYTHON list(v.view(-1).tolist())
 
@@ -277,7 +277,7 @@ mod test {
 
         let view = t.narrow(0, 0, 3)?;
         assert_eq!(
-            view.f32_ref()?,
+            view.f32s_ref()?,
             &[3.0f32, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0]
         ); // #PYTHON list(nv.view(-1).tolist())
 
@@ -289,7 +289,10 @@ mod test {
 
         let d = Tensor::from(&[[1.0f32, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]])?;
         assert_eq!(d.sizes(), &[3, 3]); // #PYTHON list(d.shape)
-        assert_eq!(d.f32_ref()?, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]); // #PYTHON list(d.view(-1).tolist())
+        assert_eq!(
+            d.f32s_ref()?,
+            &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]
+        ); // #PYTHON list(d.view(-1).tolist())
 
         /*
             #|PYTHON
@@ -297,7 +300,7 @@ mod test {
         */
         let x = d.narrow(0, 0, 2)?;
         assert_eq!(x.sizes(), &[2, 3]); // #PYTHON list(x.shape)
-        assert_eq!(x.f32_ref()?, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]); // #PYTHON list(x.view(-1).tolist())
+        assert_eq!(x.f32s_ref()?, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]); // #PYTHON list(x.view(-1).tolist())
 
         /*
             #|PYTHON
@@ -305,7 +308,7 @@ mod test {
         */
         let x = d.narrow(1, 1, 2)?;
         assert_eq!(x.sizes(), &[3, 2]); // #PYTHON list(x.shape)
-        println!("x ref: {:?}", x.f32_ref()?);
+        println!("x ref: {:?}", x.f32s_ref()?);
 
         assert_eq!(x.is_contiguous(), false);
         // I can't actually compare this at the moment.
@@ -350,7 +353,7 @@ mod test {
             d = torch.tensor(list(range(1,17)), dtype=torch.float).reshape([4,4])
         */
         let mut d = Tensor::zeros(&[16], &Default::default())?;
-        for (i, v) in d.f32_mut()?.iter_mut().enumerate() {
+        for (i, v) in d.f32s_mut()?.iter_mut().enumerate() {
             *v = (i + 1) as f32
         }
 
@@ -358,16 +361,16 @@ mod test {
 
         assert_eq!(a.sizes(), &[4, 4]); // #PYTHON list(d.shape)
         assert_eq!(
-            a.f32_ref()?,
+            a.f32s_ref()?,
             &[
                 1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0,
                 16.0
             ]
         );
-        a.f32_mut()?[0] = 50.0;
+        a.f32s_mut()?[0] = 50.0;
 
-        assert_eq!(a.f32_mut()?[0], 50.0);
-        assert_eq!(a.f32_ref()?[0], 50.0);
+        assert_eq!(a.f32s_mut()?[0], 50.0);
+        assert_eq!(a.f32s_ref()?[0], 50.0);
 
         let mut n = a.to_owned()?;
         // Currently lazy copy
@@ -376,22 +379,22 @@ mod test {
         assert!(n.equal(&a)?);
 
         // Verify n holds same data
-        assert_eq!(n.f32_ref()?[0], 50.0);
+        assert_eq!(n.f32s_ref()?[0], 50.0);
         // Modify n, this performs the copy.
-        n.f32_mut()?[0] = 20.0;
+        n.f32s_mut()?[0] = 20.0;
         assert_eq!(n.equal(&a)?, false);
 
         // data pointer shouldn't be the same now.
         assert_ne!(n.const_data_ptr(), old_n_ptr);
 
-        assert_eq!(d.f32_mut()?[0], 50.0);
+        assert_eq!(d.f32s_mut()?[0], 50.0);
 
         // Try a non owning view
         let v = d.view(&[16])?;
         let mut cv = v.to_owned()?;
-        cv.f32_mut()?[0] = 10.0;
-        assert_eq!(cv.f32_ref()?[0], 10.0);
-        assert_eq!(v.f32_ref()?[0], 50.0);
+        cv.f32s_mut()?[0] = 10.0;
+        assert_eq!(cv.f32s_ref()?[0], 10.0);
+        assert_eq!(v.f32s_ref()?[0], 50.0);
 
         // Reshape to incorrect size.
         assert!(d.view(&[12]).is_err());
@@ -421,7 +424,7 @@ mod test {
 
         let mean = d.mean(&Default::default())?;
         assert_eq!(mean.dim(), 0); // #PYTHON mean.dim()
-        assert_eq!(mean.f32_ref()?, &[8.5f32]); // #PYTHON list(mean.view(-1).tolist())
+        assert_eq!(mean.f32s_ref()?, &[8.5f32]); // #PYTHON list(mean.view(-1).tolist())
 
         let mean_0 = d.mean(&MeanOptions {
             dim: Some(0),
@@ -429,7 +432,7 @@ mod test {
         })?;
         assert_eq!(mean_0.sizes(), &[4, 4]); // #PYTHON list(mean_0.shape)
         assert_eq!(
-            mean_0.f32_ref()?,
+            mean_0.f32s_ref()?,
             &[
                 1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0,
                 16.0
@@ -441,14 +444,14 @@ mod test {
             ..Default::default()
         })?;
         assert_eq!(mean_1.sizes(), &[1, 4]); // #PYTHON list(mean_1.shape)
-        assert_eq!(mean_1.f32_ref()?, &[7.0f32, 8.0, 9.0, 10.0]); // #PYTHON list(mean_1.view(-1).tolist())
+        assert_eq!(mean_1.f32s_ref()?, &[7.0f32, 8.0, 9.0, 10.0]); // #PYTHON list(mean_1.view(-1).tolist())
 
         let mean_2 = d.mean(&MeanOptions {
             dim: Some(2),
             ..Default::default()
         })?;
         assert_eq!(mean_2.sizes(), &[1, 4]); // #PYTHON list(mean_2.shape)
-        assert_eq!(mean_2.f32_ref()?, &[2.5f32, 6.5, 10.5, 14.5]); // #PYTHON list(mean_2.view(-1).tolist())
+        assert_eq!(mean_2.f32s_ref()?, &[2.5f32, 6.5, 10.5, 14.5]); // #PYTHON list(mean_2.view(-1).tolist())
 
         let mean_1_double = d.mean(&MeanOptions {
             dim: Some(1),
@@ -456,7 +459,7 @@ mod test {
             ..Default::default()
         })?;
         assert_eq!(mean_1_double.sizes(), &[1, 4]); // #PYTHON list(mean_1_double.shape)
-        assert_eq!(mean_1_double.f64_ref()?, &[7.0f64, 8.0, 9.0, 10.0]); // #PYTHON list(mean_1_double.view(-1).tolist())
+        assert_eq!(mean_1_double.f64s_ref()?, &[7.0f64, 8.0, 9.0, 10.0]); // #PYTHON list(mean_1_double.view(-1).tolist())
         Ok(())
     }
 }

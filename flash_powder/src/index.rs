@@ -116,7 +116,7 @@ mod test {
         ])?;
         assert_eq!(d.sizes(), &[4, 4]); // #PYTHON list(d.shape)
         assert_eq!(
-            d.f32_ref()?,
+            d.f32s_ref()?,
             &[
                 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0,
                 16.0
@@ -127,7 +127,7 @@ mod test {
         let z = d.i(&[0..3usize, 0..1])?;
         println!("z: {z:?}");
 
-        assert_eq!(z.f32_ref()?, &[1.0, 5.0, 9.0]); // #PYTHON list(d[ 0:3, 0:1].view(-1).tolist())
+        assert_eq!(z.f32s_ref()?, &[1.0, 5.0, 9.0]); // #PYTHON list(d[ 0:3, 0:1].view(-1).tolist())
 
         Ok(())
     }
