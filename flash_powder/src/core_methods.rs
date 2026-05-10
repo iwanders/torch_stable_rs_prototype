@@ -18,6 +18,7 @@
 // The foo_ underscore methods modify data in place, see https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/README.md#annotations
 
 use crate::properties::TensorProperties;
+use crate::size::Size;
 use crate::{StableTorchResult, Ten, TenMut, Tensor, TensorAccess};
 use torch_stable::stable::ops::ToOptions;
 use torch_stable::{
@@ -47,6 +48,11 @@ impl Default for MeanOptions {
 ///
 /// See the [`core_methods`][crate::core_methods] module for description of this trait's functionality.
 pub trait CoreMethods: TensorAccess + TensorProperties {
+    /// Retrieve the shape as an owned [`Size`] object.
+    fn shape(&self) -> Size {
+        Size::from(self.sizes())
+    }
+
     /// Narrow view
     ///
     /// - [native_functions.yaml](https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L4489)
@@ -249,7 +255,7 @@ impl<'a> TenMut<'a> {
     /// - [native_functions.yaml](https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L4489)
     /// - [pytorch equivalent](https://docs.pytorch.org/docs/2.11/generated/torch.Tensor.narrow.html)
     pub fn narrow_mut(
-        &'a mut self,
+        self,
         dim: usize,
         start: isize,
         length: usize,
@@ -263,15 +269,15 @@ impl<'a> TenMut<'a> {
             length.into(),
         ];
         unsafe_call_dispatch_bail!("aten::narrow", "", stack.as_mut_slice());
-        Ok(TenMut::new(self.as_parent(), stack[0].try_into()?))
+        Ok(TenMut::new(self.into_parent(), stack[0].try_into()?))
     }
 
-    pub fn select_mut(&'a mut self, dim: usize, index: usize) -> StableTorchResult<TenMut<'a>> {
+    pub fn select_mut(self, dim: usize, index: usize) -> StableTorchResult<TenMut<'a>> {
         let mut stack: [StableIValue; 3] = [self.get_tensor().into(), dim.into(), index.into()];
         unsafe_call_dispatch_bail!("aten::select", "int", stack.as_mut_slice());
         let r: StableTensor = stack[0].try_into()?;
 
-        Ok(TenMut::new(self.as_parent(), r))
+        Ok(TenMut::new(self.into_parent(), r))
     }
 }
 
@@ -556,18 +562,9 @@ mod test {
         assert_eq!(mean_1_double.f64s_ref()?, &[7.0f64, 8.0, 9.0, 10.0]); // #PYTHON list(mean_1_double.view(-1).tolist())
         Ok(())
     }
+
     #[test]
     fn test_flash_powder_full_view() -> StableTorchResult<()> {
-        /*
-            #|PYTHON
-            d = torch.tensor(list(range(1,17)), dtype=torch.float).reshape([1,4,4])
-            mean = d.mean()
-            mean_0 = d.mean(0)
-            mean_1 = d.mean(1)
-            mean_2 = d.mean(2)
-            mean_1_double = d.mean(1, dtype=torch.double)
-        */
-
         let d = Tensor::from(&[[
             [1.0f32, 2.0, 3.0, 4.0],
             [5.0, 6.0, 7.0, 8.0],
@@ -584,6 +581,11 @@ mod test {
         let mut z = z.ten_mut()?;
         *z.f32_mut(&[0, 0])? = 30.0;
         assert_eq!(d.f32_ref(&[0, 0])?, &30.0);
+
+        let shape = d.shape();
+        println!("shape: {shape:?}");
+        let z = d.view_mut(&shape)?;
+        assert_eq!(z.f32_ref(&[0, 0])?, &30.0);
 
         Ok(())
     }

@@ -70,7 +70,7 @@ trait TensorIndexWorker: CoreMethods {
         index: &[&TensorIndexOptions<'a>],
     ) -> StableTorchResult<Ten<'b>> {
         // Make a view into the tensor, we'll be updating this as we go through the indexing operations.
-        let mut current = self.view(self.sizes())?;
+        let mut current = self.ten()?;
         let mut dim = 0;
         for index_op_conv in index.iter() {
             let mut do_dim_add = true;
@@ -148,14 +148,14 @@ where
 }
 
 // and the mut flavours.
-/*
-trait TensorIndexWorkerMut: CoreMethodsMut {
-    fn do_the_real_indexingMut<'a, 'b>(
-        &'b self,
+trait TensorIndexWorkerMut: CoreMethodsMut + CoreMethods {
+    fn do_the_real_indexing_mut<'a, 'b>(
+        &'b mut self,
         index: &[&TensorIndexOptions<'a>],
-    ) -> StableTorchResult<Ten<'b>> {
+    ) -> StableTorchResult<TenMut<'b>> {
         // Make a view into the tensor, we'll be updating this as we go through the indexing operations.
-        let mut current = self.view_mut(self.sizes())?;
+        let shape = self.shape();
+        let mut current = self.ten_mut()?;
         let mut dim = 0;
         for index_op_conv in index.iter() {
             let mut do_dim_add = true;
@@ -167,7 +167,7 @@ trait TensorIndexWorkerMut: CoreMethodsMut {
                 }
                 TensorIndexOptions::Range(range) => {
                     let length = if range.start < 0 {
-                        (self.sizes()[dim] as isize + range.start) as usize + 1
+                        (shape[dim] as isize + range.start) as usize + 1
                     } else {
                         range.len()
                     };
@@ -183,9 +183,9 @@ trait TensorIndexWorkerMut: CoreMethodsMut {
     }
 }
 
-impl TensorIndexWorker for Tensor {}
-impl TensorIndexWorker for Ten<'_> {}
-*/
+impl TensorIndexWorkerMut for Tensor {}
+impl TensorIndexWorkerMut for TenMut<'_> {}
+
 #[cfg(test)]
 mod test {
     use super::*;

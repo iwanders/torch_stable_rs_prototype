@@ -27,6 +27,8 @@ pub mod factory;
 pub mod functional;
 pub mod index;
 pub mod properties;
+pub mod size;
+
 pub mod tensor;
 pub mod torch;
 

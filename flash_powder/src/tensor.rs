@@ -91,7 +91,7 @@ impl<'a> TenMut<'a> {
             tensor,
         }
     }
-    pub(crate) fn as_parent(&'a mut self) -> &'a mut StableTensor {
+    pub(crate) fn into_parent(self) -> &'a mut StableTensor {
         self._parent
     }
 }
