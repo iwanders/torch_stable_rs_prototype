@@ -309,7 +309,13 @@ mod test {
         */
         let x = d.narrow(0, 0, 2)?;
         assert_eq!(x.sizes(), &[2, 3]); // #PYTHON list(x.shape)
-        assert_eq!(x.f32s_ref()?, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]); // #PYTHON list(x.view(-1).tolist())
+
+        assert_eq!(x.f32_ref(&[0, 0])?, &1.0); // #PYTHON x[ 0,  0].item()
+        assert_eq!(x.f32_ref(&[0, 1])?, &2.0); // #PYTHON x[ 0,  1].item()
+        assert_eq!(x.f32_ref(&[0, 2])?, &3.0); // #PYTHON x[ 0,  2].item()
+        assert_eq!(x.f32_ref(&[1, 0])?, &4.0); // #PYTHON x[ 1,  0].item()
+        assert_eq!(x.f32_ref(&[1, 1])?, &5.0); // #PYTHON x[ 1,  1].item()
+        assert_eq!(x.f32_ref(&[1, 2])?, &6.0); // #PYTHON x[ 1,  2].item()
 
         /*
             #|PYTHON
@@ -318,13 +324,14 @@ mod test {
         let x = d.narrow(1, 1, 2)?;
         assert_eq!(x.sizes(), &[3, 2]); // #PYTHON list(x.shape)
         println!("x ref: {:?}", x.f32s_ref()?);
+        assert_eq!(x.f32_ref(&[0, 0])?, &2.0); // #PYTHON x[ 0, 0].item()
+        assert_eq!(x.f32_ref(&[1, 0])?, &5.0); // #PYTHON x[ 1, 0].item()
+        assert_eq!(x.f32_ref(&[2, 0])?, &8.0); // #PYTHON x[ 2, 0].item()
+        assert_eq!(x.f32_ref(&[0, 1])?, &3.0); // #PYTHON x[ 0, 1].item()
+        assert_eq!(x.f32_ref(&[1, 1])?, &6.0); // #PYTHON x[ 1, 1].item()
+        assert_eq!(x.f32_ref(&[2, 1])?, &9.0); // #PYTHON x[ 2, 1].item()
 
         assert_eq!(x.is_contiguous(), false);
-        // I can't actually compare this at the moment.
-        // we need
-        // https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L1715-L1717
-        // https://docs.pytorch.org/docs/2.11/generated/torch.Tensor.contiguous.html#torch.Tensor.contiguous
-        // assert_eq!(x.to_owned()?.f32_ref()?,&[2.0, 3.0, 5.0, 6.0, 8.0, 9.0]); // #PYTHON list(x.flatten().tolist())
         Ok(())
     }
     #[test]

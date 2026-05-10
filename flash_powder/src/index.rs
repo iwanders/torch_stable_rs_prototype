@@ -45,7 +45,7 @@ use torch_stable::stable::tensor::Tensor as StableTensor;
 
 pub enum TensorIndexOptions<'a> {
     Tensor(&'a StableTensor),
-    Index(usize),
+    Index(isize),
     Range(std::ops::Range<isize>),
     // Can we even do this?
     RangeWithStride {
@@ -53,7 +53,7 @@ pub enum TensorIndexOptions<'a> {
         stride: isize,
     },
 }
-impl<'a> Into<TensorIndexOptions<'a>> for usize {
+impl<'a> Into<TensorIndexOptions<'a>> for isize {
     fn into(self) -> TensorIndexOptions<'a> {
         TensorIndexOptions::Index(self)
     }
@@ -77,7 +77,7 @@ trait TensorIndexWorker: TensorAccess + TensorProperties + CoreMethods {
             match index_op_conv {
                 TensorIndexOptions::Tensor(tensor) => todo!(),
                 TensorIndexOptions::Index(index) => {
-                    current = current.select(dim, *index)?;
+                    current = current.select(dim, *index as usize)?;
                     do_dim_add = false;
                 }
                 TensorIndexOptions::Range(range) => {
