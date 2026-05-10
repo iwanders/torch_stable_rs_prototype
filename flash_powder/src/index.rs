@@ -2,7 +2,7 @@
 
 use crate::core_methods::CoreMethods;
 use crate::properties::TensorProperties;
-use crate::tensor::{Ten, TenMut};
+use crate::tensor::{Ten, TenMut, Tensor};
 use crate::{StableTorchResult, TensorAccess};
 pub use torch_stable::stable::ops::{EmtpyOptions, ToOptions};
 use torch_stable::stable::tensor::Tensor as StableTensor;
@@ -56,9 +56,9 @@ impl<'a> Into<TensorIndexOptions<'a>> for isize {
         TensorIndexOptions::Index(self)
     }
 }
-impl<'a> Into<TensorIndexOptions<'a>> for std::ops::Range<usize> {
+impl<'a> Into<TensorIndexOptions<'a>> for &std::ops::Range<usize> {
     fn into(self) -> TensorIndexOptions<'a> {
-        TensorIndexOptions::Range(self)
+        TensorIndexOptions::Range(self.clone())
     }
 }
 impl<'a> Into<TensorIndexOptions<'a>> for (std::ops::Range<usize>, isize) {
@@ -84,19 +84,16 @@ pub trait TensorIndex: TensorAccess + TensorProperties + CoreMethods {
                 TensorIndexOptions::Tensor(tensor) => todo!(),
                 TensorIndexOptions::Index(_) => todo!(),
                 TensorIndexOptions::Range(range) => {
-                    // current = current.narrow(dim, range.start, range.end)?;
-                    todo!(
-                        "That doesn't work because narrow borrows current, so we can't assign into current again"
-                    );
+                    current = current.narrow(dim, range.start, range.end)?;
                 }
                 TensorIndexOptions::RangeWithStride { range, stride } => todo!(),
             }
             dim += 1;
         }
-
-        todo!()
+        Ok(current)
     }
 }
+impl TensorIndex for Tensor {}
 
 #[cfg(test)]
 mod test {
@@ -107,16 +104,20 @@ mod test {
     fn test_flash_powder_indexing() -> StableTorchResult<()> {
         /*
             #|PYTHON
-            d = torch.tensor(list(range(1,17)), dtype=torch.float).reshape([1,4,4])
+            d = torch.tensor(list(range(1,17)), dtype=torch.float).reshape([ 4,4])
         */
 
-        let d = Tensor::from(&[[
+        let d = Tensor::from(&[
             [1.0f32, 2.0, 3.0, 4.0],
             [5.0, 6.0, 7.0, 8.0],
             [9.0, 10.0, 11.0, 12.0],
             [13.0, 14.0, 15.0, 16.0],
-        ]])?;
-        assert_eq!(d.sizes(), &[1, 4, 4]); // #PYTHON list(d.shape)
+        ])?;
+        assert_eq!(d.sizes(), &[4, 4]); // #PYTHON list(d.shape)
+
+        println!("d: {d:?}");
+        let z = d.i(&[0..3usize, 0..1])?;
+        println!("z: {z:?}");
 
         Ok(())
     }

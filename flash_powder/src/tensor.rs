@@ -73,6 +73,9 @@ impl<'a> Ten<'a> {
             tensor,
         }
     }
+    pub(crate) fn as_parent(&self) -> &'a StableTensor {
+        self._parent
+    }
 }
 
 /// A mutable borrow on another Tensor, like mutably borrowed slice into one.
@@ -164,6 +167,7 @@ mod test {
     fn test_flash_powder_debug_print() -> StableTorchResult<()> {
         let z = Tensor::randn(&[5, 5], &Default::default())?;
         println!("{:?}", z);
-        todo!();
+
+        Ok(())
     }
 }

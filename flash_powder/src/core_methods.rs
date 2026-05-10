@@ -144,6 +144,24 @@ impl CoreMethods for Tensor {}
 impl<'a> CoreMethods for Ten<'a> {}
 impl<'a> CoreMethods for TenMut<'a> {}
 
+impl<'a> Ten<'a> {
+    /// Narrow view
+    ///
+    /// - [native_functions.yaml](https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L4489)
+    /// - [pytorch equivalent](https://docs.pytorch.org/docs/2.11/generated/torch.Tensor.narrow.html)
+    pub fn narrow(&self, dim: usize, start: usize, end: usize) -> StableTorchResult<Ten<'a>> {
+        // https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L4489
+        let mut stack: [StableIValue; 4] = [
+            self.get_tensor().into(),
+            dim.into(),
+            start.into(),
+            end.into(),
+        ];
+        unsafe_call_dispatch_bail!("aten::narrow", "", stack.as_mut_slice());
+        Ok(Ten::new(self.as_parent(), stack[0].try_into()?))
+    }
+}
+
 /// Core methods that require mutable access.
 ///
 /// See the [`core_methods`][crate::core_methods] module for description of this trait's functionality.
