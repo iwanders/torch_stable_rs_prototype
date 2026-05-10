@@ -149,6 +149,7 @@ pub trait CoreMethods: TensorAccess + TensorProperties {
         let r: Tensor = Tensor::new(stack[0].try_into().unwrap());
         Ok(r)
     }
+
     /// Copied contigous version of tensor.
     ///
     /// Contrary to pytorch, this ALWAYS returns a copy.
@@ -296,7 +297,7 @@ impl<'a> TenMut<'a> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::prelude::*;
+    use crate::{index::TensorIndex as _, prelude::*};
 
     #[test]
     fn test_flash_powder_fill() -> StableTorchResult<()> {
@@ -438,8 +439,8 @@ mod test {
 
     #[test]
     fn test_flash_powder_to() -> StableTorchResult<()> {
-        use crate::ScalarType;
         use crate::factory::TensorOptions;
+        use crate::ScalarType;
         let t = Tensor::zeros(
             &[5, 5],
             &TensorOptions {
@@ -598,6 +599,36 @@ mod test {
         println!("shape: {shape:?}");
         let z = d.view_mut(&shape)?;
         assert_eq!(z.f32_ref(&[0, 0])?, &30.0);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_flash_powder_contiguous() -> StableTorchResult<()> {
+        /*
+            #|PYTHON
+            d = torch.tensor(list(range(1,17)), dtype=torch.float).reshape([1,4,4])
+        */
+
+        let d = Tensor::from(&[[
+            [1.0f32, 2.0, 3.0, 4.0],
+            [5.0, 6.0, 7.0, 8.0],
+            [9.0, 10.0, 11.0, 12.0],
+            [13.0, 14.0, 15.0, 16.0],
+        ]])?;
+        assert_eq!(d.sizes(), &[1, 4, 4]); // #PYTHON list(d.shape)
+
+        /*
+            #|PYTHON
+            v = d[0, 0:2, 0:3]
+        */
+        let v = d.i((0, 0..2, 0..3))?;
+        assert_eq!(v.sizes(), &[2, 3]); // #PYTHON list(v.shape)
+        assert_eq!(v.is_contiguous(), false);
+
+        let v_c = v.contiguous()?;
+        assert_eq!(v_c.is_contiguous(), true);
+        assert_eq!(v.equal(&v_c)?, true);
 
         Ok(())
     }
