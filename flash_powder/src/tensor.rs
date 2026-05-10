@@ -91,6 +91,9 @@ impl<'a> TenMut<'a> {
             tensor,
         }
     }
+    pub(crate) fn as_parent(&'a mut self) -> &'a mut StableTensor {
+        self._parent
+    }
 }
 
 pub trait TensorAccess {

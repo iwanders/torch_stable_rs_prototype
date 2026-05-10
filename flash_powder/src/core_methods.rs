@@ -60,7 +60,7 @@ pub trait CoreMethods: TensorAccess + TensorProperties {
             length.into(),
         ];
         unsafe_call_dispatch_bail!("aten::narrow", "", stack.as_mut_slice());
-        Ok(Ten::new(&self.get_tensor(), stack[0].try_into()?))
+        Ok(Ten::new(self.get_tensor(), stack[0].try_into()?))
     }
 
     /// To
@@ -230,6 +230,38 @@ impl CoreMethodsMut for Tensor {}
 impl<'a> CoreMethodsMut for Ten<'a> {}
 impl<'a> CoreMethodsMut for TenMut<'a> {}
 
+impl<'a> TenMut<'a> {
+    /// Narrow mut view
+    ///
+    /// - [native_functions.yaml](https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L4489)
+    /// - [pytorch equivalent](https://docs.pytorch.org/docs/2.11/generated/torch.Tensor.narrow.html)
+    pub fn narrow_mut(
+        &'a mut self,
+        dim: usize,
+        start: isize,
+        length: usize,
+    ) -> StableTorchResult<TenMut<'a>> {
+        // https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L4489
+
+        let mut stack: [StableIValue; 4] = [
+            self.get_tensor().into(),
+            dim.into(),
+            start.into(),
+            length.into(),
+        ];
+        unsafe_call_dispatch_bail!("aten::narrow", "", stack.as_mut_slice());
+        Ok(TenMut::new(self.as_parent(), stack[0].try_into()?))
+    }
+
+    pub fn select_mut(&'a mut self, dim: usize, index: usize) -> StableTorchResult<TenMut<'a>> {
+        let mut stack: [StableIValue; 3] = [self.get_tensor().into(), dim.into(), index.into()];
+        unsafe_call_dispatch_bail!("aten::select", "int", stack.as_mut_slice());
+        let r: StableTensor = stack[0].try_into()?;
+
+        Ok(TenMut::new(self.as_parent(), r))
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -375,8 +407,8 @@ mod test {
 
     #[test]
     fn test_flash_powder_to() -> StableTorchResult<()> {
-        use crate::factory::TensorOptions;
         use crate::ScalarType;
+        use crate::factory::TensorOptions;
         let t = Tensor::zeros(
             &[5, 5],
             &TensorOptions {
