@@ -57,7 +57,7 @@ impl<'a> Into<TensorIndexOptions<'a>> for usize {
         TensorIndexOptions::Index(self)
     }
 }
-impl<'a> Into<TensorIndexOptions<'a>> for &std::ops::Range<usize> {
+impl<'a> Into<TensorIndexOptions<'a>> for std::ops::Range<usize> {
     fn into(self) -> TensorIndexOptions<'a> {
         TensorIndexOptions::Range(self.clone())
     }
@@ -71,30 +71,58 @@ impl<'a> Into<TensorIndexOptions<'a>> for (std::ops::Range<usize>, isize) {
     }
 }
 
-pub trait TensorIndex: TensorAccess + TensorProperties + CoreMethods {
-    fn i<'a, T>(&self, index: &'a [T]) -> StableTorchResult<Ten<'_>>
-    where
-        &'a T: Into<TensorIndexOptions<'a>>,
-    {
+pub trait TensorIndexWorker: TensorAccess + TensorProperties + CoreMethods {
+    fn do_the_real_indexing<'a, 'b>(
+        &'b self,
+        index: &[&TensorIndexOptions<'a>],
+    ) -> StableTorchResult<Ten<'b>> {
         // Make a view into the tensor, we'll be updating this as we go through the indexing operations.
         let mut current = self.view(self.sizes())?;
-        // let mut dim = self.dim();
-        for (index_op_conv, dim) in index.iter().zip(0..index.len()) {
-            // dim -= 1;
-            let index_op: TensorIndexOptions<'_> = index_op_conv.into();
-            match index_op {
+        let mut dim = 0;
+        for index_op_conv in index.iter() {
+            let mut do_dim_add = true;
+            match index_op_conv {
                 TensorIndexOptions::Tensor(tensor) => todo!(),
-                TensorIndexOptions::Index(index) => current = current.select(dim, index)?,
+                TensorIndexOptions::Index(index) => {
+                    current = current.select(dim, *index)?;
+                    do_dim_add = false;
+                }
                 TensorIndexOptions::Range(range) => {
                     current = current.narrow(dim, range.start, range.len())?;
                 }
                 TensorIndexOptions::RangeWithStride { range, stride } => todo!(),
             }
+            if do_dim_add {
+                dim += 1;
+            }
         }
         Ok(current)
     }
 }
+
+impl TensorIndexWorker for Tensor {}
+
+pub trait IndexSpec<T> {
+    fn do_index<'b>(&self, tensor: &'b T) -> StableTorchResult<Ten<'b>>;
+}
+pub trait TensorIndex: TensorAccess + TensorProperties + CoreMethods + Sized {
+    fn i<'a, I: IndexSpec<Self>>(&'a self, index: I) -> StableTorchResult<Ten<'a>> {
+        index.do_index(self)
+    }
+}
 impl TensorIndex for Tensor {}
+
+impl<'a, A: Clone, B: Clone, T: TensorIndexWorker> IndexSpec<T> for (A, B)
+where
+    A: Into<TensorIndexOptions<'a>>,
+    B: Into<TensorIndexOptions<'a>>,
+{
+    fn do_index<'b>(&self, tensor: &'b T) -> StableTorchResult<Ten<'b>> {
+        let first: TensorIndexOptions<'_> = self.0.clone().into();
+        let second: TensorIndexOptions<'_> = self.1.clone().into();
+        tensor.do_the_real_indexing(&[&first, &second])
+    }
+}
 
 #[cfg(test)]
 mod test {
@@ -123,7 +151,7 @@ mod test {
             ]
         ); // #PYTHON list(d.view(-1).tolist())
 
-        let z = d.i(&[1..3usize, 0..1])?;
+        let z = d.i((1..3usize, 0..1usize))?;
         /*
             #|PYTHON
             z = d[1:3, 0:1]
@@ -138,18 +166,18 @@ mod test {
 
         // Ah yes, now we need a tuple...
         //
-        let z = d.i(&[2..0, 0..1])?;
+        let z = d.i((1, 0..3))?;
         /*
             #|PYTHON
-            z = d[1:3, 0:1]
+            z = d[1, 0:3]
         */
 
         println!("z: {z:?}");
-        assert_eq!(z.sizes(), &[2, 1]); // #PYTHON list(z.shape)
-        assert_eq!(z.stride(0), 4); // #PYTHON  (z.stride(0))
-        assert_eq!(z.stride(1), 1); // #PYTHON  (z.stride(1))
-        assert_eq!(z.f32_ref(&[0, 0])?, &5.0); // #PYTHON z[0,0].item()
-        assert_eq!(z.f32_ref(&[1, 0])?, &9.0); // #PYTHON z[1,0].item()
+        assert_eq!(z.sizes(), &[3]); // #PYTHON list(z.shape)
+        assert_eq!(z.stride(0), 1); // #PYTHON  (z.stride(0))
+        assert_eq!(z.f32_ref(&[0])?, &5.0); // #PYTHON z[0].item()
+        assert_eq!(z.f32_ref(&[1])?, &6.0); // #PYTHON z[1].item()
+        assert_eq!(z.f32_ref(&[2])?, &7.0); // #PYTHON z[2].item()
 
         Ok(())
     }
