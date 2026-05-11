@@ -1,4 +1,35 @@
 //! Module with [`TryInto<Tensor>`] implementations.
+//!
+//! They're not visible in the docs, but [`TryInto<Tensor>`] is implemented for:
+//! - `[T]` Creates a 1d tensor.
+//! - `[T; N]` Creates a 1d tensor.
+//! - `[[T; C]; R]` Creates a 2d tensor.
+//! - `[[[T; C]; R]; D]` Creates a 3d tensor.
+//!
+//! ```rust
+//! # use flash_powder::prelude::*;
+//! # use flash_powder::StableTorchResult;
+//! # fn foo() -> StableTorchResult<()>{
+//!
+//!   let d: Tensor = (5i64,).try_into()?;
+//!   assert_eq!(d.dim(), 0);
+//!   assert_eq!(d.i64_ref(&[])?, &5);
+//!
+//!   let d: Tensor = [5i64, 3].try_into()?;
+//!   assert_eq!(d.sizes(), &[2]);
+//!   let d: Tensor = [[5.0f32, 3.0], [1.0, 2.0]].try_into()?;
+//!   assert_eq!(d.sizes(), &[2, 2]);
+//!
+//!   let d: Tensor = [[5.0f32, 3.0, 5.0], [1.0, 2.0, 0.0]].try_into()?;
+//!   assert_eq!(d.sizes(), &[2, 3]);
+//!
+//!
+//!   let d: Tensor = [[[1i64, 2], [3, 4]], [[8, 1], [9, 3]]].try_into()?;
+//!   assert_eq!(d.sizes(), &[2, 2, 2]);
+//! # Ok(())
+//! # }
+//! ```
+//!
 
 use crate::data::DataMut;
 use crate::factory::TensorFactory;
@@ -34,6 +65,22 @@ impl_tensor_scalar_trait!(u64, ScalarType::UInt64);
 impl_tensor_scalar_trait!(bool, ScalarType::Bool);
 
 use zerocopy::{Immutable, IntoBytes, TryFromBytes};
+
+impl<T: TensorScalar + Immutable + IntoBytes + TryFromBytes + Copy> TryInto<Tensor> for (T,) {
+    type Error = anyhow::Error;
+
+    fn try_into(self) -> Result<Tensor, Self::Error> {
+        let mut v = Tensor::empty(
+            &[],
+            &EmtpyOptions {
+                dtype: Some(T::tensor_scalar_type()),
+                ..Default::default()
+            },
+        )?;
+        v.ds_mut::<T>()?[0] = self.0;
+        Ok(v)
+    }
+}
 
 impl<T: TensorScalar + Immutable + IntoBytes + TryFromBytes + Copy> TryInto<Tensor> for &[T] {
     type Error = anyhow::Error;
@@ -280,6 +327,15 @@ mod test {
                 3, 0, 0, 0, 0, 0, 0, 0
             ]
         ); // #PYTHON d.view(torch.uint8).view(-1).tolist()
+        assert_eq!(d.dtype(), ScalarType::Long); // #PYTHON d.dtype
+
+        /*
+            #|PYTHON
+            d = torch.tensor(int(5))
+        */
+        let d: Tensor = (5i64,).try_into()?;
+        assert_eq!(d.dim(), 0); // #PYTHON d.dim()
+        assert_eq!(d.i64_ref(&[])?, &5); // #PYTHON d.item()
         assert_eq!(d.dtype(), ScalarType::Long); // #PYTHON d.dtype
 
         Ok(())

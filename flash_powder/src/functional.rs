@@ -55,7 +55,7 @@ pub fn conv2d<T: TensorAccess>(
     Ok(Tensor::new(r))
 }
 
-/// Options for conv2d.
+/// Options for conv2d transpose.
 #[derive(Copy, Clone, Debug)]
 pub struct ConvTranspose2dOptions {
     pub stride: (i64, i64),

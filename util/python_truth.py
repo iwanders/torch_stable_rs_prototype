@@ -262,22 +262,23 @@ def format_payload_as_rust(payload, rust_type=None):
         return f"{ref_str}{arr_start_str}{payload_str}{type_str}{arr_end_str}"
 
     elif isinstance(payload, list):
-        if isinstance(payload[0], int):
+        if payload and isinstance(payload[0], int):
             if rust_type and rust_type not in RUST_INTS:
                 raise ValueError(f"Trying to convert {payload} to {rust_type}")
-        if isinstance(payload[0], float):
+        if payload and isinstance(payload[0], float):
             if rust_type and rust_type not in RUST_FLOATS:
                 raise ValueError(f"Trying to convert {payload} to {rust_type}")
         payload_str = [str(p) for p in payload]
 
-        payload_str[0] += type_str
+        if payload_str:
+            payload_str[0] += type_str
         payload_str = ", ".join(payload_str)
         return f"{ref_str}[{payload_str}]"
     elif type(payload) in PYTHON_TO_RUST_CONVERTERS:
         return PYTHON_TO_RUST_CONVERTERS[type(payload)](payload)
     else:
         raise NotImplementedError(
-            f"not implemented payload type: {type(payload)}, for {rust_type}"
+            f"not implemented payload type: {payload}, for {rust_type}"
         )
 
 
