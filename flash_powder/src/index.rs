@@ -46,6 +46,7 @@ pub enum TensorIndexOptions<'a> {
     Tensor(&'a StableTensor),
     Index(isize),
     Range(std::ops::Range<isize>),
+    RangeFull,
     // Can we even do this?
     RangeWithStride {
         range: std::ops::Range<usize>,
@@ -60,6 +61,11 @@ impl<'a> Into<TensorIndexOptions<'a>> for isize {
 impl<'a> Into<TensorIndexOptions<'a>> for std::ops::Range<isize> {
     fn into(self) -> TensorIndexOptions<'a> {
         TensorIndexOptions::Range(self.clone())
+    }
+}
+impl<'a> Into<TensorIndexOptions<'a>> for std::ops::RangeFull {
+    fn into(self) -> TensorIndexOptions<'a> {
+        TensorIndexOptions::RangeFull
     }
 }
 
@@ -86,6 +92,9 @@ trait TensorIndexWorker: CoreMethods {
                         range.len()
                     };
                     current = current.narrow(dim, range.start, length)?;
+                }
+                TensorIndexOptions::RangeFull => {
+                    current = current.narrow(dim, 0, self.size(dim))?;
                 }
                 TensorIndexOptions::RangeWithStride {
                     range: _range,
@@ -174,6 +183,9 @@ trait TensorIndexWorkerMut: CoreMethodsMut + CoreMethods {
                         range.len()
                     };
                     current = current.narrow_mut(dim, range.start, length)?;
+                }
+                TensorIndexOptions::RangeFull => {
+                    current = current.narrow_mut(dim, 0, shape[dim])?;
                 }
                 TensorIndexOptions::RangeWithStride {
                     range: _range,

@@ -52,6 +52,9 @@ pub mod prelude {
     pub use tensor::{Ten, TenMut, Tensor, TensorAccess};
 
     #[doc(inline)]
+    pub use index::TensorIndex;
+
+    #[doc(inline)]
     pub use super::torch;
     // #[doc(inline)]
     // pub use crate::functional;
