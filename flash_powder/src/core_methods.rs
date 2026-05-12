@@ -162,6 +162,22 @@ pub trait CoreMethods: TensorAccess + TensorProperties {
         let r: Tensor = Tensor::new(stack[0].try_into().unwrap());
         Ok(r.clone())
     }
+
+    /// Flatten the tensor
+    ///
+    /// Contrary to pytorch, this ALWAYS returns a copy.
+    /// - [native_functions.yaml](https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L2702)
+    /// - [tensor method](https://docs.pytorch.org/docs/2.11/generated/torch.Tensor.flatten.html#torch.Tensor.flatten)
+    /// - [pytorch method](https://docs.pytorch.org/docs/2.11/generated/torch.flatten.html#torch.flatten)
+    // Todo? maybe make this take a range? .flatten(..) or .flatten(3..) has a nice ring to it?
+    fn flatten(&self, start_dim: usize, end_dim: Option<usize>) -> StableTorchResult<Tensor> {
+        let end = end_dim.map(|z| z as isize).unwrap_or(-1);
+        let mut stack: [StableIValue; 3] =
+            [(self.get_tensor()).into(), start_dim.into(), end.into()];
+        unsafe_call_dispatch_panic!("aten::flatten", "using_ints", stack.as_mut_slice());
+        let r: Tensor = Tensor::new(stack[0].try_into().unwrap());
+        Ok(r)
+    }
 }
 impl CoreMethods for Tensor {}
 impl<'a> CoreMethods for Ten<'a> {}
@@ -629,6 +645,33 @@ mod test {
         let v_c = v.contiguous()?;
         assert_eq!(v_c.is_contiguous(), true);
         assert_eq!(v.equal(&v_c)?, true);
+
+        Ok(())
+    }
+    #[test]
+    fn test_flash_powder_flatten() -> StableTorchResult<()> {
+        // https://docs.pytorch.org/docs/2.11/generated/torch.flatten.html#torch.flatten
+        /*
+            #|PYTHON
+            t = torch.tensor([[[1, 2],
+                               [3, 4]],
+                              [[5, 6],
+                               [7, 8]]])
+        */
+
+        let t = Tensor::from(&[[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]])?;
+        assert_eq!(t.sizes(), &[2, 2, 2]); // #PYTHON list(t.shape)
+
+        /*
+            #|PYTHON
+            l = torch.flatten(t)
+            two = torch.flatten(t, 1)
+        */
+        let l = t.flatten(0, None)?;
+        assert_eq!(l.sizes(), &[8]); // #PYTHON list(l.shape)
+
+        let l = t.flatten(1, None)?;
+        assert_eq!(l.sizes(), &[2, 4]); // #PYTHON list(two.shape)
 
         Ok(())
     }
