@@ -160,6 +160,27 @@ pub fn relu<T: TensorAccess>(input: &T) -> StableTorchResult<Tensor> {
     Ok(Tensor::new(r))
 }
 
+/// Linear
+///
+/// - [native_functions.yaml](https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L3419)
+/// - [pytorch equivalent](https://docs.pytorch.org/docs/2.11/generated/torch.nn.functional.linear.html)
+pub fn linear<I: TensorAccess, W: TensorAccess, B: TensorAccess>(
+    input: &I,
+    weight: &W,
+    bias: Option<&B>,
+) -> StableTorchResult<Tensor> {
+    let mut stack: [StableIValue; 3] = [
+        input.get_tensor().into(),
+        weight.get_tensor().into(),
+        (&bias.map(|z| z.get_tensor())).into(),
+    ];
+    unsafe_call_dispatch_bail!("aten::linear", "", stack.as_mut_slice());
+    let r: StableTensor = stack[0].try_into()?;
+    Ok(Tensor::new(r))
+}
+
+// DROPOUT
+
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
 pub enum InterpolateAlgorithm {
     #[default]
@@ -201,7 +222,7 @@ pub fn interpolate<T: TensorAccess + TensorProperties>(
     options: &InterpolateOptions,
 ) -> StableTorchResult<Tensor> {
     let dim = input.dim() - 2; // Number of spatial dimensions.
-    // Validation in https://github.com/pytorch/pytorch/blob/v2.11.0/torch/nn/functional.py#L4715-L4761 :o
+                               // Validation in https://github.com/pytorch/pytorch/blob/v2.11.0/torch/nn/functional.py#L4715-L4761 :o
 
     let mut scale_factors: Option<&[f64]> = None;
     let mut output_size: Option<&[i64]> = None;
@@ -220,7 +241,6 @@ pub fn interpolate<T: TensorAccess + TensorProperties>(
     } else {
         align_corners = options.align_corners.unwrap_or_default();
     }
-    println!("align_corners: {align_corners}");
 
     if options.size.is_some() && options.scale_factor.is_some() {
         bail!("only one of size or scale_factor should be defined");
@@ -589,9 +609,7 @@ mod test {
         assert_eq!(m.sizes(), &[1, 1, 4, 4]); // #PYTHON list(m.shape)
         assert_eq!(
             m.f32s_ref()?,
-            &[
-                1.0f32, 1.0, 2.0, 2.0, 1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 3.0, 3.0, 4.0, 4.0
-            ]
+            &[1.0f32, 1.0, 2.0, 2.0, 1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 3.0, 3.0, 4.0, 4.0]
         ); // #PYTHON list(m.view(-1).tolist())
 
         // Bilinear 2
@@ -655,6 +673,37 @@ mod test {
 
         // For the rest of the examples from Upsample we need slicing to do that copy... which we don't currently have.
         // TODO
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_flash_powder_linear() -> StableTorchResult<()> {
+        /*
+            #|PYTHON
+            w = torch.tensor(list(range(1,10)), dtype=torch.float).reshape([3,3])
+            b = torch.tensor([1.0,2.0,3.0])
+            x = torch.tensor([5.0,6.0,7.0])
+            v = torch.nn.functional.linear(x, w, b)
+        */
+
+        let w = Tensor::from(&[[1.0f32, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]])?;
+        let b = Tensor::from(&[1.0f32, 2.0, 3.0])?;
+        let x: Tensor = [5.0f32, 6.0, 7.0].try_into()?;
+        assert_eq!(w.sizes(), &[3, 3]); // #PYTHON list(w.shape)
+        assert_eq!(
+            w.f32s_ref()?,
+            &[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]
+        ); // #PYTHON list(w.view(-1).tolist())
+
+        assert_eq!(b.sizes(), &[3]); // #PYTHON list(b.shape)
+        assert_eq!(b.f32s_ref()?, &[1.0f32, 2.0, 3.0]); // #PYTHON list(b.view(-1).tolist())
+        assert_eq!(x.sizes(), &[3]); // #PYTHON list(x.shape)
+        assert_eq!(x.f32s_ref()?, &[5.0f32, 6.0, 7.0]); // #PYTHON list(x.view(-1).tolist())
+
+        let v = linear(&x, &w, Some(&b))?;
+        assert_eq!(v.sizes(), &[3]); // #PYTHON list(v.shape)
+        assert_eq!(v.f32s_ref()?, &[39.0f32, 94.0, 149.0]); // #PYTHON list(v.view(-1).tolist())
 
         Ok(())
     }
