@@ -178,6 +178,29 @@ pub trait CoreMethods: TensorAccess + TensorProperties {
         let r: Tensor = Tensor::new(stack[0].try_into().unwrap());
         Ok(r)
     }
+
+    /// Division
+    ///
+    /// - [native_functions.yaml](https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L2173)
+    /// - [tensor method](https://docs.pytorch.org/docs/2.11/generated/torch.Tensor.div.html)
+    /// - [pytorch method](https://docs.pytorch.org/docs/2.11/generated/torch.div.html#torch.div)
+    fn div<T: TensorAccess>(&self, other: &T) -> StableTorchResult<Tensor> {
+        let mut stack: [StableIValue; 2] = [(self.get_tensor()).into(), other.get_tensor().into()];
+        unsafe_call_dispatch_panic!("aten::div", "Tensor", stack.as_mut_slice());
+        let r: Tensor = Tensor::new(stack[0].try_into().unwrap());
+        Ok(r)
+    }
+    /// Multiply
+    ///
+    /// - [native_functions.yaml](https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L4377)
+    /// - [tensor method](https://docs.pytorch.org/docs/2.11/generated/torch.Tensor.mul.html)
+    /// - [pytorch method](https://docs.pytorch.org/docs/2.11/generated/torch.mul.html#torch.mul)
+    fn mul<T: TensorAccess>(&self, other: &T) -> StableTorchResult<Tensor> {
+        let mut stack: [StableIValue; 2] = [(self.get_tensor()).into(), other.get_tensor().into()];
+        unsafe_call_dispatch_panic!("aten::mul", "Tensor", stack.as_mut_slice());
+        let r: Tensor = Tensor::new(stack[0].try_into().unwrap());
+        Ok(r)
+    }
 }
 impl CoreMethods for Tensor {}
 impl<'a> CoreMethods for Ten<'a> {}
@@ -672,6 +695,54 @@ mod test {
 
         let l = t.flatten(1, None)?;
         assert_eq!(l.sizes(), &[2, 4]); // #PYTHON list(two.shape)
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_flash_powder_div() -> StableTorchResult<()> {
+        // https://docs.pytorch.org/docs/2.11/generated/torch.div.html#torch.div
+        /*
+            #|PYTHON
+            x = torch.tensor([ 0.3810,  1.2774, -0.2972, -0.3719,  0.4637])
+            r = torch.div(x, 0.5)
+        */
+
+        let t = Tensor::from(&[0.3810f32, 1.2774, -0.2972, -0.3719, 0.4637])?;
+        let denom: Tensor = (0.5f32,).try_into()?;
+        let r = t.div(&denom)?;
+        assert_eq!(r.sizes(), &[5]); // #PYTHON list(r.shape)
+        assert_eq!(
+            r.f32s_ref()?,
+            &[
+                0.7620000243186951f32,
+                2.554800033569336,
+                -0.5943999886512756,
+                -0.7437999844551086,
+                0.9273999929428101
+            ]
+        ); // #PYTHON list(r.view(-1).tolist())
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_flash_powder_mul() -> StableTorchResult<()> {
+        // https://docs.pytorch.org/docs/2.11/generated/torch.mul.html#torch.mul
+        /*
+            #|PYTHON
+            x = torch.tensor([ 0.2015, -0.4255,  2.6087])
+            r = torch.mul(x, 100.0)
+        */
+
+        let t = Tensor::from(&[0.2015f32, -0.4255, 2.6087])?;
+        let factor: Tensor = (100.0f32,).try_into()?;
+        let r = t.mul(&factor)?;
+        assert_eq!(r.sizes(), &[3]); // #PYTHON list(r.shape)
+        assert_eq!(
+            r.f32s_ref()?,
+            &[20.149999618530273f32, -42.54999923706055, 260.8699951171875]
+        ); // #PYTHON list(r.view(-1).tolist())
 
         Ok(())
     }
