@@ -1,13 +1,14 @@
 [workspace]
 resolver = "2"
 
-members = ["torch_stable", "flash_powder"]
+members = ["torch_stable", "flash_powder", "example_vgg"]
 
 
 [workspace.dependencies]
 
 torch_stable = { version = "0.1.0", path = "./torch_stable/"}
 flash_powder = { version = "0.1.0", path = "./flash_powder/"}
+example_vgg = { version = "0.1.0", path = "./example_vgg/"}
 
 
 cc = "1.0"

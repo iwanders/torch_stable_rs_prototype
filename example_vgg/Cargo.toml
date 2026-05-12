@@ -1,0 +1,16 @@
+[package]
+name = "example_vgg"
+version = "0.1.0"
+edition = "2024"
+license = "BSD-3-Clause"
+
+[lib]
+#crate-type=["cdylib", "rlib"]
+
+[dependencies]
+
+flash_powder = {workspace=true, features=[]}
+anyhow = {workspace=true }
+safetensors = "0.7.0"
+[build-dependencies]
+torch_stable = {workspace=true, features=["use_torch_devel"]}
