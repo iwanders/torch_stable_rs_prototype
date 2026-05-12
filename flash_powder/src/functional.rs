@@ -179,7 +179,20 @@ pub fn linear<I: TensorAccess, W: TensorAccess, B: TensorAccess>(
     Ok(Tensor::new(r))
 }
 
-// DROPOUT
+/// Adaptive Avg Pool2d
+///
+/// - [native_functions.yaml](https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L12497)
+/// - [pytorch functional](https://docs.pytorch.org/docs/2.11/generated/torch.nn.functional.adaptive_avg_pool2d.html)
+/// - [pytorch nn](https://docs.pytorch.org/docs/2.11/generated/torch.nn.AdaptiveAvgPool2d.html#torch.nn.AdaptiveAvgPool2d)
+pub fn adaptive_avg_pool2d<I: TensorAccess>(
+    input: &I,
+    output: (i64, i64),
+) -> StableTorchResult<Tensor> {
+    let mut stack: [StableIValue; 2] = [input.get_tensor().into(), (&output).into()];
+    unsafe_call_dispatch_bail!("aten::adaptive_avg_pool2d", "", stack.as_mut_slice());
+    let r: StableTensor = stack[0].try_into()?;
+    Ok(Tensor::new(r))
+}
 
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
 pub enum InterpolateAlgorithm {
@@ -222,7 +235,7 @@ pub fn interpolate<T: TensorAccess + TensorProperties>(
     options: &InterpolateOptions,
 ) -> StableTorchResult<Tensor> {
     let dim = input.dim() - 2; // Number of spatial dimensions.
-                               // Validation in https://github.com/pytorch/pytorch/blob/v2.11.0/torch/nn/functional.py#L4715-L4761 :o
+    // Validation in https://github.com/pytorch/pytorch/blob/v2.11.0/torch/nn/functional.py#L4715-L4761 :o
 
     let mut scale_factors: Option<&[f64]> = None;
     let mut output_size: Option<&[i64]> = None;
@@ -609,7 +622,9 @@ mod test {
         assert_eq!(m.sizes(), &[1, 1, 4, 4]); // #PYTHON list(m.shape)
         assert_eq!(
             m.f32s_ref()?,
-            &[1.0f32, 1.0, 2.0, 2.0, 1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 3.0, 3.0, 4.0, 4.0]
+            &[
+                1.0f32, 1.0, 2.0, 2.0, 1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 3.0, 3.0, 4.0, 4.0
+            ]
         ); // #PYTHON list(m.view(-1).tolist())
 
         // Bilinear 2
@@ -705,6 +720,23 @@ mod test {
         assert_eq!(v.sizes(), &[3]); // #PYTHON list(v.shape)
         assert_eq!(v.f32s_ref()?, &[39.0f32, 94.0, 149.0]); // #PYTHON list(v.view(-1).tolist())
 
+        Ok(())
+    }
+
+    #[test]
+    fn test_flash_powder_adaptive_avg_pool2d() -> StableTorchResult<()> {
+        // Example from https://docs.pytorch.org/docs/2.11/generated/torch.nn.AdaptiveAvgPool2d.html#torch.nn.AdaptiveAvgPool2d
+        /*
+            #|PYTHON
+            w = torch.randn(1, 64, 8, 9)
+            m = torch.nn.AdaptiveAvgPool2d((5,7))
+            output = m(w)
+        */
+        let w = Tensor::randn(&[1, 64, 8, 9], &Default::default())?;
+
+        assert_eq!(w.sizes(), &[1, 64, 8, 9]); // #PYTHON list(w.shape)
+        let output = adaptive_avg_pool2d(&w, (5, 7))?;
+        assert_eq!(output.sizes(), &[1, 64, 5, 7]); // #PYTHON list(output.shape)
         Ok(())
     }
 }
