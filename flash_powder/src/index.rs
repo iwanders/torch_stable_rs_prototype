@@ -395,4 +395,33 @@ mod test {
 
         Ok(())
     }
+
+    #[test]
+    fn test_flash_powder_indexing_non_contiguous_scalar() -> StableTorchResult<()> {
+        let d = Tensor::from(&[
+            [1.0f32, 2.0, 3.0, 4.0],
+            [5.0, 6.0, 7.0, 8.0],
+            [9.0, 10.0, 11.0, 12.0],
+            [13.0, 14.0, 15.0, 16.0],
+        ])?;
+        let x = d.permute(&[1, 0])?;
+        assert_eq!(x.is_contiguous(), false);
+
+        let topleft = x.i((0, 0))?;
+        assert_eq!(topleft.is_contiguous(), true);
+        assert_eq!(topleft.dim(), 0);
+
+        println!("storage offset: {:?}", topleft.storage_offset());
+
+        let offbyone = x.i((0, 1))?;
+        assert_eq!(offbyone.is_contiguous(), true);
+        assert_eq!(offbyone.dim(), 0);
+        println!("storage offset: {:?}", offbyone.storage_offset());
+
+        let offbyone = x.i((2, 3))?;
+        assert_eq!(offbyone.is_contiguous(), true);
+        assert_eq!(offbyone.dim(), 0);
+        println!("storage offset: {:?}", offbyone.storage_offset());
+        Ok(())
+    }
 }
