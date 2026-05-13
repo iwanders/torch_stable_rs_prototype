@@ -10,7 +10,7 @@ use crate::{
     properties::TensorProperties,
     tensor::{Ten, TenMut, Tensor, TensorAccess},
 };
-use torch_stable::{StableTorchResult, contrib::TensorPropertiesContrib as _};
+use torch_stable::{contrib::TensorPropertiesContrib as _, StableTorchResult};
 
 macro_rules! impl_slice_ref {
     ($t:ty, $v:ident) => {
@@ -72,7 +72,7 @@ pub trait DataRef: TensorAccess + TensorProperties {
 
         let mut offset = 0;
         for (dim, index) in index.iter().enumerate() {
-            if *index > self.sizes()[dim] {
+            if *index >= self.sizes()[dim] {
                 bail!(
                     "index {} for dimension {} exceeded size {}",
                     index,
@@ -81,13 +81,6 @@ pub trait DataRef: TensorAccess + TensorProperties {
                 );
             }
             offset += self.stride(dim) * index;
-        }
-        if std::mem::size_of::<T>() != self.element_size() {
-            bail!(
-                "indexing with element size of {} which does not match {}",
-                std::mem::size_of::<T>(),
-                self.element_size()
-            )
         }
         let size = std::mem::size_of::<T>();
         if std::mem::size_of::<T>() != self.element_size() {
@@ -227,7 +220,7 @@ pub trait DataMut: TensorAccess + TensorProperties {
 
         let mut offset = 0;
         for (dim, index) in index.iter().enumerate() {
-            if *index > self.sizes()[dim] {
+            if *index >= self.sizes()[dim] {
                 bail!(
                     "index {} for dimension {} exceeded size {}",
                     index,
@@ -236,13 +229,6 @@ pub trait DataMut: TensorAccess + TensorProperties {
                 );
             }
             offset += self.stride(dim) * index;
-        }
-        if std::mem::size_of::<T>() != self.element_size() {
-            bail!(
-                "indexing with element size of {} which does not match {}",
-                std::mem::size_of::<T>(),
-                self.element_size()
-            )
         }
         if std::mem::size_of::<T>() != self.element_size() {
             bail!(
@@ -373,6 +359,51 @@ mod test {
         assert_eq!(x.storage_offset(), 5);
         assert_eq!(x.f32_ref(&[0, 2])?, &8.0); // #PYTHON x[ 0,  2].item()
         assert_eq!(x.f32_ref(&[1, 2])?, &12.0); // #PYTHON x[ 1,  2].item()
+        Ok(())
+    }
+
+    #[test]
+    fn test_flash_powder_permute_data_index_issue() -> StableTorchResult<()> {
+        // Test all flavours in depth.
+        let mut x = Tensor::randn(&[2, 3, 5], &Default::default())?;
+        let s = x.shape();
+        for c in 0..s[0] {
+            for h in 0..s[1] {
+                for w in 0..s[2] {
+                    assert!(x.f32_mut(&[c, h, w]).is_ok())
+                }
+            }
+        }
+        let x = Tensor::randn(&[2, 3, 5], &Default::default())?;
+        let s = x.shape();
+        for c in 0..s[0] {
+            for h in 0..s[1] {
+                for w in 0..s[2] {
+                    assert!(x.f32_ref(&[c, h, w]).is_ok())
+                }
+            }
+        }
+        let x = Tensor::randn(&[2, 3, 5], &Default::default())?;
+        let y = x.permute(&[2, 0, 1])?;
+        let s = y.shape();
+        for c in 0..s[0] {
+            for h in 0..s[1] {
+                for w in 0..s[2] {
+                    assert!(y.f32_ref(&[c, h, w]).is_ok())
+                }
+            }
+        }
+        let mut x = Tensor::randn(&[2, 3, 5], &Default::default())?;
+        let mut y = x.permute_mut(&[2, 0, 1])?;
+        let s = y.shape();
+        for c in 0..s[0] {
+            for h in 0..s[1] {
+                for w in 0..s[2] {
+                    assert!(y.f32_mut(&[c, h, w]).is_ok())
+                }
+            }
+        }
+
         Ok(())
     }
 }

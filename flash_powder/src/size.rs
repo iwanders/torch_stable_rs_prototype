@@ -39,3 +39,8 @@ impl std::ops::Deref for Size {
         &self.0.as_slice()
     }
 }
+impl<'a> PartialEq<&[usize]> for &Size {
+    fn eq(&self, other: &&[usize]) -> bool {
+        self.0.as_slice() == *other
+    }
+}
