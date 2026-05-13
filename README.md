@@ -44,9 +44,7 @@ The functionality in this crate is a subset of the upstream functionality, it do
 
 I want to ensure that the tensors & function arguments follow conventions from the Python side, so there's a heavy emphasis
 of testing all functions against their Python equivalents. The Python code to test against is interwoven with the Rust
-code with some helper tooling.
-
-And tests should run cleanly in valgrind.
+code with some helper tooling. Tests should run cleanly in valgrind.
 
 ### Python truth
 
