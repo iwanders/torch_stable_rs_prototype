@@ -20,6 +20,16 @@
 //! - Modifying one tensor will not modify another, unless through an mutable borrow.
 //! - Rust style lifetimes on tensors, either tied together with an explicit lifetime, or completely separate.
 
+/*
+
+Todo:
+    Forbid data access for non contiguous arrays.
+    Use slicing to get a view of the single value... then use data to retrieve the bytes in the storage.
+    Do not index into non contugous arrays ourselves, that's a footgun!
+    Maybe just forbid ata access to non contiguous at all.
+
+*/
+
 pub mod torch;
 
 pub mod core_methods;
