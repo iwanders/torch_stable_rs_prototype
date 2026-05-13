@@ -40,7 +40,15 @@ There's some support tooling in the contrib submodule, but it's mostly there for
 
 The functionality in this crate is a subset of the upstream functionality, it does not follow Rust lifetimes or safety guarantees.
 
-## Python truth
+## Testing
+
+I want to ensure that the tensors & function arguments follow conventions from the Python side, so there's a heavy emphasis
+of testing all functions against their Python equivalents. The Python code to test against is interwoven with the Rust
+code with some helper tooling.
+
+And tests should run cleanly in valgrind.
+
+### Python truth
 
 For tests, the equivalent Python PyTorch execution is considered the ground truth and the Rust should should produce the
 same values.
@@ -101,7 +109,7 @@ When developing, something like this is usually helpful:
 ./util/python_truth.py  update ./flash_powder/src/functional.rs  && cargo t -- --nocapture
 ```
 
-## Valgrind
+### Valgrind
 There's some helper tooling in `./util/valgrind` to create suppression files against a C++ binary.
 These ensure that we ignore some uninitialised values that valgrind finds in the bowels of LibTorch.
 
