@@ -270,15 +270,15 @@ pub fn main() -> Result<(), anyhow::Error> {
 
         // Create three separate tensors to pull out the channels.
         let r = img_tensor_ready
-            .i((.., .., 0isize))?
+            .i((.., .., 0))?
             .view(&[1, h, w])?
             .to_owned()?;
         let g = img_tensor_ready
-            .i((.., .., 1isize))?
+            .i((.., .., 1))?
             .view(&[1, h, w])?
             .to_owned()?;
         let b = img_tensor_ready
-            .i((.., .., 2isize))?
+            .i((.., .., 2))?
             .view(&[1, h, w])?
             .to_owned()?;
         // Then stack the channels.

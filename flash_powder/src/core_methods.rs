@@ -201,6 +201,19 @@ pub trait CoreMethods: TensorAccess + TensorProperties {
         let r: Tensor = Tensor::new(stack[0].try_into().unwrap());
         Ok(r)
     }
+
+    /// Permute
+    ///
+    /// - [native_functions.yaml](https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L4675)
+    /// - [tensor method](https://docs.pytorch.org/docs/2.11/generated/torch.Tensor.permute.html)
+    /// - [pytorch method](https://docs.pytorch.org/docs/2.11/generated/torch.permute.html#torch-permute)
+    fn permute(&self, dims: &[usize]) -> StableTorchResult<Ten<'_>> {
+        let mut stack: [StableIValue; 2] = [(self.get_tensor()).into(), dims.into()];
+        unsafe_call_dispatch_bail!("aten::permute", "", stack.as_mut_slice());
+        let r: StableTensor = stack[0].try_into()?;
+        assert_eq!(self.data_ptr(), r.data_ptr());
+        Ok(Ten::new(self.get_tensor(), r))
+    }
 }
 impl CoreMethods for Tensor {}
 impl<'a> CoreMethods for Ten<'a> {}
@@ -292,6 +305,19 @@ pub trait CoreMethodsMut: TensorAccess + TensorProperties {
         let shape = self.sizes();
         let mut stack: [StableIValue; 2] = [(self.get_tensor()).into(), (shape).into()];
         unsafe_call_dispatch_bail!("aten::view", "", stack.as_mut_slice());
+        let r: StableTensor = stack[0].try_into()?;
+        assert_eq!(self.data_ptr(), r.data_ptr());
+        Ok(TenMut::new(self.get_tensor_mut(), r))
+    }
+
+    /// Permute
+    ///
+    /// - [native_functions.yaml](https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L4675)
+    /// - [tensor method](https://docs.pytorch.org/docs/2.11/generated/torch.Tensor.permute.html)
+    /// - [pytorch method](https://docs.pytorch.org/docs/2.11/generated/torch.permute.html#torch-permute)
+    fn permute_mut(&mut self, dims: &[usize]) -> StableTorchResult<TenMut<'_>> {
+        let mut stack: [StableIValue; 2] = [(self.get_tensor()).into(), dims.into()];
+        unsafe_call_dispatch_bail!("aten::permute", "", stack.as_mut_slice());
         let r: StableTensor = stack[0].try_into()?;
         assert_eq!(self.data_ptr(), r.data_ptr());
         Ok(TenMut::new(self.get_tensor_mut(), r))
@@ -743,6 +769,27 @@ mod test {
             r.f32s_ref()?,
             &[20.149999618530273f32, -42.54999923706055, 260.8699951171875]
         ); // #PYTHON list(r.view(-1).tolist())
+
+        Ok(())
+    }
+    #[test]
+    fn test_flash_powder_permute() -> StableTorchResult<()> {
+        // https://docs.pytorch.org/docs/2.11/generated/torch.mul.html#torch.mul
+        /*
+            #|PYTHON
+            x = torch.randn(2, 3, 5)
+            y = x.permute(2, 0, 1)
+        */
+
+        let mut x = Tensor::randn(&[2, 3, 5], &Default::default())?;
+        assert_eq!(x.sizes(), &[2, 3, 5]); // #PYTHON list(x.shape)
+        let y = x.permute(&[2, 0, 1])?;
+        assert_eq!(y.sizes(), &[5, 2, 3]); // #PYTHON list(y.shape)
+
+        let mut z = x.permute_mut(&[2, 0, 1])?;
+
+        *z.f32_mut(&[0, 0, 0])? = 3.30;
+        assert_eq!(x.f32_ref(&[0, 0, 0])?, &3.30);
 
         Ok(())
     }
