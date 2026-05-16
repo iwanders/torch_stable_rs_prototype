@@ -1,7 +1,11 @@
 [workspace]
 resolver = "2"
 
-members = ["torch_stable", "flash_powder", "example_vgg"]
+members = [
+    "torch_stable",
+    "flash_powder",
+#    "example_vgg"
+]
 
 
 [workspace.dependencies]
