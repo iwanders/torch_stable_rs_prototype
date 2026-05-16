@@ -147,21 +147,34 @@ impl TryFrom<i32> for Layout {
 #[repr(i8)]
 #[allow(non_camel_case_types)]
 pub enum ScalarType {
+    /// U8
     Byte,
+    /// I8
     Char,
+    /// I16
     Short,
+    /// I32
     Int,
+    /// I64
     Long,
+    /// F16
     Half,
+    /// F32
     Float,
+    /// F64
     Double,
+    /// 32 bit complex with two F16 components.
     ComplexHalf,
+    /// 64 bit complex with two F32 components.
     ComplexFloat,
+    /// 128 bit complex with two F64 components,
     ComplexDouble,
+    /// Boolean
     Bool,
     QInt8,
     QUInt8,
     QInt32,
+    /// 16 bit float, sometimes referred to as Brain floating point, S-E-M 1-8-7
     BFloat16,
     QUInt4x2,
     QUInt2x4,
@@ -170,12 +183,19 @@ pub enum ScalarType {
     Bits4x2,
     Bits8,
     Bits16,
+    /// 8-bit floating point, S-E-M 1-5-2
     Float8_e5m2,
+    /// 8-bit floating point, S-E-M 1-4-3
     Float8_e4m3fn,
+    /// 8-bit floating point, S-E-M 1-5-2
     Float8_e5m2fnuz,
+    /// 8-bit floating point, S-E-M 1-4-3
     Float8_e4m3fnuz,
+    /// U16
     UInt16,
+    /// U32
     UInt32,
+    /// U64
     UInt64,
     UInt1,
     UInt2,
@@ -191,7 +211,9 @@ pub enum ScalarType {
     Int5,
     Int6,
     Int7,
+    /// 8-bit floating point, S-E-M 0-8-0
     Float8_e8m0fnu,
+    /// packed 4-bit floating point, S-E-M 1-2-1
     Float4_e2m1fn_x2,
     Undefined,
     // NumOptions,
