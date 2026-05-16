@@ -4,7 +4,6 @@ use crate::core_methods::{CoreMethods, CoreMethodsMut};
 use crate::properties::TensorProperties;
 use crate::tensor::{Ten, TenMut, Tensor};
 use crate::{StableTorchResult, TensorAccess};
-pub use torch_stable::stable::ops::{EmtpyOptions, ToOptions};
 use torch_stable::stable::tensor::Tensor as StableTensor;
 
 // https://docs.pytorch.org/docs/2.11/tensor_view.html

@@ -25,7 +25,7 @@ pub struct ToOptions {
 }
 
 #[derive(Copy, Clone, Debug, Default)]
-pub struct EmtpyOptions {
+pub struct EmptyOptions {
     pub dtype: Option<DType>,
     pub layout: Option<Layout>,
     pub device: Option<Device>,
@@ -60,7 +60,7 @@ pub trait TensorFactory: TensorAccess + TensorProperties {
     /// - [native_functions.yaml](https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/native_functions.yaml#L2425)
     /// - [pytorch equivalent](https://docs.pytorch.org/docs/2.11/generated/torch.empty.html#torch.empty)
     ///
-    fn empty(dimensions: &[usize], options: &EmtpyOptions) -> StableTorchResult<Tensor> {
+    fn empty(dimensions: &[usize], options: &EmptyOptions) -> StableTorchResult<Tensor> {
         let mut stack: [StableIValue; 6] = [
             (dimensions).into(),
             (&options.dtype).into(),

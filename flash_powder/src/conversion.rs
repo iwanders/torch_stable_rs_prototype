@@ -34,7 +34,7 @@
 use crate::dtype::DType;
 use crate::factory::TensorFactory;
 use crate::tensor::Tensor;
-use crate::{data::DataMut, factory::EmtpyOptions};
+use crate::{data::DataMut, factory::EmptyOptions};
 
 pub trait TensorScalar {
     fn tensor_dtype() -> DType;
@@ -71,7 +71,7 @@ impl<T: TensorScalar + Immutable + IntoBytes + TryFromBytes + Copy> TryInto<Tens
     fn try_into(self) -> Result<Tensor, Self::Error> {
         let mut v = Tensor::empty(
             &[],
-            &EmtpyOptions {
+            &EmptyOptions {
                 dtype: Some(T::tensor_dtype()),
                 ..Default::default()
             },
@@ -87,7 +87,7 @@ impl<T: TensorScalar + Immutable + IntoBytes + TryFromBytes + Copy> TryInto<Tens
     fn try_into(self) -> Result<Tensor, Self::Error> {
         let mut v = Tensor::empty(
             &[self.len()],
-            &EmtpyOptions {
+            &EmptyOptions {
                 dtype: Some(T::tensor_dtype()),
                 ..Default::default()
             },
@@ -105,7 +105,7 @@ impl<T: TensorScalar + Immutable + IntoBytes + TryFromBytes + Copy, const V: usi
     fn try_into(self) -> Result<Tensor, Self::Error> {
         let mut v = Tensor::empty(
             &[V],
-            &EmtpyOptions {
+            &EmptyOptions {
                 dtype: Some(T::tensor_dtype()),
                 ..Default::default()
             },
@@ -123,7 +123,7 @@ impl<T: TensorScalar + Immutable + IntoBytes + TryFromBytes + Copy, const V: usi
     fn try_into(self) -> Result<Tensor, Self::Error> {
         let mut v = Tensor::empty(
             &[V],
-            &EmtpyOptions {
+            &EmptyOptions {
                 dtype: Some(T::tensor_dtype()),
                 ..Default::default()
             },
@@ -141,7 +141,7 @@ impl<T: TensorScalar + Immutable + IntoBytes + TryFromBytes + Copy, const C: usi
     fn try_into(self) -> Result<Tensor, Self::Error> {
         let mut v = Tensor::empty(
             &[R, C],
-            &EmtpyOptions {
+            &EmptyOptions {
                 dtype: Some(T::tensor_dtype()),
                 ..Default::default()
             },
@@ -159,7 +159,7 @@ impl<T: TensorScalar + Immutable + IntoBytes + TryFromBytes + Copy, const C: usi
     fn try_into(self) -> Result<Tensor, Self::Error> {
         let mut v = Tensor::empty(
             &[R, C],
-            &EmtpyOptions {
+            &EmptyOptions {
                 dtype: Some(T::tensor_dtype()),
                 ..Default::default()
             },
@@ -181,7 +181,7 @@ impl<
     fn try_into(self) -> Result<Tensor, Self::Error> {
         let mut v = Tensor::empty(
             &[D, R, C],
-            &EmtpyOptions {
+            &EmptyOptions {
                 dtype: Some(T::tensor_dtype()),
                 ..Default::default()
             },
@@ -203,7 +203,7 @@ impl<
     fn try_into(self) -> Result<Tensor, Self::Error> {
         let mut v = Tensor::empty(
             &[D, R, C],
-            &EmtpyOptions {
+            &EmptyOptions {
                 dtype: Some(T::tensor_dtype()),
                 ..Default::default()
             },
