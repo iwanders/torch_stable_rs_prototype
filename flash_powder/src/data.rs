@@ -1,8 +1,12 @@
 //! Accessors to the data in the Tensor.
 //!
-//! These only work if the Tensor is on the cpu.
+//! - These only work if the Tensor is on the cpu.
+//! - These methods only work if the tensor is contiguous ([`is_contiguous()`][`TensorProperties::is_contiguous`] is `true`).
 //!
-//! Types ending in 's' return a slice.
+//! Come in three flavours:
+//! - `<T>s_ref()`, slice to the entire tensor, example: [`f32s_ref()`][`DataRef::f32s_ref`]
+//! - `<T>_ref(indices: &[usize])`, indexed access to a single scalar, requires [`dim()`][`TensorProperties::dim`]` == indices.len()`, example: [`f32_ref()`][`DataRef::f32_ref`]
+//! - `as_<T>()`, indexing for a 0 dimensional scalar, same as `<T>_ref(&[])`, example: [`as_f32()`][`DataRef::as_f32`]
 use anyhow::bail;
 use zerocopy::{Immutable, IntoBytes, KnownLayout, TryFromBytes};
 
@@ -14,6 +18,7 @@ use torch_stable::{StableTorchResult, contrib::TensorPropertiesContrib as _};
 
 macro_rules! impl_slice_ref {
     ($t:ty, $v:ident) => {
+        /// Access the entire tensor's byteslice using this datatype.
         fn $v(&self) -> StableTorchResult<&[$t]> {
             self.ds_ref::<$t>()
         }
@@ -21,8 +26,23 @@ macro_rules! impl_slice_ref {
 }
 macro_rules! impl_item_ref {
     ($t:ty, $v:ident) => {
+        /// Indexed access to a single value of type, [`dim()`][`TensorProperties::dim`]` == indices.len()`
         fn $v(&self, indices: &[usize]) -> StableTorchResult<&$t> {
             self.d_ref::<$t>(indices)
+        }
+    };
+}
+macro_rules! impl_as_ref {
+    ($t:ty, $v:ident) => {
+        /// Access the tensor as a scalar, [`dim()`][`TensorProperties::dim`]` == 0`
+        fn $v(&self) -> StableTorchResult<&$t> {
+            if self.dim() != 0 {
+                bail!(
+                    "can only use as_<T> with 0 dimensional tensors, dim was {}",
+                    self.dim()
+                )
+            }
+            self.d_ref::<$t>(&[])
         }
     };
 }
@@ -101,6 +121,7 @@ pub trait DataRef: TensorAccess + TensorProperties {
         }
     }
 
+    // Slices
     impl_slice_ref!(f32, f32s_ref);
     impl_slice_ref!(f64, f64s_ref);
 
@@ -113,6 +134,7 @@ pub trait DataRef: TensorAccess + TensorProperties {
     impl_slice_ref!(i32, i32s_ref);
     impl_slice_ref!(i64, i64s_ref);
 
+    // Indexed
     impl_item_ref!(f32, f32_ref);
     impl_item_ref!(f64, f64_ref);
 
@@ -125,15 +147,18 @@ pub trait DataRef: TensorAccess + TensorProperties {
     impl_item_ref!(i32, i32_ref);
     impl_item_ref!(i64, i64_ref);
 
-    fn as_f32(&self) -> StableTorchResult<&f32> {
-        if self.dim() != 0 {
-            bail!(
-                "can only use as_<T> with 0 dimensional tensors, was {}",
-                self.dim()
-            )
-        }
-        Ok(self.f32_ref(&[])?)
-    }
+    // Scalar
+    impl_as_ref!(f32, as_f32);
+    impl_as_ref!(f64, as_f64);
+
+    impl_as_ref!(u16, as_u16);
+    impl_as_ref!(u32, as_u32);
+    impl_as_ref!(u64, as_u64);
+
+    impl_as_ref!(i8, as_i8);
+    impl_as_ref!(i16, as_i16);
+    impl_as_ref!(i32, as_i32);
+    impl_as_ref!(i64, as_i64);
 
     fn d_fmt(
         &self,
@@ -186,6 +211,21 @@ macro_rules! impl_item_mut {
     ($t:ty, $v:ident) => {
         fn $v(&mut self, indices: &[usize]) -> StableTorchResult<&mut $t> {
             self.d_mut::<$t>(indices)
+        }
+    };
+}
+
+macro_rules! impl_as_mut {
+    ($t:ty, $v:ident) => {
+        /// Access the tensor as a scalar, [`dim()`][`TensorProperties::dim`]` == 0`
+        fn $v(&mut self) -> StableTorchResult<&mut $t> {
+            if self.dim() != 0 {
+                bail!(
+                    "can only use as_<T> with 0 dimensional tensors, dim was {}",
+                    self.dim()
+                )
+            }
+            self.d_mut::<$t>(&[])
         }
     };
 }
@@ -262,6 +302,7 @@ pub trait DataMut: TensorAccess + TensorProperties {
         }
     }
 
+    // Slices
     impl_slice_mut!(f32, f32s_mut);
     impl_slice_mut!(f64, f64s_mut);
 
@@ -274,6 +315,7 @@ pub trait DataMut: TensorAccess + TensorProperties {
     impl_slice_mut!(i32, i32s_mut);
     impl_slice_mut!(i64, i64s_mut);
 
+    // Indexed
     impl_item_mut!(f32, f32_mut);
     impl_item_mut!(f64, f64_mut);
 
@@ -286,15 +328,18 @@ pub trait DataMut: TensorAccess + TensorProperties {
     impl_item_mut!(i32, i32_mut);
     impl_item_mut!(i64, i64_mut);
 
-    fn as_f32_mut(&mut self) -> StableTorchResult<&mut f32> {
-        if self.dim() != 0 {
-            bail!(
-                "can only use as_<T> with 0 dimensional tensors, was {}",
-                self.dim()
-            )
-        }
-        Ok(self.f32_mut(&[])?)
-    }
+    // Scalar
+    impl_as_mut!(f32, as_f32_mut);
+    impl_as_mut!(f64, as_f64_mut);
+
+    impl_as_mut!(u16, as_u16_mut);
+    impl_as_mut!(u32, as_u32_mut);
+    impl_as_mut!(u64, as_u64_mut);
+
+    impl_as_mut!(i8, as_i8_mut);
+    impl_as_mut!(i16, as_i16_mut);
+    impl_as_mut!(i32, as_i32_mut);
+    impl_as_mut!(i64, as_i64_mut);
 }
 impl DataMut for Tensor {}
 impl<'a> DataMut for TenMut<'a> {}
