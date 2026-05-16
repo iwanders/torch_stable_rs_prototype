@@ -187,10 +187,10 @@ fn create_relu() -> Box<dyn ForwardLayer> {
     }))
 }
 
-fn safetensor_dtype_to_scalar_type(v: safetensors::Dtype) -> fp::ScalarType {
+fn safetensor_dtype_to_scalar_type(v: safetensors::Dtype) -> DType {
     match v {
-        safetensors::Dtype::F32 => fp::ScalarType::Float,
-        safetensors::Dtype::F64 => fp::ScalarType::Double,
+        safetensors::Dtype::F32 => DType::F32,
+        safetensors::Dtype::F64 => DType::F64,
         _ => todo!("todo handle {v:?}"),
     }
 }
@@ -207,7 +207,7 @@ fn safetensor_to_tensor(tensors: &SafeTensors, name: &str) -> Result<Tensor, any
         )?;
 
         // Copy the bytes.
-        v.u8s_mut()?.copy_from_slice(tensor_view.data());
+        v.data_mut()?.copy_from_slice(tensor_view.data());
         Ok(v)
     } else {
         bail!("could not find safetensor {name}")
@@ -246,15 +246,15 @@ pub fn main() -> Result<(), anyhow::Error> {
         let mut t = Tensor::zeros(
             &[img.height() as usize, img.width() as usize, 3],
             &flash_powder::factory::TensorOptions {
-                dtype: Some(fp::ScalarType::Byte),
+                dtype: Some(DType::U8),
                 ..Default::default()
             },
         )?;
-        t.u8s_mut()?.copy_from_slice(img.as_raw().as_slice());
+        t.data_mut()?.copy_from_slice(img.as_raw().as_slice());
 
         // Convert that into a float tensor and fix the whole 255 situation.
-        let img_float = t.to(&flash_powder::index::ToOptions {
-            dtype: Some(fp::ScalarType::Float),
+        let img_float = t.to(&flash_powder::factory::ToOptions {
+            dtype: Some(DType::F32),
             ..Default::default()
         })?;
         let divisor: Tensor = (255.0,).try_into()?;
