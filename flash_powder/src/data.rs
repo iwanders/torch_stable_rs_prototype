@@ -10,7 +10,7 @@ use crate::{
     properties::TensorProperties,
     tensor::{Ten, TenMut, Tensor, TensorAccess},
 };
-use torch_stable::{contrib::TensorPropertiesContrib as _, StableTorchResult};
+use torch_stable::{StableTorchResult, contrib::TensorPropertiesContrib as _};
 
 macro_rules! impl_slice_ref {
     ($t:ty, $v:ident) => {
@@ -36,6 +36,10 @@ pub trait DataRef: TensorAccess + TensorProperties {
     /// Direct access to the byte slice backing the tensor.
     /// This always provides the ENTIRE storage slice, and does materialize the data if we're in a COW situation.
     fn u8s_ref(&self) -> StableTorchResult<&[u8]> {
+        if !self.is_contiguous() {
+            bail!("cannot get slice into non contiguous tensor");
+        }
+
         let z = self.get_tensor();
         // https://github.com/pytorch/pytorch/blob/ec673ecd/c10/core/TensorImpl.h#L743-L756
         let data_ptr = z.data_ptr();
@@ -121,6 +125,16 @@ pub trait DataRef: TensorAccess + TensorProperties {
     impl_item_ref!(i32, i32_ref);
     impl_item_ref!(i64, i64_ref);
 
+    fn as_f32(&self) -> StableTorchResult<&f32> {
+        if self.dim() != 0 {
+            bail!(
+                "can only use as_<T> with 0 dimensional tensors, was {}",
+                self.dim()
+            )
+        }
+        Ok(self.f32_ref(&[])?)
+    }
+
     fn d_fmt(
         &self,
         indices: &[usize],
@@ -184,6 +198,9 @@ macro_rules! impl_item_mut {
 pub trait DataMut: TensorAccess + TensorProperties {
     /// Direct access to the mutable byte slice backing the tensor.
     fn u8s_mut(&mut self) -> StableTorchResult<&mut [u8]> {
+        if !self.is_contiguous() {
+            bail!("cannot get slice into non contiguous tensor");
+        }
         let z = self.get_tensor_mut();
         // https://github.com/pytorch/pytorch/blob/ec673ecd/c10/core/TensorImpl.h#L743-L756
         let data_ptr = z.data_ptr();
@@ -268,6 +285,16 @@ pub trait DataMut: TensorAccess + TensorProperties {
     impl_item_mut!(i16, i16_mut);
     impl_item_mut!(i32, i32_mut);
     impl_item_mut!(i64, i64_mut);
+
+    fn as_f32_mut(&mut self) -> StableTorchResult<&mut f32> {
+        if self.dim() != 0 {
+            bail!(
+                "can only use as_<T> with 0 dimensional tensors, was {}",
+                self.dim()
+            )
+        }
+        Ok(self.f32_mut(&[])?)
+    }
 }
 impl DataMut for Tensor {}
 impl<'a> DataMut for TenMut<'a> {}
@@ -275,7 +302,7 @@ impl<'a> DataMut for TenMut<'a> {}
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::prelude::*;
+    use crate::{index::TensorIndexMut as _, prelude::*};
 
     #[test]
     fn test_flash_powder_data_index() -> StableTorchResult<()> {
@@ -313,12 +340,12 @@ mod test {
         assert_eq!(z.is_contiguous(), false);
         assert_eq!(z.storage_offset(), 0);
 
-        assert_eq!(z.f32_ref(&[0, 0])?, &1.0); // #PYTHON z[ 0,  0].item()
-        assert_eq!(z.f32_ref(&[0, 1])?, &2.0); // #PYTHON z[ 0,  1].item()
-        assert_eq!(z.f32_ref(&[0, 2])?, &3.0); // #PYTHON z[ 0,  2].item()
-        assert_eq!(z.f32_ref(&[1, 0])?, &5.0); // #PYTHON z[ 1,  0].item()
-        assert_eq!(z.f32_ref(&[1, 1])?, &6.0); // #PYTHON z[ 1,  1].item()
-        assert_eq!(z.f32_ref(&[1, 2])?, &7.0); // #PYTHON z[ 1,  2].item()
+        assert_eq!(z.i((0, 0))?.as_f32()?, &1.0); // #PYTHON z[ 0,  0].item()
+        assert_eq!(z.i((0, 1))?.as_f32()?, &2.0); // #PYTHON z[ 0,  1].item()
+        assert_eq!(z.i((0, 2))?.as_f32()?, &3.0); // #PYTHON z[ 0,  2].item()
+        assert_eq!(z.i((1, 0))?.as_f32()?, &5.0); // #PYTHON z[ 1,  0].item()
+        assert_eq!(z.i((1, 1))?.as_f32()?, &6.0); // #PYTHON z[ 1,  1].item()
+        assert_eq!(z.i((1, 2))?.as_f32()?, &7.0); // #PYTHON z[ 1,  2].item()
 
         /*
             #|PYTHON
@@ -326,11 +353,11 @@ mod test {
             z[1,2] = 100.0
         */
 
-        *(z.f32_mut(&[0, 2])?) = 50.0;
-        *(z.f32_mut(&[1, 2])?) = 100.0;
+        *(z.i_mut((0, 2))?.as_f32_mut()?) = 50.0;
+        *(z.i_mut((1, 2))?.as_f32_mut()?) = 100.0;
 
-        assert_eq!(z.f32_ref(&[0, 2])?, &50.0); // #PYTHON z[ 0,  2].item()
-        assert_eq!(z.f32_ref(&[1, 2])?, &100.0); // #PYTHON z[ 1,  2].item()
+        assert_eq!(z.i((0, 2))?.as_f32()?, &50.0); // #PYTHON z[ 0,  2].item()
+        assert_eq!(z.i((1, 2))?.as_f32()?, &100.0); // #PYTHON z[ 1,  2].item()
 
         /*
             #|PYTHON
@@ -343,8 +370,8 @@ mod test {
         assert_eq!(y.sizes(), &[4, 3]); // #PYTHON list(y.shape)
         assert_eq!(y.is_contiguous(), false);
         assert_eq!(y.storage_offset(), 1);
-        assert_eq!(y.f32_ref(&[0, 2])?, &4.0); // #PYTHON y[ 0,  2].item()
-        assert_eq!(y.f32_ref(&[1, 2])?, &8.0); // #PYTHON y[ 1,  2].item()
+        assert_eq!(y.i((0, 2))?.as_f32()?, &4.0); // #PYTHON y[ 0,  2].item()
+        assert_eq!(y.i((1, 2))?.as_f32()?, &8.0); // #PYTHON y[ 1,  2].item()
 
         /*
             #|PYTHON
@@ -357,8 +384,8 @@ mod test {
         assert_eq!(x.sizes(), &[3, 3]); // #PYTHON list(x.shape)
         assert_eq!(x.is_contiguous(), false);
         assert_eq!(x.storage_offset(), 5);
-        assert_eq!(x.f32_ref(&[0, 2])?, &8.0); // #PYTHON x[ 0,  2].item()
-        assert_eq!(x.f32_ref(&[1, 2])?, &12.0); // #PYTHON x[ 1,  2].item()
+        assert_eq!(x.i((0, 2))?.as_f32()?, &8.0); // #PYTHON x[ 0,  2].item()
+        assert_eq!(x.i((1, 2))?.as_f32()?, &12.0); // #PYTHON x[ 1,  2].item()
         Ok(())
     }
 
@@ -386,23 +413,13 @@ mod test {
         let x = Tensor::randn(&[2, 3, 5], &Default::default())?;
         let y = x.permute(&[2, 0, 1])?;
         let s = y.shape();
-        for c in 0..s[0] {
-            for h in 0..s[1] {
-                for w in 0..s[2] {
-                    assert!(y.f32_ref(&[c, h, w]).is_ok())
-                }
-            }
-        }
+        assert_eq!(&s, &[5, 2, 3]);
+        assert_eq!(y.is_contiguous(), false);
         let mut x = Tensor::randn(&[2, 3, 5], &Default::default())?;
-        let mut y = x.permute_mut(&[2, 0, 1])?;
+        let y = x.permute_mut(&[2, 0, 1])?;
         let s = y.shape();
-        for c in 0..s[0] {
-            for h in 0..s[1] {
-                for w in 0..s[2] {
-                    assert!(y.f32_mut(&[c, h, w]).is_ok())
-                }
-            }
-        }
+        assert_eq!(&s, &[5, 2, 3]);
+        assert_eq!(y.is_contiguous(), false);
 
         Ok(())
     }

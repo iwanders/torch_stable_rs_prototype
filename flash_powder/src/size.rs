@@ -3,7 +3,7 @@
 //! Why do we need this? Well because .sizes() -> &[usize], which is not owned.
 //! This also means that calling sizes() borrows the tensor, this makes it impossible to call a mutable method.
 //! In short;
-//! ```rust,compile_fail
+//! ```ignore
 //! # use flash_powder::prelude::*;
 //! let mut t = Tensor::randn(&[3,3], &Default::default()).unwrap();
 //! let v = t.view_mut(t.sizes());

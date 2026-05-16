@@ -58,10 +58,10 @@ mod test {
 
         let c = select(&d, 1, 2)?;
         assert_eq!(c.sizes(), &[4]); // #PYTHON list(c.shape)
-        assert_eq!(c.f32_ref(&[0])?, &3.0); // #PYTHON c[ 0].item()
-        assert_eq!(c.f32_ref(&[1])?, &7.0); // #PYTHON c[ 1].item()
-        assert_eq!(c.f32_ref(&[2])?, &11.0); // #PYTHON c[ 2].item()
-        assert_eq!(c.f32_ref(&[3])?, &15.0); // #PYTHON c[ 3].item()
+        assert_eq!(c.i(0)?.as_f32()?, &3.0); // #PYTHON c[ 0].item()
+        assert_eq!(c.i(1)?.as_f32()?, &7.0); // #PYTHON c[ 1].item()
+        assert_eq!(c.i(2)?.as_f32()?, &11.0); // #PYTHON c[ 2].item()
+        assert_eq!(c.i(3)?.as_f32()?, &15.0); // #PYTHON c[ 3].item()
 
         Ok(())
     }

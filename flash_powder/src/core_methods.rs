@@ -453,12 +453,12 @@ mod test {
         let x = d.narrow(1, 1, 2)?;
         assert_eq!(x.sizes(), &[3, 2]); // #PYTHON list(x.shape)
         assert_eq!(x.is_contiguous(), false);
-        assert_eq!(x.f32_ref(&[0, 0])?, &2.0); // #PYTHON x[ 0, 0].item()
-        assert_eq!(x.f32_ref(&[1, 0])?, &5.0); // #PYTHON x[ 1, 0].item()
-        assert_eq!(x.f32_ref(&[2, 0])?, &8.0); // #PYTHON x[ 2, 0].item()
-        assert_eq!(x.f32_ref(&[0, 1])?, &3.0); // #PYTHON x[ 0, 1].item()
-        assert_eq!(x.f32_ref(&[1, 1])?, &6.0); // #PYTHON x[ 1, 1].item()
-        assert_eq!(x.f32_ref(&[2, 1])?, &9.0); // #PYTHON x[ 2, 1].item()
+        assert_eq!(x.i((0, 0))?.as_f32()?, &2.0); // #PYTHON x[ 0, 0].item()
+        assert_eq!(x.i((1, 0))?.as_f32()?, &5.0); // #PYTHON x[ 1, 0].item()
+        assert_eq!(x.i((2, 0))?.as_f32()?, &8.0); // #PYTHON x[ 2, 0].item()
+        assert_eq!(x.i((0, 1))?.as_f32()?, &3.0); // #PYTHON x[ 0, 1].item()
+        assert_eq!(x.i((1, 1))?.as_f32()?, &6.0); // #PYTHON x[ 1, 1].item()
+        assert_eq!(x.i((2, 1))?.as_f32()?, &9.0); // #PYTHON x[ 2, 1].item()
 
         /*
             #|PYTHON
@@ -467,12 +467,12 @@ mod test {
         let x = d.narrow(1, -3, 2)?;
         assert_eq!(x.sizes(), &[3, 2]); // #PYTHON list(x.shape)
         assert_eq!(x.is_contiguous(), false);
-        assert_eq!(x.f32_ref(&[0, 0])?, &1.0); // #PYTHON x[ 0, 0].item()
-        assert_eq!(x.f32_ref(&[1, 0])?, &4.0); // #PYTHON x[ 1, 0].item()
-        assert_eq!(x.f32_ref(&[2, 0])?, &7.0); // #PYTHON x[ 2, 0].item()
-        assert_eq!(x.f32_ref(&[0, 1])?, &2.0); // #PYTHON x[ 0, 1].item()
-        assert_eq!(x.f32_ref(&[1, 1])?, &5.0); // #PYTHON x[ 1, 1].item()
-        assert_eq!(x.f32_ref(&[2, 1])?, &8.0); // #PYTHON x[ 2, 1].item()
+        assert_eq!(x.i((0, 0))?.as_f32()?, &1.0); // #PYTHON x[ 0, 0].item()
+        assert_eq!(x.i((1, 0))?.as_f32()?, &4.0); // #PYTHON x[ 1, 0].item()
+        assert_eq!(x.i((2, 0))?.as_f32()?, &7.0); // #PYTHON x[ 2, 0].item()
+        assert_eq!(x.i((0, 1))?.as_f32()?, &2.0); // #PYTHON x[ 0, 1].item()
+        assert_eq!(x.i((1, 1))?.as_f32()?, &5.0); // #PYTHON x[ 1, 1].item()
+        assert_eq!(x.i((2, 1))?.as_f32()?, &8.0); // #PYTHON x[ 2, 1].item()
 
         /*
             #|PYTHON
@@ -504,8 +504,8 @@ mod test {
 
     #[test]
     fn test_flash_powder_to() -> StableTorchResult<()> {
-        use crate::factory::TensorOptions;
         use crate::ScalarType;
+        use crate::factory::TensorOptions;
         let t = Tensor::zeros(
             &[5, 5],
             &TensorOptions {

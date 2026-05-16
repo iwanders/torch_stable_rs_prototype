@@ -111,6 +111,7 @@ trait TensorIndexWorker: CoreMethods {
 
 impl TensorIndexWorker for Tensor {}
 impl TensorIndexWorker for Ten<'_> {}
+impl TensorIndexWorker for TenMut<'_> {}
 
 pub trait IndexSpec<T> {
     fn do_index<'b>(&self, tensor: &'b T) -> StableTorchResult<Ten<'b>>;
@@ -122,6 +123,7 @@ pub trait TensorIndex: TensorAccess + TensorProperties + CoreMethods + Sized {
 }
 impl TensorIndex for Tensor {}
 impl TensorIndex for Ten<'_> {}
+impl TensorIndex for TenMut<'_> {}
 
 impl<'a, A: Clone, T: TensorIndexWorker> IndexSpec<T> for A
 where
@@ -282,12 +284,12 @@ mod test {
             z = d[1:3, 0:1]
         */
 
-        println!("z: {z:?}");
+        assert_eq!(z.is_contiguous(), false);
         assert_eq!(z.sizes(), &[2, 1]); // #PYTHON list(z.shape)
         assert_eq!(z.stride(0), 4); // #PYTHON  (z.stride(0))
         assert_eq!(z.stride(1), 1); // #PYTHON  (z.stride(1))
-        assert_eq!(z.f32_ref(&[0, 0])?, &5.0); // #PYTHON z[0,0].item()
-        assert_eq!(z.f32_ref(&[1, 0])?, &9.0); // #PYTHON z[1,0].item()
+        assert_eq!(z.i((0, 0))?.as_f32()?, &5.0); // #PYTHON z[0,0].item()
+        assert_eq!(z.i((1, 0))?.as_f32()?, &9.0); // #PYTHON z[1,0].item()
 
         // Ah yes, now we need a tuple...
         //
@@ -311,9 +313,9 @@ mod test {
 
         assert_eq!(z.sizes(), &[3]); // #PYTHON list(z.shape)
         assert_eq!(z.stride(0), 4); // #PYTHON  (z.stride(0))
-        assert_eq!(z.f32_ref(&[0])?, &2.0); // #PYTHON z[0].item()
-        assert_eq!(z.f32_ref(&[1])?, &6.0); // #PYTHON z[1].item()
-        assert_eq!(z.f32_ref(&[2])?, &10.0); // #PYTHON z[2].item()
+        assert_eq!(z.i(0)?.as_f32()?, &2.0); // #PYTHON z[0].item()
+        assert_eq!(z.i(1)?.as_f32()?, &6.0); // #PYTHON z[1].item()
+        assert_eq!(z.i(2)?.as_f32()?, &10.0); // #PYTHON z[2].item()
 
         let z = d.i((0..3, 1))?;
         /*
@@ -321,12 +323,12 @@ mod test {
             z = d[0:3, 1]
         */
 
-        println!("z: {z:?}");
+        //println!("z: {z:?}");
         assert_eq!(z.sizes(), &[3]); // #PYTHON list(z.shape)
         assert_eq!(z.stride(0), 4); // #PYTHON  (z.stride(0))
-        assert_eq!(z.f32_ref(&[0])?, &2.0); // #PYTHON z[0].item()
-        assert_eq!(z.f32_ref(&[1])?, &6.0); // #PYTHON z[1].item()
-        assert_eq!(z.f32_ref(&[2])?, &10.0); // #PYTHON z[2].item()
+        assert_eq!(z.i(0)?.as_f32()?, &2.0); // #PYTHON z[0].item()
+        assert_eq!(z.i(1)?.as_f32()?, &6.0); // #PYTHON z[1].item()
+        assert_eq!(z.i(2)?.as_f32()?, &10.0); // #PYTHON z[2].item()
 
         let z = d.i((-3isize..3, -3isize..3))?;
         /*
@@ -336,9 +338,9 @@ mod test {
 
         assert_eq!(z.sizes(), &[2, 2]); // #PYTHON list(z.shape)
         assert_eq!(z.stride(0), 4); // #PYTHON  (z.stride(0))
-        assert_eq!(z.f32_ref(&[0, 0])?, &6.0); // #PYTHON z[0,0].item()
-        assert_eq!(z.f32_ref(&[1, 0])?, &10.0); // #PYTHON z[1,0].item()
-        assert_eq!(z.f32_ref(&[1, 1])?, &11.0); // #PYTHON z[1,1].item()
+        assert_eq!(z.i((0, 0))?.as_f32()?, &6.0); // #PYTHON z[0,0].item()
+        assert_eq!(z.i((1, 0))?.as_f32()?, &10.0); // #PYTHON z[1,0].item()
+        assert_eq!(z.i((1, 1))?.as_f32()?, &11.0); // #PYTHON z[1,1].item()
 
         Ok(())
     }
