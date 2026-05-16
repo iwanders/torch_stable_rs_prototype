@@ -181,41 +181,6 @@ pub trait DataRef: TensorAccess + TensorProperties {
     impl_as_ref!(i16, as_i16);
     impl_as_ref!(i32, as_i32);
     impl_as_ref!(i64, as_i64);
-
-    fn d_fmt(
-        &self,
-        indices: &[usize],
-        options: &crate::printing::ScalarPrintOptions,
-    ) -> StableTorchResult<String> {
-        use crate::dtype::DType;
-        macro_rules! generate_match {
-            // Matches: an expression, then a list of (pattern, result) pairs
-            ($val:expr, $(($r:ty, $p:pat)),*) => {
-                match $val {
-                    $( $p => {
-                        let v = self.d_ref::<$r>(indices)?;
-                        Ok(options.format(v))
-                    }, )*  // Repeatedly generate each arm
-                    _ => todo!("missing d_fmt for {:?}", $val),   // Optional: catch-all arm
-                }
-            };
-        }
-
-        generate_match!(
-            self.dtype(),
-            (f32, DType::F32),
-            (f64, DType::F64),
-            (u8, DType::U8),
-            (i8, DType::I8),
-            (u16, DType::U16),
-            (i16, DType::I16),
-            (u32, DType::U32),
-            (i32, DType::I32),
-            (i64, DType::I64),
-            (u64, DType::U64),
-            (bool, DType::Bool)
-        )
-    }
 }
 
 impl DataRef for Tensor {}

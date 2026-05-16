@@ -1,10 +1,46 @@
 //! Implements Debug and provides string conversion.
 //!
 //! Printing is not a light operation, and may copy tensors to be able to print them.
+use crate::StableTorchResult;
 use crate::core_methods::CoreMethods;
 use crate::data::DataRef;
+use crate::index::TensorIndex;
 use crate::properties::TensorProperties;
 use crate::tensor::{Ten, TenMut, Tensor, TensorAccess};
+
+fn format_scalar_tensor(
+    t: &Ten<'_>,
+    options: &crate::printing::ScalarPrintOptions,
+) -> StableTorchResult<String> {
+    use crate::dtype::DType;
+    macro_rules! generate_match {
+        // Matches: an expression, then a list of (pattern, result) pairs
+        ($val:expr, $(($r:ty, $p:pat)),*) => {
+            match $val {
+                $( $p => {
+                    let v = t.d_ref::<$r>(&[])?;
+                    Ok(options.format(v))
+                }, )*  // Repeatedly generate each arm
+                _ => todo!("missing d_fmt for {:?}", $val),   // Optional: catch-all arm
+            }
+        };
+    }
+
+    generate_match!(
+        t.dtype(),
+        (f32, DType::F32),
+        (f64, DType::F64),
+        (u8, DType::U8),
+        (i8, DType::I8),
+        (u16, DType::U16),
+        (i16, DType::I16),
+        (u32, DType::U32),
+        (i32, DType::I32),
+        (i64, DType::I64),
+        (u64, DType::U64),
+        (bool, DType::Bool)
+    )
+}
 
 #[derive(Copy, Clone, Debug)]
 pub struct PrintOptions {
@@ -84,7 +120,10 @@ pub fn set_printoptions(options: &PrintOptions) {
 }
 
 pub trait PrintRequirements: TensorAccess + TensorProperties + CoreMethods + DataRef {}
-impl<T: TensorAccess + TensorProperties + CoreMethods + DataRef> PrintRequirements for T {}
+impl<T: TensorAccess + TensorProperties + CoreMethods + DataRef + TensorIndex> PrintRequirements
+    for T
+{
+}
 
 // https://github.com/pytorch/pytorch/blob/8f8409cae86d725a75e2ac54ce8f93def107ced7/torch/_tensor_str.py#L130
 //
@@ -102,7 +141,11 @@ fn tensor_format<T: PrintRequirements>(t: &T, options: &TensorPrintOptions) -> S
         let o = (*o).contiguous().unwrap();
         let linear = o.view(&[o.numel()]).unwrap();
         for i in 0..o.numel() {
-            m = m.max(linear.d_fmt(&[i], &options.scalar_options).unwrap().len())
+            m = m.max(
+                format_scalar_tensor(&linear.i(i as isize).unwrap(), &options.scalar_options)
+                    .unwrap()
+                    .len(),
+            )
         }
         m
     };
@@ -121,8 +164,9 @@ fn tensor_format<T: PrintRequirements>(t: &T, options: &TensorPrintOptions) -> S
         let mut element_str = vec![];
         if summarize {
             let left = o.narrow(0, 0, options.print_options.edgeitems).unwrap();
-            element_str
-                .extend((0..left.numel()).map(|i| left.d_fmt(&[i], &local_options).unwrap()));
+            element_str.extend((0..left.numel()).map(|i| {
+                format_scalar_tensor(&left.i(i as isize).unwrap(), &local_options).unwrap()
+            }));
             element_str.push("...".to_owned());
             let right = o
                 .narrow(
@@ -131,11 +175,15 @@ fn tensor_format<T: PrintRequirements>(t: &T, options: &TensorPrintOptions) -> S
                     options.print_options.edgeitems,
                 )
                 .unwrap();
-            element_str
-                .extend((0..right.numel()).map(|i| right.d_fmt(&[i], &local_options).unwrap()));
+            element_str.extend((0..right.numel()).map(|i| {
+                format_scalar_tensor(&right.i(i as isize).unwrap(), &local_options).unwrap()
+            }));
         } else {
             element_str = (0..o.numel())
-                .map(|i| o.d_fmt(&[i], &local_options).unwrap())
+                .map(|i| {
+                    format_scalar_tensor(&o.ten().unwrap().i(i as isize).unwrap(), &local_options)
+                        .unwrap()
+                })
                 .collect();
         }
         let lines = element_str.chunks(elements_per_line);
@@ -176,7 +224,10 @@ fn tensor_format<T: PrintRequirements>(t: &T, options: &TensorPrintOptions) -> S
     };
 
     if t.dim() == 0 {
-        format!("{}", t.d_fmt(&[], &options.scalar_options).unwrap())
+        format!(
+            "{}",
+            format_scalar_tensor(&t.ten().unwrap(), &options.scalar_options).unwrap()
+        )
     } else if t.dim() == 1 {
         let element_width = determine_width(t);
 
@@ -215,7 +266,7 @@ fn tensor_format_with_formatter<T: TensorAccess + TensorProperties + CoreMethods
         element_width: None,
     };
 
-    r += &tensor_format(t, &print_options);
+    r += &tensor_format(&t.ten().unwrap(), &print_options);
     r += ")";
     fmt.write_fmt(format_args!("{}", r))
 }
@@ -330,6 +381,23 @@ mod test {
               ...,\n \
               [13.0, ..., 16.0]]"
         );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_flash_powder_debug_print_non_contiguous() -> StableTorchResult<()> {
+        let d = Tensor::from(&[
+            [1.0f32, 2.0, 3.0, 4.0],
+            [5.0, 6.0, 7.0, 8.0],
+            [9.0, 10.0, 11.0, 12.0],
+            [13.0, 14.0, 15.0, 16.0],
+        ])?;
+        assert_eq!(d.sizes(), &[4, 4]);
+        let r = d.i((.., 0))?;
+        assert_eq!(r.is_contiguous(), false);
+        let d_2d = data_to_string(&r, &Default::default());
+        assert_eq!(d_2d, "[ 1.0,  5.0,  9.0, 13.0]");
 
         Ok(())
     }
