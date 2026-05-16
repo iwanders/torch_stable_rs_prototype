@@ -268,22 +268,9 @@ pub fn main() -> Result<(), anyhow::Error> {
         let w = img_tensor_ready.shape()[1];
         let h = img_tensor_ready.shape()[0];
 
-        // Create three separate tensors to pull out the channels.
-        let r = img_tensor_ready
-            .i((.., .., 0))?
-            .view(&[1, h, w])?
-            .to_owned()?;
-        let g = img_tensor_ready
-            .i((.., .., 1))?
-            .view(&[1, h, w])?
-            .to_owned()?;
-        let b = img_tensor_ready
-            .i((.., .., 2))?
-            .view(&[1, h, w])?
-            .to_owned()?;
-        // Then stack the channels.
-        let channels_stacked = Tensor::cat(&[&r, &g, &b], 0)?
-            .view(&[1, 3, h, w])? // add the batch index.
+        let channels_stacked = img_tensor_ready
+            .permute(&[2, 0, 1])?
+            .view(&[1, 3, h, w])?
             .to_owned()?;
 
         // println!("channels_stacked: {:?}", channels_stacked.shape());
