@@ -31,38 +31,37 @@
 //! ```
 //!
 
-use crate::data::DataMut;
+use crate::dtype::DType;
 use crate::factory::TensorFactory;
 use crate::tensor::Tensor;
-use torch_stable::headeronly::core::ScalarType;
-use torch_stable::stable::ops::EmtpyOptions;
+use crate::{data::DataMut, factory::EmtpyOptions};
 
 pub trait TensorScalar {
-    fn tensor_scalar_type() -> ScalarType;
+    fn tensor_dtype() -> DType;
 }
-macro_rules! impl_tensor_scalar_trait {
+macro_rules! impl_tensor_scalar_dtype_trait {
     ($t:ty, $v:path) => {
         impl TensorScalar for $t {
-            fn tensor_scalar_type() -> ScalarType {
+            fn tensor_dtype() -> DType {
                 $v
             }
         }
     };
 }
 
-impl_tensor_scalar_trait!(f32, ScalarType::Float);
-impl_tensor_scalar_trait!(f64, ScalarType::Double);
+impl_tensor_scalar_dtype_trait!(f32, DType::F32);
+impl_tensor_scalar_dtype_trait!(f64, DType::F64);
 // impl_tensor_scalar_trait!(f16, ScalarType::Half);
 // https://github.com/pytorch/pytorch/blob/6a357dd272853cb6567bb277da62750013c76b4a/torch/csrc/stable/stableivalue_conversions.h#L114
-impl_tensor_scalar_trait!(u8, ScalarType::Byte);
-impl_tensor_scalar_trait!(i8, ScalarType::Char);
-impl_tensor_scalar_trait!(u16, ScalarType::UInt16);
-impl_tensor_scalar_trait!(i16, ScalarType::Short);
-impl_tensor_scalar_trait!(i32, ScalarType::Int);
-impl_tensor_scalar_trait!(u32, ScalarType::UInt32);
-impl_tensor_scalar_trait!(i64, ScalarType::Long);
-impl_tensor_scalar_trait!(u64, ScalarType::UInt64);
-impl_tensor_scalar_trait!(bool, ScalarType::Bool);
+impl_tensor_scalar_dtype_trait!(u8, DType::U8);
+impl_tensor_scalar_dtype_trait!(i8, DType::I8);
+impl_tensor_scalar_dtype_trait!(u16, DType::U16);
+impl_tensor_scalar_dtype_trait!(i16, DType::I16);
+impl_tensor_scalar_dtype_trait!(i32, DType::I32);
+impl_tensor_scalar_dtype_trait!(u32, DType::U32);
+impl_tensor_scalar_dtype_trait!(i64, DType::I64);
+impl_tensor_scalar_dtype_trait!(u64, DType::U64);
+impl_tensor_scalar_dtype_trait!(bool, DType::Bool);
 
 use zerocopy::{Immutable, IntoBytes, TryFromBytes};
 
@@ -73,7 +72,7 @@ impl<T: TensorScalar + Immutable + IntoBytes + TryFromBytes + Copy> TryInto<Tens
         let mut v = Tensor::empty(
             &[],
             &EmtpyOptions {
-                dtype: Some(T::tensor_scalar_type()),
+                dtype: Some(T::tensor_dtype()),
                 ..Default::default()
             },
         )?;
@@ -89,7 +88,7 @@ impl<T: TensorScalar + Immutable + IntoBytes + TryFromBytes + Copy> TryInto<Tens
         let mut v = Tensor::empty(
             &[self.len()],
             &EmtpyOptions {
-                dtype: Some(T::tensor_scalar_type()),
+                dtype: Some(T::tensor_dtype()),
                 ..Default::default()
             },
         )?;
@@ -107,7 +106,7 @@ impl<T: TensorScalar + Immutable + IntoBytes + TryFromBytes + Copy, const V: usi
         let mut v = Tensor::empty(
             &[V],
             &EmtpyOptions {
-                dtype: Some(T::tensor_scalar_type()),
+                dtype: Some(T::tensor_dtype()),
                 ..Default::default()
             },
         )?;
@@ -125,7 +124,7 @@ impl<T: TensorScalar + Immutable + IntoBytes + TryFromBytes + Copy, const V: usi
         let mut v = Tensor::empty(
             &[V],
             &EmtpyOptions {
-                dtype: Some(T::tensor_scalar_type()),
+                dtype: Some(T::tensor_dtype()),
                 ..Default::default()
             },
         )?;
@@ -143,7 +142,7 @@ impl<T: TensorScalar + Immutable + IntoBytes + TryFromBytes + Copy, const C: usi
         let mut v = Tensor::empty(
             &[R, C],
             &EmtpyOptions {
-                dtype: Some(T::tensor_scalar_type()),
+                dtype: Some(T::tensor_dtype()),
                 ..Default::default()
             },
         )?;
@@ -161,7 +160,7 @@ impl<T: TensorScalar + Immutable + IntoBytes + TryFromBytes + Copy, const C: usi
         let mut v = Tensor::empty(
             &[R, C],
             &EmtpyOptions {
-                dtype: Some(T::tensor_scalar_type()),
+                dtype: Some(T::tensor_dtype()),
                 ..Default::default()
             },
         )?;
@@ -183,7 +182,7 @@ impl<
         let mut v = Tensor::empty(
             &[D, R, C],
             &EmtpyOptions {
-                dtype: Some(T::tensor_scalar_type()),
+                dtype: Some(T::tensor_dtype()),
                 ..Default::default()
             },
         )?;
@@ -205,7 +204,7 @@ impl<
         let mut v = Tensor::empty(
             &[D, R, C],
             &EmtpyOptions {
-                dtype: Some(T::tensor_scalar_type()),
+                dtype: Some(T::tensor_dtype()),
                 ..Default::default()
             },
         )?;
@@ -219,6 +218,7 @@ mod test {
     use super::*;
     use crate::StableTorchResult;
     use crate::data::DataRef;
+    use crate::dtype::DType;
     use crate::properties::TensorProperties;
 
     #[test]
@@ -233,7 +233,7 @@ mod test {
             d.u8s_ref()?,
             &[5, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0]
         ); // #PYTHON d.view(torch.uint8).view(-1).tolist()
-        assert_eq!(d.dtype(), ScalarType::Long); // #PYTHON d.dtype
+        assert_eq!(d.dtype(), DType::I64); // #PYTHON d.dtype
 
         /*
             #|PYTHON
@@ -242,7 +242,7 @@ mod test {
         let d: Tensor = (&[5.0f32, 3.0]).try_into()?;
         assert_eq!(d.sizes(), &[2]); // #PYTHON list(d.shape)
         assert_eq!(d.u8s_ref()?, &[0, 0, 160, 64, 0, 0, 64, 64]); // #PYTHON d.view(torch.uint8).view(-1).tolist()
-        assert_eq!(d.dtype(), ScalarType::Float); // #PYTHON d.dtype
+        assert_eq!(d.dtype(), DType::F32); // #PYTHON d.dtype
 
         /*
             #|PYTHON
@@ -254,7 +254,7 @@ mod test {
             d.u8s_ref()?,
             &[0, 0, 160, 64, 0, 0, 64, 64, 0, 0, 128, 63, 0, 0, 0, 64]
         ); // #PYTHON d.view(torch.uint8).view(-1).tolist()
-        assert_eq!(d.dtype(), ScalarType::Float); // #PYTHON d.dtype
+        assert_eq!(d.dtype(), DType::F32); // #PYTHON d.dtype
 
         /*
             #|PYTHON
@@ -263,7 +263,7 @@ mod test {
         let d: Tensor = [1i8, 3, 4, 5].try_into()?;
         assert_eq!(d.sizes(), &[4]); // #PYTHON list(d.shape)
         assert_eq!(d.u8s_ref()?, &[1, 3, 4, 5]); // #PYTHON d.view(torch.uint8).view(-1).tolist()
-        assert_eq!(d.dtype(), ScalarType::Char); // #PYTHON d.dtype
+        assert_eq!(d.dtype(), DType::I8); // #PYTHON d.dtype
 
         /*
             #|PYTHON
@@ -272,7 +272,7 @@ mod test {
         let d: Tensor = [[[5i64]]].try_into()?;
         assert_eq!(d.sizes(), &[1, 1, 1]); // #PYTHON list(d.shape)
         assert_eq!(d.u8s_ref()?, &[5, 0, 0, 0, 0, 0, 0, 0]); // #PYTHON d.view(torch.uint8).view(-1).tolist()
-        assert_eq!(d.dtype(), ScalarType::Long); // #PYTHON d.dtype
+        assert_eq!(d.dtype(), DType::I64); // #PYTHON d.dtype
 
         /*
             #|PYTHON
@@ -281,7 +281,7 @@ mod test {
         let d: Tensor = [true, false, true].try_into()?;
         assert_eq!(d.sizes(), &[3]); // #PYTHON list(d.shape)
         assert_eq!(d.u8s_ref()?, &[1, 0, 1]); // #PYTHON d.view(torch.uint8).view(-1).tolist()
-        assert_eq!(d.dtype(), ScalarType::Bool); // #PYTHON d.dtype
+        assert_eq!(d.dtype(), DType::Bool); // #PYTHON d.dtype
 
         // Non square
         /*
@@ -296,7 +296,7 @@ mod test {
                 0, 0, 160, 64, 0, 0, 64, 64, 0, 0, 160, 64, 0, 0, 128, 63, 0, 0, 0, 64, 0, 0, 0, 0
             ]
         ); // #PYTHON d.view(torch.uint8).view(-1).tolist()
-        assert_eq!(d.dtype(), ScalarType::Float); // #PYTHON d.dtype
+        assert_eq!(d.dtype(), DType::F32); // #PYTHON d.dtype
 
         /*
             #|PYTHON
@@ -310,7 +310,7 @@ mod test {
                 0, 0, 160, 64, 0, 0, 64, 64, 0, 0, 128, 63, 0, 0, 0, 64, 0, 0, 128, 63, 0, 0, 0, 64
             ]
         ); // #PYTHON d.view(torch.uint8).view(-1).tolist()
-        assert_eq!(d.dtype(), ScalarType::Float); // #PYTHON d.dtype
+        assert_eq!(d.dtype(), DType::F32); // #PYTHON d.dtype
 
         // And with depth;
         /*
@@ -327,7 +327,7 @@ mod test {
                 3, 0, 0, 0, 0, 0, 0, 0
             ]
         ); // #PYTHON d.view(torch.uint8).view(-1).tolist()
-        assert_eq!(d.dtype(), ScalarType::Long); // #PYTHON d.dtype
+        assert_eq!(d.dtype(), DType::I64); // #PYTHON d.dtype
 
         /*
             #|PYTHON
@@ -336,7 +336,7 @@ mod test {
         let d: Tensor = (5i64,).try_into()?;
         assert_eq!(d.dim(), 0); // #PYTHON d.dim()
         assert_eq!(d.i64_ref(&[])?, &5); // #PYTHON d.item()
-        assert_eq!(d.dtype(), ScalarType::Long); // #PYTHON d.dtype
+        assert_eq!(d.dtype(), DType::I64); // #PYTHON d.dtype
 
         Ok(())
     }

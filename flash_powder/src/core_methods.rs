@@ -17,22 +17,23 @@
 //
 // The foo_ underscore methods modify data in place, see https://github.com/pytorch/pytorch/blob/v2.12.0-rc2/aten/src/ATen/native/README.md#annotations
 
+use crate::dtype::DType;
+use crate::factory::ToOptions;
 use crate::properties::TensorProperties;
 use crate::size::Size;
 use crate::{StableTorchResult, Ten, TenMut, Tensor, TensorAccess};
-use torch_stable::stable::ops::ToOptions;
 use torch_stable::{
     aoti_torch::StableIValue, stable::tensor::Tensor as StableTensor, unsafe_call_bail,
     unsafe_call_dispatch_bail,
 };
 use torch_stable::{aoti_torch::*, unsafe_call_dispatch_panic};
 
-use torch_stable::headeronly::core::{MemoryFormat, ScalarType};
+use torch_stable::headeronly::core::MemoryFormat;
 #[derive(Copy, Clone, Debug)]
 pub struct MeanOptions {
     pub dim: Option<usize>,
     pub keepdim: bool,
-    pub dtype: Option<ScalarType>,
+    pub dtype: Option<DType>,
 }
 impl Default for MeanOptions {
     fn default() -> Self {
@@ -504,7 +505,6 @@ mod test {
 
     #[test]
     fn test_flash_powder_to() -> StableTorchResult<()> {
-        use crate::ScalarType;
         use crate::factory::TensorOptions;
         let t = Tensor::zeros(
             &[5, 5],
@@ -512,7 +512,7 @@ mod test {
                 ..Default::default()
             },
         )?;
-        assert_eq!(t.dtype(), ScalarType::Float);
+        assert_eq!(t.dtype(), DType::F32);
         let orig = t.const_data_ptr();
 
         let z = t.to(&ToOptions {
@@ -633,7 +633,7 @@ mod test {
 
         let mean_1_double = d.mean(&MeanOptions {
             dim: Some(1),
-            dtype: Some(ScalarType::Double),
+            dtype: Some(DType::F64),
             ..Default::default()
         })?;
         assert_eq!(mean_1_double.sizes(), &[1, 4]); // #PYTHON list(mean_1_double.shape)

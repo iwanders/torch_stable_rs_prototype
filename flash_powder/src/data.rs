@@ -165,7 +165,7 @@ pub trait DataRef: TensorAccess + TensorProperties {
         indices: &[usize],
         options: &crate::printing::ScalarPrintOptions,
     ) -> StableTorchResult<String> {
-        use torch_stable::headeronly::core::ScalarType;
+        use crate::dtype::DType;
         macro_rules! generate_match {
             // Matches: an expression, then a list of (pattern, result) pairs
             ($val:expr, $(($r:ty, $p:pat)),*) => {
@@ -181,17 +181,17 @@ pub trait DataRef: TensorAccess + TensorProperties {
 
         generate_match!(
             self.dtype(),
-            (f32, ScalarType::Float),
-            (f64, ScalarType::Double),
-            (u8, ScalarType::Byte),
-            (i8, ScalarType::Char),
-            (u16, ScalarType::UInt16),
-            (i16, ScalarType::Short),
-            (i32, ScalarType::Int),
-            (u32, ScalarType::UInt32),
-            (i64, ScalarType::Long),
-            (u64, ScalarType::UInt64),
-            (bool, ScalarType::Bool)
+            (f32, DType::F32),
+            (f64, DType::F64),
+            (u8, DType::U8),
+            (i8, DType::I8),
+            (u16, DType::U16),
+            (i16, DType::I16),
+            (u32, DType::U32),
+            (i32, DType::I32),
+            (i64, DType::I64),
+            (u64, DType::U64),
+            (bool, DType::Bool)
         )
     }
 }

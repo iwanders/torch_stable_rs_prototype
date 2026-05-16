@@ -3,20 +3,41 @@
 //! Pytorch puts these in the module, as torch.zeros(), I chose to put them as static methods on Tensor.
 
 use crate::properties::TensorProperties;
-use crate::{StableTorchResult, Tensor, TensorAccess};
+use crate::{StableTorchResult, Tensor, TensorAccess, dtype::DType};
 use torch_stable::aoti_torch::{aoti_torch_zero_, AtenTensorHandle};
-use torch_stable::headeronly::core::{Layout, ScalarType};
+use torch_stable::headeronly::core::{Layout, MemoryFormat};
 use torch_stable::stable::device::Device;
-pub use torch_stable::stable::ops::{EmtpyOptions, ToOptions};
 use torch_stable::{
     aoti_torch::StableIValue, stable::tensor::Tensor as StableTensor, unsafe_call_bail,
     unsafe_call_dispatch_bail,
 };
 
+
+#[derive(Copy, Clone, Debug, Default)]
+pub struct ToOptions {
+    pub dtype: Option<DType>,
+    pub layout: Option<Layout>,
+    pub device: Option<Device>,
+    pub pin_memory: Option<bool>,
+    pub memory_format: Option<MemoryFormat>,
+    pub non_blocking: bool,
+    pub copy: bool,
+}
+
+#[derive(Copy, Clone, Debug, Default)]
+pub struct EmtpyOptions {
+    pub dtype: Option<DType>,
+    pub layout: Option<Layout>,
+    pub device: Option<Device>,
+    pub pin_memory: Option<bool>,
+    pub memory_format: Option<MemoryFormat>,
+}
+
+
 /// Options to create zero tensors.
 #[derive(Copy, Clone, Debug, Default)]
 pub struct TensorOptions {
-    pub dtype: Option<ScalarType>,
+    pub dtype: Option<DType>,
     pub layout: Option<Layout>,
     pub device: Option<Device>,
     pub pin_memory: Option<bool>,

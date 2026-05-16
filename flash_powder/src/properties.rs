@@ -1,8 +1,9 @@
 //! Retrieve properties like [`sizes`][`TensorProperties::sizes()`] from any [`TensorAccess`].
 
-use crate::{Ten, TenMut, Tensor, TensorAccess};
-use torch_stable::headeronly::core::{Layout, ScalarType};
+use crate::{Ten, TenMut, Tensor, TensorAccess, dtype::DType};
+use torch_stable::headeronly::core::Layout;
 use torch_stable::stable::device::{Device, DeviceIndex};
+
 pub trait TensorProperties: TensorAccess {
     fn dim(&self) -> usize {
         self.get_tensor().dim()
@@ -28,8 +29,8 @@ pub trait TensorProperties: TensorAccess {
         self.get_tensor().is_contiguous()
     }
 
-    fn dtype(&self) -> ScalarType {
-        self.get_tensor().scalar_type()
+    fn dtype(&self) -> DType {
+        self.get_tensor().scalar_type().try_into().unwrap()
     }
     fn layout(&self) -> Layout {
         self.get_tensor().layout()

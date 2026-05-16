@@ -42,10 +42,11 @@ pub mod size;
 pub mod tensor;
 
 pub mod conversion;
+pub mod dtype;
 pub mod printing;
 
 use tensor::{Ten, TenMut, Tensor, TensorAccess};
-pub use torch_stable::{StableTorchResult, headeronly::core::ScalarType};
+pub use torch_stable::StableTorchResult;
 
 /// The prelude that contains all the important types and traits.
 pub mod prelude {
@@ -68,6 +69,10 @@ pub mod prelude {
     pub use super::torch;
     // #[doc(inline)]
     // pub use crate::functional;
+    //
+
+    #[doc(inline)]
+    pub use super::dtype::DType;
 }
 #[cfg(test)]
 mod test {
