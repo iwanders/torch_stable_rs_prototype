@@ -1,9 +1,36 @@
 use torch_stable::headeronly::core::ScalarType;
 
+pub trait ScalarDType {
+    fn type_dtype() -> DType;
+}
+macro_rules! impl_tensor_scalar_dtype_trait {
+    ($t:ty, $v:path) => {
+        impl ScalarDType for $t {
+            fn type_dtype() -> DType {
+                $v
+            }
+        }
+    };
+}
+
+impl_tensor_scalar_dtype_trait!(f32, DType::F32);
+impl_tensor_scalar_dtype_trait!(f64, DType::F64);
+// impl_tensor_scalar_trait!(f16, ScalarType::Half);
+// https://github.com/pytorch/pytorch/blob/6a357dd272853cb6567bb277da62750013c76b4a/torch/csrc/stable/stableivalue_conversions.h#L114
+impl_tensor_scalar_dtype_trait!(u8, DType::U8);
+impl_tensor_scalar_dtype_trait!(i8, DType::I8);
+impl_tensor_scalar_dtype_trait!(u16, DType::U16);
+impl_tensor_scalar_dtype_trait!(i16, DType::I16);
+impl_tensor_scalar_dtype_trait!(i32, DType::I32);
+impl_tensor_scalar_dtype_trait!(u32, DType::U32);
+impl_tensor_scalar_dtype_trait!(i64, DType::I64);
+impl_tensor_scalar_dtype_trait!(u64, DType::U64);
+impl_tensor_scalar_dtype_trait!(bool, DType::Bool);
+
 /// Simplified ScalarType enum.
 ///
-/// The [`torch_stable::ScalarType`] contains many entries that are not in `https://docs.pytorch.org/docs/2.12/tensor_attributes.html`
-/// as well as having the odd byte/char like naming, by introducing this indirection things are nice and uniform.
+/// The [`ScalarType`] contains many entries that are not in <https://docs.pytorch.org/docs/2.12/tensor_attributes.html>
+/// as well as having the legacy byte/char like naming, by introducing this indirection things are nice and uniform.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
 #[repr(i8)]
 #[allow(non_camel_case_types)]

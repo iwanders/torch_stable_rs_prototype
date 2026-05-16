@@ -7,9 +7,12 @@
 //! - `<T>s_ref()`, slice to the entire tensor, example: [`f32s_ref()`][`DataRef::f32s_ref`]
 //! - `<T>_ref(indices: &[usize])`, indexed access to a single scalar, requires [`dim()`][`TensorProperties::dim`]` == indices.len()`, example: [`f32_ref()`][`DataRef::f32_ref`]
 //! - `as_<T>()`, indexing for a 0 dimensional scalar, same as `<T>_ref(&[])`, example: [`as_f32()`][`DataRef::as_f32`]
+//!
+//! The access type is checked against the tensor's [`dtype()`][`TensorProperties::dtype`], if you don't want that use [`data()`][`DataRef::data`] and [`data_mut()`][`DataMut::data_mut`].
 use anyhow::bail;
 use zerocopy::{Immutable, IntoBytes, KnownLayout, TryFromBytes};
 
+use crate::dtype::ScalarDType;
 use crate::{
     properties::TensorProperties,
     tensor::{Ten, TenMut, Tensor, TensorAccess},
@@ -18,7 +21,7 @@ use torch_stable::{StableTorchResult, contrib::TensorPropertiesContrib as _};
 
 macro_rules! impl_slice_ref {
     ($t:ty, $v:ident) => {
-        /// Access the entire tensor's byteslice using this datatype.
+        /// Access the entire tensor's slice using this datatype.
         fn $v(&self) -> StableTorchResult<&[$t]> {
             self.ds_ref::<$t>()
         }
@@ -26,7 +29,7 @@ macro_rules! impl_slice_ref {
 }
 macro_rules! impl_item_ref {
     ($t:ty, $v:ident) => {
-        /// Indexed access to a single value of type, [`dim()`][`TensorProperties::dim`]` == indices.len()`
+        /// Indexed access to a single value of type, requires [`dim()`][`TensorProperties::dim`]` == indices.len()`
         fn $v(&self, indices: &[usize]) -> StableTorchResult<&$t> {
             self.d_ref::<$t>(indices)
         }
@@ -34,7 +37,7 @@ macro_rules! impl_item_ref {
 }
 macro_rules! impl_as_ref {
     ($t:ty, $v:ident) => {
-        /// Access the tensor as a scalar, [`dim()`][`TensorProperties::dim`]` == 0`
+        /// Access the tensor as a scalar, requires [`dim()`][`TensorProperties::dim`]` == 0`
         fn $v(&self) -> StableTorchResult<&$t> {
             if self.dim() != 0 {
                 bail!(
@@ -55,7 +58,7 @@ macro_rules! impl_as_ref {
 pub trait DataRef: TensorAccess + TensorProperties {
     /// Direct access to the byte slice backing the tensor.
     /// This always provides the ENTIRE storage slice, and does materialize the data if we're in a COW situation.
-    fn u8s_ref(&self) -> StableTorchResult<&[u8]> {
+    fn data(&self) -> StableTorchResult<&[u8]> {
         if !self.is_contiguous() {
             bail!("cannot get slice into non contiguous tensor");
         }
@@ -73,8 +76,17 @@ pub trait DataRef: TensorAccess + TensorProperties {
     /// Access to the slice spanning the entire tensor data.
     ///
     /// Zerocopy cast of [`Self::u8s_ref`] to `&[T]`.
-    fn ds_ref<T: IntoBytes + TryFromBytes + Immutable>(&self) -> StableTorchResult<&[T]> {
-        let byte_ref = self.u8s_ref()?;
+    fn ds_ref<T: IntoBytes + TryFromBytes + Immutable + ScalarDType>(
+        &self,
+    ) -> StableTorchResult<&[T]> {
+        if T::type_dtype() != self.dtype() {
+            bail!(
+                "accessing tensor with dtype {:?} using {:?}",
+                self.dtype(),
+                T::type_dtype()
+            );
+        }
+        let byte_ref = self.data()?;
         match <[T]>::try_ref_from_bytes(byte_ref) {
             Ok(e) => Ok(e),
             Err(z) => bail!("failed slice conversion: {z:?}"),
@@ -82,10 +94,17 @@ pub trait DataRef: TensorAccess + TensorProperties {
     }
 
     /// Element reference to element at the provided indices.
-    fn d_ref<T: IntoBytes + TryFromBytes + Immutable + KnownLayout>(
+    fn d_ref<T: IntoBytes + TryFromBytes + Immutable + KnownLayout + ScalarDType>(
         &self,
         index: &[usize],
     ) -> StableTorchResult<&T> {
+        if T::type_dtype() != self.dtype() {
+            bail!(
+                "accessing tensor with dtype {:?} using {:?}",
+                self.dtype(),
+                T::type_dtype()
+            );
+        }
         if index.len() > self.dim() {
             bail!(
                 "indices provided {} dim, tensor is {} dim",
@@ -114,7 +133,7 @@ pub trait DataRef: TensorAccess + TensorProperties {
                 self.element_size()
             )
         }
-        let byte_ref = &self.u8s_ref()?[offset * size..size * (offset + 1)];
+        let byte_ref = &self.data()?[offset * size..size * (offset + 1)];
         match <T>::try_ref_from_bytes(byte_ref) {
             Ok(e) => Ok(e),
             Err(z) => bail!("failed slice conversion: {z:?}"),
@@ -125,6 +144,7 @@ pub trait DataRef: TensorAccess + TensorProperties {
     impl_slice_ref!(f32, f32s_ref);
     impl_slice_ref!(f64, f64s_ref);
 
+    impl_slice_ref!(u8, u8s_ref);
     impl_slice_ref!(u16, u16s_ref);
     impl_slice_ref!(u32, u32s_ref);
     impl_slice_ref!(u64, u64s_ref);
@@ -138,6 +158,7 @@ pub trait DataRef: TensorAccess + TensorProperties {
     impl_item_ref!(f32, f32_ref);
     impl_item_ref!(f64, f64_ref);
 
+    impl_item_ref!(u8, u8_ref);
     impl_item_ref!(u16, u16_ref);
     impl_item_ref!(u32, u32_ref);
     impl_item_ref!(u64, u64_ref);
@@ -151,6 +172,7 @@ pub trait DataRef: TensorAccess + TensorProperties {
     impl_as_ref!(f32, as_f32);
     impl_as_ref!(f64, as_f64);
 
+    impl_as_ref!(u8, as_u8);
     impl_as_ref!(u16, as_u16);
     impl_as_ref!(u32, as_u32);
     impl_as_ref!(u64, as_u64);
@@ -202,6 +224,7 @@ impl<'a> DataRef for TenMut<'a> {}
 
 macro_rules! impl_slice_mut {
     ($t:ty, $v:ident) => {
+        /// Access the entire tensor's mutable slice using this datatype.
         fn $v(&mut self) -> StableTorchResult<&mut [$t]> {
             self.ds_mut::<$t>()
         }
@@ -209,6 +232,7 @@ macro_rules! impl_slice_mut {
 }
 macro_rules! impl_item_mut {
     ($t:ty, $v:ident) => {
+        /// Indexed access to a single mutable value of type, requires [`dim()`][`TensorProperties::dim`]` == indices.len()`
         fn $v(&mut self, indices: &[usize]) -> StableTorchResult<&mut $t> {
             self.d_mut::<$t>(indices)
         }
@@ -217,7 +241,7 @@ macro_rules! impl_item_mut {
 
 macro_rules! impl_as_mut {
     ($t:ty, $v:ident) => {
-        /// Access the tensor as a scalar, [`dim()`][`TensorProperties::dim`]` == 0`
+        /// Access the tensor as a mutable scalar, requires [`dim()`][`TensorProperties::dim`]` == 0`
         fn $v(&mut self) -> StableTorchResult<&mut $t> {
             if self.dim() != 0 {
                 bail!(
@@ -237,7 +261,7 @@ macro_rules! impl_as_mut {
 /// These methods are only valid if the data is on the CPU.
 pub trait DataMut: TensorAccess + TensorProperties {
     /// Direct access to the mutable byte slice backing the tensor.
-    fn u8s_mut(&mut self) -> StableTorchResult<&mut [u8]> {
+    fn data_mut(&mut self) -> StableTorchResult<&mut [u8]> {
         if !self.is_contiguous() {
             bail!("cannot get slice into non contiguous tensor");
         }
@@ -253,9 +277,18 @@ pub trait DataMut: TensorAccess + TensorProperties {
 
     /// Access to the mutable slice spanning the entire tensor data.
     ///
-    /// Zerocopy cast of [`Self::u8s_mut`] to `&mut [T]`.
-    fn ds_mut<T: IntoBytes + TryFromBytes + Immutable>(&mut self) -> StableTorchResult<&mut [T]> {
-        let byte_ref = self.u8s_mut()?;
+    /// Cast of [`Self::data_mut`] to `&mut [T]`.
+    fn ds_mut<T: IntoBytes + TryFromBytes + Immutable + ScalarDType>(
+        &mut self,
+    ) -> StableTorchResult<&mut [T]> {
+        if T::type_dtype() != self.dtype() {
+            bail!(
+                "accessing tensor with dtype {:?} using {:?}",
+                self.dtype(),
+                T::type_dtype()
+            );
+        }
+        let byte_ref = self.data_mut()?;
         match <[T]>::try_mut_from_bytes(byte_ref) {
             Ok(e) => Ok(e),
             Err(z) => bail!("failed slice conversion: {z:?}"),
@@ -263,10 +296,17 @@ pub trait DataMut: TensorAccess + TensorProperties {
     }
 
     /// Element mutable reference to element at the provided indices.
-    fn d_mut<T: IntoBytes + TryFromBytes + Immutable + KnownLayout>(
+    fn d_mut<T: IntoBytes + TryFromBytes + Immutable + KnownLayout + ScalarDType>(
         &mut self,
         index: &[usize],
     ) -> StableTorchResult<&mut T> {
+        if T::type_dtype() != self.dtype() {
+            bail!(
+                "accessing tensor with dtype {:?} using {:?}",
+                self.dtype(),
+                T::type_dtype()
+            );
+        }
         if index.len() > self.dim() {
             bail!(
                 "indices provided {} dim, tensor is {} dim",
@@ -295,7 +335,7 @@ pub trait DataMut: TensorAccess + TensorProperties {
             )
         }
         let size = std::mem::size_of::<T>();
-        let byte_mut = &mut self.u8s_mut()?[offset * size..size * (offset + 1)];
+        let byte_mut = &mut self.data_mut()?[offset * size..size * (offset + 1)];
         match <T>::try_mut_from_bytes(byte_mut) {
             Ok(e) => Ok(e),
             Err(z) => bail!("failed slice conversion: {z:?}"),
@@ -319,6 +359,7 @@ pub trait DataMut: TensorAccess + TensorProperties {
     impl_item_mut!(f32, f32_mut);
     impl_item_mut!(f64, f64_mut);
 
+    impl_item_mut!(u8, u8_mut);
     impl_item_mut!(u16, u16_mut);
     impl_item_mut!(u32, u32_mut);
     impl_item_mut!(u64, u64_mut);
@@ -332,6 +373,7 @@ pub trait DataMut: TensorAccess + TensorProperties {
     impl_as_mut!(f32, as_f32_mut);
     impl_as_mut!(f64, as_f64_mut);
 
+    impl_as_mut!(u8, as_u8_mut);
     impl_as_mut!(u16, as_u16_mut);
     impl_as_mut!(u32, as_u32_mut);
     impl_as_mut!(u64, as_u64_mut);
