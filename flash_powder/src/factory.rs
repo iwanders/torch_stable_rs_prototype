@@ -50,6 +50,7 @@ pub struct TensorOptions {
 ///
 /// ```
 ///   # use flash_powder::prelude::*;
+///   # use flash_powder::Tensor;
 ///   let a = Tensor::empty(&[5, 5], &Default::default()).unwrap();
 ///   assert_eq!(a.sizes(), &[5, 5]);
 /// ```

@@ -23,6 +23,7 @@ pub fn select<T: TensorAccess>(input: &T, dim: usize, index: usize) -> StableTor
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::Tensor;
     use crate::prelude::*;
 
     #[test]

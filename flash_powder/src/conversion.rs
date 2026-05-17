@@ -8,7 +8,7 @@
 //!
 //! ```rust
 //! # use flash_powder::prelude::*;
-//! # use flash_powder::StableTorchResult;
+//! # use flash_powder::{StableTorchResult, Tensor};
 //! # fn foo() -> StableTorchResult<()>{
 //!
 //!   let d: Tensor = (5i64,).try_into()?;

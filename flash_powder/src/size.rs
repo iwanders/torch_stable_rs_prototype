@@ -5,6 +5,7 @@
 //! In short;
 //! ```ignore
 //! # use flash_powder::prelude::*;
+//! # use flash_powder::Tensor;
 //! let mut t = Tensor::randn(&[3,3], &Default::default()).unwrap();
 //! let v = t.view_mut(t.sizes());
 //! ```
@@ -13,6 +14,7 @@
 //! We avoid this with;
 //! ```rust
 //! # use flash_powder::prelude::*;
+//! # use flash_powder::Tensor;
 //! let mut t = Tensor::randn(&[3,3], &Default::default()).unwrap();
 //! let shape = t.shape();
 //! let v = t.view_mut(&shape);

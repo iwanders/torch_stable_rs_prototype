@@ -22,6 +22,7 @@ use safetensors::SafeTensors;
 use flash_powder as fp;
 use flash_powder::functional;
 use flash_powder::prelude::*;
+use fp::{DType, Tensor};
 
 // Bit of tooling...
 trait ForwardLayer {

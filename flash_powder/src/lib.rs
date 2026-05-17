@@ -45,10 +45,11 @@ pub mod conversion;
 pub mod dtype;
 pub mod printing;
 
-use tensor::{Ten, TenMut, Tensor, TensorAccess};
+pub use dtype::DType;
+pub use tensor::{Ten, TenMut, Tensor, TensorAccess};
 pub use torch_stable::StableTorchResult;
 
-/// The prelude that contains all the important types and traits.
+/// The prelude that contains all the necessary traits.
 pub mod prelude {
     use super::*;
     #[doc(inline)]
@@ -59,21 +60,22 @@ pub mod prelude {
     pub use factory::TensorFactory;
     #[doc(inline)]
     pub use properties::TensorProperties;
-    #[doc(inline)]
-    pub use tensor::{Ten, TenMut, Tensor, TensorAccess};
+    // #[doc(inline)]
+    // pub use tensor::{Ten, TenMut, Tensor, TensorAccess};
 
     #[doc(inline)]
     pub use index::TensorIndex;
 
-    #[doc(inline)]
-    pub use super::torch;
+    // #[doc(inline)]
+    // pub use super::torch;
     // #[doc(inline)]
     // pub use crate::functional;
     //
 
-    #[doc(inline)]
-    pub use super::dtype::DType;
+    // #[doc(inline)]
+    // pub use super::dtype::DType;
 }
+
 #[cfg(test)]
 mod test {
     use super::*;
