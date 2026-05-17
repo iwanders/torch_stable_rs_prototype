@@ -20,6 +20,21 @@ pub fn select<T: TensorAccess>(input: &T, dim: usize, index: usize) -> StableTor
     Ok(Ten::new(input.get_tensor(), r))
 }
 
+pub mod cuda {
+    /// Return a bool indicating if CUDA is currently available.
+    ///
+    /// - [pytorch equivalent](https://docs.pytorch.org/docs/2.12/generated/torch.cuda.is_available.html)
+    ///
+    /// Not a strict equivalent, this is not exposed through the bindings, instead we try to allocate a tensor on the
+    /// cuda device instead.
+    pub fn is_available() -> bool {
+        use crate::Device;
+        use crate::prelude::*;
+        let alloced = crate::Tensor::zeros(&[1], &Device::CUDA.into());
+        alloced.is_ok()
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;

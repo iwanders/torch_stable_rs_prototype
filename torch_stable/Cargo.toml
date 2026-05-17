@@ -17,8 +17,6 @@ cc={workspace=true}
 
 
 [features]
-# Set this flag if the venv we're targetting is from a pytorch local build, its directory layout is different.
-devel_build = []
 
 # Version that is being targetted.
 v2_13 = []

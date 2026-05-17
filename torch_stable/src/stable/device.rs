@@ -15,6 +15,15 @@ pub struct Device {
 }
 
 impl Device {
+    pub const CPU: Device = Device {
+        device_type: DeviceType::CPU,
+        device_index: DeviceIndex(-1),
+    };
+    pub const CUDA: Device = Device {
+        device_type: DeviceType::CUDA,
+        device_index: DeviceIndex(-1),
+    };
+
     pub(crate) fn from_parts(device_type: DeviceType, device_index: DeviceIndex) -> Self {
         Self {
             device_type,

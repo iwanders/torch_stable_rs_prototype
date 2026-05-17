@@ -53,11 +53,12 @@ include!(concat!(env!("OUT_DIR"), "/generated_consts.rs"));
 pub fn downtree_build_rs() {
     println!("cargo:rustc-link-search=native={LIB_PATH}");
     println!("cargo:rustc-link-arg=-Wl,-rpath,{}", LIB_PATH);
-    if std::env::var("CARGO_FEATURE_CUDA").is_ok() {
+    if FEATURE_CUDA {
         println!("cargo:rustc-link-arg=-Wl,--no-as-needed");
         println!("cargo:rustc-link-lib=torch_cuda");
+        println!("cargo:rustc-link-arg=-Wl,--no-as-needed");
+        println!("cargo:rustc-link-arg=-ltorch");
     }
-    println!("cargo:rustc-link-lib=torch_cpu");
     println!("cargo:rustc-link-arg=-Wl,--no-as-needed");
-    println!("cargo:rustc-link-arg=-ltorch");
+    println!("cargo:rustc-link-lib=torch_cpu");
 }

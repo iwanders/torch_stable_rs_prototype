@@ -13,6 +13,7 @@ use torch_stable::{
 };
 
 
+/// Options for the `to` operation.
 #[derive(Copy, Clone, Debug, Default)]
 pub struct ToOptions {
     pub dtype: Option<DType>,
@@ -24,6 +25,23 @@ pub struct ToOptions {
     pub copy: bool,
 }
 
+
+macro_rules! impl_conversion {
+    ($t:ty, $dest:ty, $v:ident) => {
+        impl std::convert::From<$t> for $dest {
+            fn from(value: $t) -> Self {
+                Self{$v: Some(value), ..Default::default()}
+            }
+        }
+    };
+}
+impl_conversion!(Device, ToOptions, device);
+impl_conversion!(DType, ToOptions, dtype);
+impl_conversion!(Layout, ToOptions, layout);
+impl_conversion!(MemoryFormat, ToOptions, memory_format);
+
+
+
 #[derive(Copy, Clone, Debug, Default)]
 pub struct EmptyOptions {
     pub dtype: Option<DType>,
@@ -32,6 +50,10 @@ pub struct EmptyOptions {
     pub pin_memory: Option<bool>,
     pub memory_format: Option<MemoryFormat>,
 }
+impl_conversion!(Device, EmptyOptions, device);
+impl_conversion!(DType, EmptyOptions, dtype);
+impl_conversion!(Layout, EmptyOptions, layout);
+impl_conversion!(MemoryFormat, EmptyOptions, memory_format);
 
 
 /// Options to create zero tensors.
@@ -42,6 +64,9 @@ pub struct TensorOptions {
     pub device: Option<Device>,
     pub pin_memory: Option<bool>,
 }
+impl_conversion!(Device, TensorOptions, device);
+impl_conversion!(DType, TensorOptions, dtype);
+impl_conversion!(Layout, TensorOptions, layout);
 
 /// Native functions that produce owned tensors.
 ///

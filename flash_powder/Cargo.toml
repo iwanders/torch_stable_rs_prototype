@@ -19,8 +19,6 @@ torch_stable = {workspace=true, features=[ ]}
 
 
 [features]
-# Set this flag if the venv we're targetting is from a pytorch local build, its directory layout is different.
-devel_build = ["torch_stable/devel_build"]
 
 # Version that is being targetted.
 v2_13 = ["torch_stable/v2_13"]

@@ -44,7 +44,8 @@ fn main() {
     // shared library.
     // println!("cargo:rustc-link-lib=torch");
     //
-    if std::env::var("CARGO_FEATURE_CUDA").is_ok() {
+    let feature_cuda = std::env::var("CARGO_FEATURE_CUDA").is_ok();
+    if feature_cuda {
         println!("cargo:rustc-link-arg=-Wl,--no-as-needed");
         println!("cargo:rustc-link-lib=torch_cuda");
     }
@@ -63,9 +64,8 @@ fn main() {
 
     let out_dir = env::var_os("OUT_DIR").unwrap();
     let dest_path = std::path::Path::new(&out_dir).join("generated_consts.rs");
-    std::fs::write(
-        &dest_path,
-        format!("pub const LIB_PATH: &str = \"{lib_path}\";\n"),
-    )
-    .unwrap();
+    let mut lines = String::new();
+    lines += &format!("pub const LIB_PATH: &str = \"{lib_path}\";\n");
+    lines += &format!("pub const FEATURE_CUDA: bool = {feature_cuda};\n");
+    std::fs::write(&dest_path, lines).unwrap();
 }

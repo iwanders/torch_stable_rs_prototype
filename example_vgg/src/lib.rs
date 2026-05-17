@@ -137,12 +137,7 @@ impl VGG {
 
 fn optional_cuda_to(v: Tensor, use_cuda: bool) -> Result<Tensor, anyhow::Error> {
     if use_cuda {
-        let device = Device::from_str("cuda")?;
-        v.to(&flash_powder::factory::ToOptions {
-            device: Some(device),
-            copy: true,
-            ..Default::default()
-        })
+        v.to(&Device::CUDA.into())
     } else {
         Ok(v)
     }
@@ -298,7 +293,8 @@ pub fn main() -> Result<(), anyhow::Error> {
 
     let tensors = SafeTensors::deserialize(&data)?;
 
-    let use_cuda = true;
+    let use_cuda = fp::torch::cuda::is_available();
+    println!("cuda available? {use_cuda:?}");
 
     let vgg = VGG::new(&CFG_A, &tensors, use_cuda)?;
 
