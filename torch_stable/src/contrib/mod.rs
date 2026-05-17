@@ -1,3 +1,5 @@
+//! Deprecated contrib, predates `flash_powder`, use that instead.
+//!
 // This holds things that aren't actually part of the upstream stable API, but make sense.
 // They're implemented as a trait, to make it clear it is opt in.
 
@@ -16,7 +18,6 @@
 // unsafe_call_dispatch_bail!("aten::add", "Tensor", stack.as_mut_slice()); // does something, mostly complain about scalars
 // stack[0].try_into()
 //
-
 use anyhow::bail;
 
 use crate::aoti_torch::AtenTensorHandle;

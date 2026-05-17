@@ -53,6 +53,8 @@ pub use torch_stable::StableTorchResult;
 pub use torch_stable::headeronly::core::{Layout, MemoryFormat};
 pub use torch_stable::stable::device::Device;
 
+pub use torch_stable;
+
 /// The prelude that contains all the necessary traits.
 pub mod prelude {
     use super::*;

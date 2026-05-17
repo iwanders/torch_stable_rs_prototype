@@ -38,50 +38,15 @@ where
                 // Allocate a new u64, convert value into that.
                 let converted: StableIValue = (*val).into();
                 let value_u64: u64 = converted.0;
-                // println!("vvalue_u64 : {value_u64:x?}");
-                // if true
-                // #[cfg(not(feature = "use_torch_devel"))]
                 {
+                    // TODO: Clean up when https://github.com/pytorch/pytorch/pull/179421
+                    // goes in.
                     let raw_malloc_ptr_u64 =
                         unsafe { crate::support::iw_stable_torch_alloc_stableivalue() };
                     unsafe { *raw_malloc_ptr_u64 = value_u64 };
                     let ptr_as_u64: u64 = raw_malloc_ptr_u64 as u64;
                     StableIValue(ptr_as_u64)
                 }
-                //
-                // #[cfg(feature = "use_torch_devel")]
-                // {
-                //     let mut handle_res: *mut StableIValue = std::ptr::null_mut();
-                //     unsafe { aoti_torch_new_stable_ivalue(&mut handle_res) };
-                //     unsafe { *handle_res = converted };
-                //     let ptr_as_u64: u64 = handle_res as u64;
-                //     StableIValue(ptr_as_u64)
-                // }
-
-                /* else if false {
-                let boxed_stable_value: Box<u64> = Box::new(value_u64);
-                let stable_value = Box::into_raw(boxed_stable_value);
-                let ptr_as_u64: u64 = stable_value as u64;
-                StableIValue(ptr_as_u64)
-                } else if false {
-                use std::alloc::{Layout, System};
-                let z = System;
-                use std::alloc::GlobalAlloc;
-                let u64_layout = Layout::new::<u64>();
-                let raw_malloc_ptr = unsafe { z.alloc(u64_layout) };
-                let raw_malloc_ptr_u64 = raw_malloc_ptr.cast::<u64>();
-                unsafe { *raw_malloc_ptr_u64 = value_u64 };
-                let ptr_as_u64: u64 = raw_malloc_ptr_u64 as u64;
-                StableIValue(ptr_as_u64)
-                } else {
-                let raw_malloc_ptr =
-                unsafe { libc::malloc(std::mem::size_of::<u64>() as libc::size_t) }
-                as *mut u64;
-                let raw_malloc_ptr_u64 = raw_malloc_ptr.cast::<u64>();
-                unsafe { *raw_malloc_ptr_u64 = value_u64 };
-                let ptr_as_u64: u64 = raw_malloc_ptr_u64 as u64;
-                StableIValue(ptr_as_u64)
-                }*/
             }
             None => StableIValue(0), // nullptr
         }
@@ -259,13 +224,6 @@ impl TryFrom<StableIValue> for Tensor {
         if value.0 == 0 {
             bail!("failed to convert StableIValue to Tensor; nullptr");
         }
-        /*
-        let handle: *mut AtenTensorHandle = value.0 as *mut AtenTensorHandle;
-        if handle.is_null() {
-            bail!("failed to convert StableIValue nullptr to Tensor");
-        }
-        Ok(Tensor::from_handle(unsafe { *handle }))
-        */
         let handle: AtenTensorHandle = value.0 as AtenTensorHandle;
         if handle.is_null() {
             bail!("failed to convert StableIValue nullptr to Tensor");

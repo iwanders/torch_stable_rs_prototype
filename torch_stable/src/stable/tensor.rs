@@ -14,8 +14,8 @@ use std::sync::Arc;
 use crate::{StableTorchResult, unsafe_call_bail, unsafe_call_panic};
 
 // Yes, you can look at this, yes you can do whatever you want, I don't care.
-pub struct Tensordropper(pub AtenTensorHandle);
-impl Drop for Tensordropper {
+pub struct TensorDropper(pub AtenTensorHandle);
+impl Drop for TensorDropper {
     fn drop(&mut self) {
         // println!("dropping 0x{:x?}", self.0);
         // We can't do anything with the return value here, so we quietly ignore it :/
@@ -25,7 +25,7 @@ impl Drop for Tensordropper {
 
 #[derive(Clone)]
 pub struct Tensor {
-    ath: Arc<Tensordropper>,
+    ath: Arc<TensorDropper>,
 }
 impl Tensor {
     /// Creates a new uninitialised tensor
@@ -190,11 +190,11 @@ impl Tensor {
     pub fn from_handle(handle: AtenTensorHandle) -> Self {
         // println!("Making tensor from handle: {:x?}", handle);
         Self {
-            ath: Arc::new(Tensordropper(handle)),
+            ath: Arc::new(TensorDropper(handle)),
         }
     }
 
-    pub fn get_arc(&self) -> &Arc<Tensordropper> {
+    pub fn get_arc(&self) -> &Arc<TensorDropper> {
         &self.ath
     }
 }
