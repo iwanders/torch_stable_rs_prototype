@@ -24,7 +24,7 @@ use flash_powder::functional;
 use flash_powder::prelude::*;
 use fp::{DType, Tensor};
 
-// Bit of tooling...
+// Bit of tooling for type erasure.
 trait ForwardLayer {
     fn forward(&self, tensor: &Tensor) -> Result<Tensor, anyhow::Error>;
 }
@@ -61,9 +61,9 @@ pub struct VGG {
 impl VGG {
     /// Create a new vgg config as per the layer specification and the provided weights.
     pub fn new(cfg: &[u32], tensors: &SafeTensors) -> Result<Self, anyhow::Error> {
-        const PRINT: bool = false;
+        const PRINT_TENSOR_SHAPES: bool = false;
 
-        if PRINT {
+        if PRINT_TENSOR_SHAPES {
             let mut sorted = tensors.names().clone();
             sorted.sort();
 
@@ -131,6 +131,7 @@ impl VGG {
     }
 }
 
+/// Helper to read a linear layer from the safetensors.
 fn create_linear(
     tensors: &SafeTensors,
     layer_name: &str,
@@ -150,6 +151,7 @@ fn create_linear(
     })))
 }
 
+/// Helper to read a conv2d layer from the safetensors.
 fn create_conv2d(
     tensors: &SafeTensors,
     layer_name: &str,
@@ -177,17 +179,20 @@ fn create_conv2d(
     })))
 }
 
+/// Helper to create a maxpool layer
 fn create_maxpool(kernel_size: i64) -> Box<dyn ForwardLayer> {
     Box::new(LambdaForward::new(move |input: &Tensor| {
         fp::functional::max_pool2d(input, (kernel_size, kernel_size), &Default::default())
     }))
 }
+/// Helper to create a relu layer
 fn create_relu() -> Box<dyn ForwardLayer> {
     Box::new(LambdaForward::new(move |input: &Tensor| {
         fp::functional::relu(input)
     }))
 }
 
+/// Converter to go from safetnsors DType to flash_powder DType
 fn safetensor_dtype_to_scalar_type(v: safetensors::Dtype) -> DType {
     match v {
         safetensors::Dtype::F32 => DType::F32,
@@ -196,6 +201,7 @@ fn safetensor_dtype_to_scalar_type(v: safetensors::Dtype) -> DType {
     }
 }
 
+/// Convert a tensor by `name` from `tensors` into a flash powder Tensor.
 fn safetensor_to_tensor(tensors: &SafeTensors, name: &str) -> Result<Tensor, anyhow::Error> {
     if let Ok(tensor_view) = tensors.tensor(name) {
         // Create a tensor of the correct shape and type
@@ -215,6 +221,37 @@ fn safetensor_to_tensor(tensors: &SafeTensors, name: &str) -> Result<Tensor, any
     }
 }
 
+/// Convert dynamic image into [1, 3, h, w] Tensor as floats.
+fn image_to_float_tensor(image: &image::DynamicImage) -> Result<Tensor, anyhow::Error> {
+    let img = image.to_rgb8();
+
+    // Lets first just tensorify the image, first create an empty tensor.
+    let mut t = Tensor::zeros(
+        &[img.height() as usize, img.width() as usize, 3],
+        &flash_powder::factory::TensorOptions {
+            dtype: Some(DType::U8),
+            ..Default::default()
+        },
+    )?;
+    // Copy in the data.
+    t.data_mut()?.copy_from_slice(img.as_raw().as_slice());
+
+    // Convert that into a float tensor and multiply it by 255.0
+    let img_float = t.to(&flash_powder::factory::ToOptions {
+        dtype: Some(DType::F32),
+        ..Default::default()
+    })?;
+    let divisor: Tensor = (255.0,).try_into()?;
+    let img_tensor_ready = img_float.div(&divisor)?;
+
+    let w = img_tensor_ready.shape()[1];
+    let h = img_tensor_ready.shape()[0];
+
+    let channels_stacked = img_tensor_ready.permute(&[2, 0, 1])?;
+    let with_batch = channels_stacked.view(&[1, 3, h, w])?.to_owned()?;
+    Ok(with_batch)
+}
+
 pub fn main() -> Result<(), anyhow::Error> {
     use std::path::PathBuf;
     let weights = PathBuf::from("data/vgg11-8a719046.safetensors");
@@ -225,7 +262,6 @@ pub fn main() -> Result<(), anyhow::Error> {
             convert it to safetensors with ./convert_pth.py",
             weights.display()
         );
-        //
         bail!("missing necessary file, bailing out")
     }
 
@@ -241,38 +277,8 @@ pub fn main() -> Result<(), anyhow::Error> {
     );
 
     for argument in std::env::args().skip(1) {
-        let img = image::ImageReader::open(&argument)?.decode()?.to_rgb8();
-
-        // Lets first just tensorify the image.
-        let mut t = Tensor::zeros(
-            &[img.height() as usize, img.width() as usize, 3],
-            &flash_powder::factory::TensorOptions {
-                dtype: Some(DType::U8),
-                ..Default::default()
-            },
-        )?;
-        t.data_mut()?.copy_from_slice(img.as_raw().as_slice());
-
-        // Convert that into a float tensor and fix the whole 255 situation.
-        let img_float = t.to(&flash_powder::factory::ToOptions {
-            dtype: Some(DType::F32),
-            ..Default::default()
-        })?;
-        let divisor: Tensor = (255.0,).try_into()?;
-        let img_tensor_ready = img_float.div(&divisor)?;
-
-        // println!("img_tensor_ready.shape: {:?}", img_tensor_ready.shape());
-
-        // Swap [h, w, 3] into [3, h, w]
-
-        // I don't have dimension permutate yet... so this uglyness works.
-        let w = img_tensor_ready.shape()[1];
-        let h = img_tensor_ready.shape()[0];
-
-        let channels_stacked = img_tensor_ready
-            .permute(&[2, 0, 1])?
-            .view(&[1, 3, h, w])?
-            .to_owned()?;
+        let img = image::ImageReader::open(&argument)?.decode()?;
+        let channels_stacked = image_to_float_tensor(&img)?;
 
         // println!("channels_stacked: {:?}", channels_stacked.shape());
         let r = vgg.forward(&channels_stacked)?;
