@@ -6,6 +6,7 @@
 
 use torch_stable::StableTorchResult;
 
+use crate::functional;
 use crate::{Ten, Tensor, core_methods::CoreMethods};
 
 #[derive(Debug, Clone)]
@@ -25,6 +26,17 @@ pub struct StateDict {
 impl StateDict {
     pub fn add_parameter(&mut self, name: &str, value: Tensor) -> StableTorchResult<()> {
         self.add_data(name, Data::Parameter(value))
+    }
+    pub fn add_optional_parameter(
+        &mut self,
+        name: &str,
+        value: Option<Tensor>,
+    ) -> StableTorchResult<()> {
+        if let Some(value) = value {
+            self.add_data(name, Data::Parameter(value))
+        } else {
+            Ok(())
+        }
     }
     pub fn add_buffer(&mut self, name: &str, value: Tensor) -> StableTorchResult<()> {
         self.add_data(name, Data::Buffer(value))
@@ -79,7 +91,7 @@ impl StateDictAdaptor for StateDict {
 /// - Buffers; Tensor that do not record gradients, typically updated during forward step; `mean`, `variance` of BatchNorm.
 /// - Additionally state, not necessarily tensors, required for implementation or configuration of a Module.
 pub trait Module: std::fmt::Debug + dyn_clone::DynClone {
-    fn forward(&self, v: &Ten<'_>) -> Result<Tensor, anyhow::Error>;
+    fn forward(&self, input: &Ten<'_>) -> Result<Tensor, anyhow::Error>;
     // These look relevant;
     // register_buffer
     // register_parameter
@@ -116,11 +128,11 @@ pub struct Sequential {
     modules: Vec<Box<dyn Module>>,
 }
 impl Module for Sequential {
-    fn forward(&self, v: &Ten<'_>) -> Result<Tensor, anyhow::Error> {
+    fn forward(&self, input: &Ten<'_>) -> Result<Tensor, anyhow::Error> {
         if self.modules.is_empty() {
-            return Ok(v.to_owned()?);
+            return Ok(input.to_owned()?);
         }
-        let mut intermediate = self.modules.first().unwrap().forward(v)?;
+        let mut intermediate = self.modules.first().unwrap().forward(input)?;
         for remaining_layers in self.modules.iter().skip(1) {
             intermediate = remaining_layers.forward(&intermediate.ten()?)?;
         }
@@ -132,6 +144,76 @@ impl Module for Sequential {
             let name = format!("{i}");
             m.add_state_dict(&name, v.state_dict()?)?
         }
+        Ok(m)
+    }
+}
+
+/// Conv2d
+///
+/// - pytorch equivalent; <https://docs.pytorch.org/docs/2.12/generated/torch.nn.Conv2d.html>
+#[derive(Debug, Clone)]
+pub struct Conv2d {
+    pub weight: Tensor,
+    pub bias: Option<Tensor>,
+    pub options: functional::Conv2dOptions,
+}
+impl Module for Conv2d {
+    fn forward(&self, input: &Ten<'_>) -> Result<Tensor, anyhow::Error> {
+        let bias = self.bias.as_ref().map(|z| z.ten().unwrap());
+        functional::conv2d(input, &self.weight.ten()?, bias.as_ref(), &self.options)
+    }
+    fn state_dict(&self) -> StableTorchResult<StateDict> {
+        let mut m: StateDict = Default::default();
+        m.add_parameter("weight", self.weight.clone())?;
+        m.add_optional_parameter("bias", self.bias.clone())?;
+        Ok(m)
+    }
+}
+
+/// Relu
+///
+/// - pytorch equivalent; <https://docs.pytorch.org/docs/2.12/generated/torch.nn.ReLU.html>
+#[derive(Debug, Clone)]
+pub struct ReLU;
+impl Module for ReLU {
+    fn forward(&self, input: &Ten<'_>) -> Result<Tensor, anyhow::Error> {
+        functional::relu(input)
+    }
+}
+
+/// Maxpool2D
+///
+/// - pytorch equivalent; <https://docs.pytorch.org/docs/2.12/generated/torch.nn.ReLU.html>
+#[derive(Debug, Clone)]
+pub struct MaxPool2d {
+    pub kernel_size: (i64, i64),
+    pub options: functional::MaxPool2dDOptions,
+}
+impl Module for MaxPool2d {
+    fn forward(&self, input: &Ten<'_>) -> Result<Tensor, anyhow::Error> {
+        functional::max_pool2d(input, self.kernel_size, &self.options)
+    }
+}
+
+/// Linear
+///
+/// - pytorch equivalent; <https://docs.pytorch.org/docs/2.12/generated/torch.nn.Linear.html>
+
+/// Helper to read a linear layer from the safetensors.
+#[derive(Debug, Clone)]
+pub struct Linear {
+    pub weight: Tensor,
+    pub bias: Option<Tensor>,
+}
+impl Module for Linear {
+    fn forward(&self, input: &Ten<'_>) -> Result<Tensor, anyhow::Error> {
+        let bias = self.bias.as_ref().map(|z| z.ten().unwrap());
+        functional::linear(input, &self.weight.ten()?, bias.as_ref())
+    }
+    fn state_dict(&self) -> StableTorchResult<StateDict> {
+        let mut m: StateDict = Default::default();
+        m.add_parameter("weight", self.weight.clone())?;
+        m.add_optional_parameter("bias", self.bias.clone())?;
         Ok(m)
     }
 }
