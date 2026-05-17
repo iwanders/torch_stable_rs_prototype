@@ -5,7 +5,6 @@ edition = "2024"
 license = "BSD-3-Clause"
 
 [lib]
-#crate-type=["cdylib", "rlib"]
 
 [dependencies]
 libc = {workspace=true}
@@ -18,5 +17,11 @@ cc={workspace=true}
 
 
 [features]
-use_torch_devel = []
-use_cuda = []
+# Set this flag if the venv we're targetting is from a pytorch local build, its directory layout is different.
+devel_build = []
+
+# Version that is being targetted.
+v2_13 = []
+
+# Whether to link against torch_cuda.
+cuda = []

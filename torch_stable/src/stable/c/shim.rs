@@ -79,7 +79,7 @@ unsafe extern "C" {
 }
 
 // From https://github.com/pytorch/pytorch/pull/180135/
-#[cfg(feature = "use_torch_devel")]
+#[cfg(feature = "v2_13")]
 unsafe extern "C" {
 
     pub unsafe fn torch_exception_get_what() -> *const c_char;

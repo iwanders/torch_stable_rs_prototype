@@ -8,7 +8,7 @@
 /// And that requires a branch atm; <https://github.com/pytorch/pytorch/pull/180135>
 pub type StableTorchResult<T> = anyhow::Result<T>;
 
-#[cfg(feature = "use_torch_devel")]
+#[cfg(feature = "v2_13")]
 pub fn get_exception_what() -> String {
     let error_msg_ptr = unsafe { crate::stable::c::torch_exception_get_what_without_backtrace() };
 
@@ -18,7 +18,7 @@ pub fn get_exception_what() -> String {
         .into_string()
         .unwrap_or("failed to convert error message".to_owned())
 }
-#[cfg(not(feature = "use_torch_devel"))]
+#[cfg(not(feature = "v2_13"))]
 pub fn get_exception_what() -> String {
     "".to_owned()
 }

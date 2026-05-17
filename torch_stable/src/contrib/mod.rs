@@ -78,7 +78,7 @@ impl Math for Tensor {
                 &mut handle_res
             ));
         } else if self.is_cuda() && other.is_cuda() {
-            #[cfg(feature = "use_cuda")]
+            #[cfg(feature = "cuda")]
             unsafe_call_bail!(aoti_torch_cuda_add_Tensor(
                 self.get(),
                 other.get(),
@@ -268,10 +268,10 @@ mod test {
         Ok(())
     }
 
-    #[cfg(feature = "use_cuda")]
+    #[cfg(feature = "cuda")]
     #[test]
     fn test_tensor_contrib_data() -> StableTorchResult<()> {
-        let a = Tensor::from_f32(5.0)?.unsqueeze(0)?;
+        let mut a = Tensor::from_f32(5.0)?.unsqueeze(0)?;
         println!("a.element_size(): {:?}", a.element_size());
         println!("a.scalar_type(): {:?}", a.scalar_type());
         println!("a.data_ptr: {:?}", a.data_ptr());
@@ -282,7 +282,7 @@ mod test {
         println!("a.data_ref(): {:?}", a.data_ref()?);
         assert_eq!(a.data_ref()?, &[3, 0, 160, 64]);
 
-        #[cfg(not(feature = "use_torch_devel"))]
+        #[cfg(not(feature = "v2_13"))]
         {
             let b = a.to(&ToOptions {
                 // device: Some(Device::from_str("cpu")?),

@@ -8,30 +8,28 @@ fn main() {
         .compile("iw_torch_stable");
     println!("cargo::rerun-if-changed=support/alloc_stableivalue.cpp");
 
-    let lib_path = if std::env::var("CARGO_FEATURE_USE_TORCH_DEVEL").is_ok() {
-        PathBuf::from("/workspace/pytorch/build/lib")
-    } else {
-        if std::env::var("VIRTUAL_ENV").is_err() {
-            eprintln!("Source a virtualenv!");
-            std::process::exit(1);
-        }
+    if std::env::var("VIRTUAL_ENV").is_err() {
+        eprintln!("Source a virtualenv!");
+        std::process::exit(1);
+    }
 
-        let normal_venv = PathBuf::from(&format!(
-            "{}/lib/python3.13/site-packages/torch/lib",
-            std::env::var("VIRTUAL_ENV").unwrap_or("".to_owned())
-        ));
-        let dev_venv = PathBuf::from(&format!(
-            "{}/../build/lib/",
-            std::env::var("VIRTUAL_ENV").unwrap_or("".to_owned())
-        ));
-        if normal_venv.is_dir() {
-            normal_venv
-        } else if dev_venv.is_dir() {
-            dev_venv
-        } else {
-            eprintln!("This really doesn't look like a venv I can use.");
-            std::process::exit(1);
-        }
+    let normal_venv = PathBuf::from(&format!(
+        "{}/lib/python3.13/site-packages/torch/lib",
+        std::env::var("VIRTUAL_ENV").unwrap_or("".to_owned())
+    ));
+    let dev_venv = PathBuf::from(&format!(
+        "{}/../build/lib/",
+        std::env::var("VIRTUAL_ENV").unwrap_or("".to_owned())
+    ));
+    let lib_path = if normal_venv.is_dir() {
+        normal_venv
+    } else if dev_venv.is_dir() {
+        dev_venv
+    } else {
+        eprintln!(
+            "This really doesn't look like a venv I can use, or paths just dont work out, fixed on python3.13 atm."
+        );
+        std::process::exit(1);
     };
     //println!("cargo::rerun-if-changed=build.rs");
     // let lib_path = ;
@@ -46,7 +44,7 @@ fn main() {
     // shared library.
     // println!("cargo:rustc-link-lib=torch");
     //
-    if std::env::var("CARGO_FEATURE_USE_CUDA").is_ok() {
+    if std::env::var("CARGO_FEATURE_CUDA").is_ok() {
         println!("cargo:rustc-link-lib=torch_cuda");
     }
     println!("cargo:rustc-link-lib=torch_cpu");
