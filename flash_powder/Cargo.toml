@@ -15,7 +15,7 @@ torch_stable = {workspace=true, features=[ ]}
 tinyvec = {workspace=true, features=["alloc"]}
 
 [build-dependencies]
-torch_stable = {workspace=true, features=[  ]}
+torch_stable = {workspace=true, features=[ ]}
 
 
 [features]

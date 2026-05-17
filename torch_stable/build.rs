@@ -45,6 +45,7 @@ fn main() {
     // println!("cargo:rustc-link-lib=torch");
     //
     if std::env::var("CARGO_FEATURE_CUDA").is_ok() {
+        println!("cargo:rustc-link-arg=-Wl,--no-as-needed");
         println!("cargo:rustc-link-lib=torch_cuda");
     }
     println!("cargo:rustc-link-lib=torch_cpu");

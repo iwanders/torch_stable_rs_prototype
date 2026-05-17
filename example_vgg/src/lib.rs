@@ -138,7 +138,6 @@ impl VGG {
 fn optional_cuda_to(v: Tensor, use_cuda: bool) -> Result<Tensor, anyhow::Error> {
     if use_cuda {
         let device = Device::from_str("cuda")?;
-        println!("Device {device:?}");
         v.to(&flash_powder::factory::ToOptions {
             device: Some(device),
             copy: true,
@@ -299,7 +298,7 @@ pub fn main() -> Result<(), anyhow::Error> {
 
     let tensors = SafeTensors::deserialize(&data)?;
 
-    let use_cuda = false;
+    let use_cuda = true;
 
     let vgg = VGG::new(&CFG_A, &tensors, use_cuda)?;
 
@@ -313,7 +312,12 @@ pub fn main() -> Result<(), anyhow::Error> {
         let channels_stacked = image_to_float_tensor(&img, use_cuda)?;
 
         // println!("channels_stacked: {:?}", channels_stacked.shape());
-        let r = vgg.forward(&channels_stacked)?;
+        let r = vgg
+            .forward(&channels_stacked)?
+            .to(&flash_powder::factory::ToOptions {
+                device: Some(Device::from_str("cpu")?),
+                ..Default::default()
+            })?;
         // https://github.com/pytorch/vision/blob/499ca5103b5c6abdf1973651d6eb3db9dfecdfbd/torchvision/models/_meta.py#L7
         // Find the highest value, using some typical
 
