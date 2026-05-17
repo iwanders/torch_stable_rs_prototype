@@ -43,6 +43,7 @@ pub mod tensor;
 
 pub mod conversion;
 pub mod dtype;
+pub mod nn;
 pub mod printing;
 
 /// Shorthands to types.

@@ -8,12 +8,15 @@ license = "BSD-3-Clause"
 #crate-type=["cdylib", "rlib"]
 
 [dependencies]
-libc = {workspace=true}
 anyhow = {workspace=true}
+# For byte access into tensor
 zerocopy = {workspace=true}
 torch_stable = {workspace=true, features=[ ]}
+
+# For Shape
 tinyvec = {workspace=true, features=["alloc"]}
 
+dyn-clone = {workspace=true}
 [build-dependencies]
 torch_stable = {workspace=true, features=[ ]}
 
