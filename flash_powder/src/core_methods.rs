@@ -106,6 +106,7 @@ pub trait CoreMethods: TensorAccess + TensorProperties {
         Ok(Ten::new(self.get_tensor(), r))
     }
 
+    /// Get a non mutable view of this tensor.
     fn ten<'a>(&'a self) -> StableTorchResult<Ten<'a>> {
         self.view(self.sizes())
     }

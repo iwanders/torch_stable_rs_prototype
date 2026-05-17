@@ -22,7 +22,7 @@ use safetensors::SafeTensors;
 use flash_powder as fp;
 use flash_powder::functional;
 use flash_powder::prelude::*;
-use fp::{DType, Tensor};
+use fp::{DType, Device, Tensor};
 
 // Bit of tooling for type erasure.
 trait ForwardLayer {
@@ -60,7 +60,7 @@ pub struct VGG {
 }
 impl VGG {
     /// Create a new vgg config as per the layer specification and the provided weights.
-    pub fn new(cfg: &[u32], tensors: &SafeTensors) -> Result<Self, anyhow::Error> {
+    pub fn new(cfg: &[u32], tensors: &SafeTensors, use_cuda: bool) -> Result<Self, anyhow::Error> {
         const PRINT_TENSOR_SHAPES: bool = false;
 
         if PRINT_TENSOR_SHAPES {
@@ -88,7 +88,7 @@ impl VGG {
                 layers.push(create_maxpool(2));
                 feature_counter += 1;
             } else {
-                layers.push(create_conv2d(tensors, &layer_name)?);
+                layers.push(create_conv2d(tensors, &layer_name, use_cuda)?);
                 // + 1 for conv2d, +1 for relu.
                 feature_counter += 2;
             }
@@ -97,17 +97,17 @@ impl VGG {
         // https://github.com/pytorch/vision/blob/499ca5103b5c6abdf1973651d6eb3db9dfecdfbd/torchvision/models/vgg.py#L43
         // and then the group called classifier
         let mut classifier: Vec<Box<dyn ForwardLayer>> = vec![];
-        classifier.push(create_linear(tensors, &format!("classifier.0"))?);
+        classifier.push(create_linear(tensors, &format!("classifier.0"), use_cuda)?);
         classifier.push(create_relu());
         // dropout
 
         // next linear block
-        classifier.push(create_linear(tensors, &format!("classifier.3"))?);
+        classifier.push(create_linear(tensors, &format!("classifier.3"), use_cuda)?);
         classifier.push(create_relu());
         // dropout
 
         // last linear.
-        classifier.push(create_linear(tensors, &format!("classifier.6"))?);
+        classifier.push(create_linear(tensors, &format!("classifier.6"), use_cuda)?);
 
         Ok(VGG { layers, classifier })
     }
@@ -129,17 +129,39 @@ impl VGG {
         }
         Ok(r)
     }
+
+    pub fn to_cuda(&mut self) -> Result<(), anyhow::Error> {
+        Ok(())
+    }
+}
+
+fn optional_cuda_to(v: Tensor, use_cuda: bool) -> Result<Tensor, anyhow::Error> {
+    if use_cuda {
+        let device = Device::from_str("cuda")?;
+        println!("Device {device:?}");
+        v.to(&flash_powder::factory::ToOptions {
+            device: Some(device),
+            copy: true,
+            ..Default::default()
+        })
+    } else {
+        Ok(v)
+    }
 }
 
 /// Helper to read a linear layer from the safetensors.
 fn create_linear(
     tensors: &SafeTensors,
     layer_name: &str,
+    use_cuda: bool,
 ) -> Result<Box<dyn ForwardLayer>, anyhow::Error> {
-    let weights = { safetensor_to_tensor(tensors, &format!("{layer_name}.weight"))? };
+    let weights = optional_cuda_to(
+        safetensor_to_tensor(tensors, &format!("{layer_name}.weight"))?,
+        use_cuda,
+    )?;
     let bias = {
         if let Ok(v) = safetensor_to_tensor(tensors, &format!("{layer_name}.bias")) {
-            Some(v)
+            Some(optional_cuda_to(v, use_cuda)?)
         } else {
             None
         }
@@ -155,6 +177,7 @@ fn create_linear(
 fn create_conv2d(
     tensors: &SafeTensors,
     layer_name: &str,
+    use_cuda: bool,
 ) -> Result<Box<dyn ForwardLayer>, anyhow::Error> {
     let conv2d_options = functional::Conv2dOptions {
         stride: (1, 1),
@@ -162,10 +185,13 @@ fn create_conv2d(
         ..Default::default()
     };
     //
-    let weights = { safetensor_to_tensor(tensors, &format!("{layer_name}.weight"))? };
+    let weights = optional_cuda_to(
+        safetensor_to_tensor(tensors, &format!("{layer_name}.weight"))?,
+        use_cuda,
+    )?;
     let bias = {
         if let Ok(v) = safetensor_to_tensor(tensors, &format!("{layer_name}.bias")) {
-            Some(v)
+            Some(optional_cuda_to(v, use_cuda)?)
         } else {
             None
         }
@@ -222,7 +248,10 @@ fn safetensor_to_tensor(tensors: &SafeTensors, name: &str) -> Result<Tensor, any
 }
 
 /// Convert dynamic image into [1, 3, h, w] Tensor as floats.
-fn image_to_float_tensor(image: &image::DynamicImage) -> Result<Tensor, anyhow::Error> {
+fn image_to_float_tensor(
+    image: &image::DynamicImage,
+    use_cuda: bool,
+) -> Result<Tensor, anyhow::Error> {
     let img = image.to_rgb8();
 
     // Lets first just tensorify the image, first create an empty tensor.
@@ -249,7 +278,8 @@ fn image_to_float_tensor(image: &image::DynamicImage) -> Result<Tensor, anyhow::
 
     let channels_stacked = img_tensor_ready.permute(&[2, 0, 1])?;
     let with_batch = channels_stacked.view(&[1, 3, h, w])?.to_owned()?;
-    Ok(with_batch)
+    let on_device = optional_cuda_to(with_batch, use_cuda)?;
+    Ok(on_device)
 }
 
 pub fn main() -> Result<(), anyhow::Error> {
@@ -269,7 +299,9 @@ pub fn main() -> Result<(), anyhow::Error> {
 
     let tensors = SafeTensors::deserialize(&data)?;
 
-    let vgg = VGG::new(&CFG_A, &tensors)?;
+    let use_cuda = false;
+
+    let vgg = VGG::new(&CFG_A, &tensors, use_cuda)?;
 
     println!(
         "It's just label index output for now... use \
@@ -278,7 +310,7 @@ pub fn main() -> Result<(), anyhow::Error> {
 
     for argument in std::env::args().skip(1) {
         let img = image::ImageReader::open(&argument)?.decode()?;
-        let channels_stacked = image_to_float_tensor(&img)?;
+        let channels_stacked = image_to_float_tensor(&img, use_cuda)?;
 
         // println!("channels_stacked: {:?}", channels_stacked.shape());
         let r = vgg.forward(&channels_stacked)?;

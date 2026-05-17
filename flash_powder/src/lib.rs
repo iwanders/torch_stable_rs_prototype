@@ -45,9 +45,13 @@ pub mod conversion;
 pub mod dtype;
 pub mod printing;
 
+/// Shorthands to types.
 pub use dtype::DType;
 pub use tensor::{Ten, TenMut, Tensor, TensorAccess};
 pub use torch_stable::StableTorchResult;
+
+pub use torch_stable::headeronly::core::{Layout, MemoryFormat};
+pub use torch_stable::stable::device::Device;
 
 /// The prelude that contains all the necessary traits.
 pub mod prelude {

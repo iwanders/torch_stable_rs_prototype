@@ -11,8 +11,8 @@ license = "BSD-3-Clause"
 libc = {workspace=true}
 anyhow = {workspace=true}
 zerocopy = {workspace=true}
-torch_stable = {workspace=true, features=["use_torch_devel"]}
+torch_stable = {workspace=true, features=["use_torch_devel" ]}
 tinyvec = {workspace=true, features=["alloc"]}
 
 [build-dependencies]
-torch_stable = {workspace=true, features=["use_torch_devel"]}
+torch_stable = {workspace=true, features=["use_torch_devel" ]}
